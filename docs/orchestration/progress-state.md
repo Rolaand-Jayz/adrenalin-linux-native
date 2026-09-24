@@ -58,6 +58,11 @@ acceptance criterion remains open.
 - A follow-up harness commit adds the required confirmation capture state and a
   manifest-backed failure-only comparison test; synthetic data still cannot
   pass a parity gate.
+- `docs/reference-capture/README.md` and `worksheets.md` now provide the operator
+  workflow for collecting authentic 26.9.1 evidence, including all six contexts,
+  applicable states, observations, checksum bindings, independent review, and
+  comparison commands. The capture operator still needs access to the fixed Windows
+  reference and an independent reviewer; no evidence corpus or parity pass exists.
 - Ticket 03 has a persisted consent tracer, generated Settings1 bindings,
   recovery-gated readiness, and reconnect/reconciliation tests in the working
   tree. It is not complete: the implementation currently exposes only one of

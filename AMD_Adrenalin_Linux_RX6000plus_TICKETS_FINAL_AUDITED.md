@@ -92,6 +92,12 @@ own acceptance criteria and dependency gates pass.
 - [x] Manifest, comparison-check, mask, and runtime-geometry readers reject
   duplicate JSON keys instead of silently selecting one ambiguous evidence value;
   focused reference-tooling tests pass 43/43.
+- [x] Portable operator guide and blank worksheets document the fixed capture
+  matrix, observation fields, evidence hashing/review bindings, and validator
+  workflow in `docs/reference-capture/`. The CLI commands, flags, and manifest
+  observation keys were checked against the repository tooling. This enables
+  authentic collection but does not supply captures, reviews, attestation, or a
+  passing comparison; the acceptance gates above remain open.
 
 ### 03 — Session service and persisted preference tracer
 
