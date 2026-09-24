@@ -43,6 +43,9 @@ private:
     qulonglong revision_ = 0;
     QString status_ = QStringLiteral("CONNECTING");
     QString lastOperationCode_;
+    QString serviceInstanceUuid_;
+    qulonglong serviceGeneration_ = 0;
+    qulonglong eventSequence_ = 0;
     QString pendingOperationId_;
     bool pendingConsent_ = false;
     qulonglong pendingExpectedRevision_ = 0;

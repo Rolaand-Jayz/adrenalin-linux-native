@@ -105,6 +105,9 @@ Settings1ReadResult SessionService::getProductTelemetryConsent()
 {
     Settings1ReadResult result;
     result.resultCode = QStringLiteral("OK");
+    result.serviceInstanceUuid = serviceInstanceUuid();
+    result.serviceGeneration = serviceGeneration();
+    result.eventSequence = eventSequence_;
     const bool ok = getProductTelemetryConsent(&result.enabled, &result.revision, nullptr);
     if (!ok) {
         result.resultCode = state_ == State::Ready ? QStringLiteral("STORAGE_FAILURE")
@@ -153,8 +156,10 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
         return writeResult;
     }
     if (!operationReplayed) {
-        emit productTelemetryConsentChanged(enabled, result.revision);
-        emit ProductTelemetryConsentChanged(enabled, result.revision);
+        ++eventSequence_;
+        emit ProductTelemetryConsentChanged(serviceInstanceUuid(), serviceGeneration(),
+                                            eventSequence_, result.subjectId, enabled,
+                                            result.revision);
     }
     result.code = OperationResultCode::Ok;
     result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");

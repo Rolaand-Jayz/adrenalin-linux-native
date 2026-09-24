@@ -2,6 +2,9 @@
   <interface name="org.adrenalinlinux.Session1.Settings1">
     <method name="GetProductTelemetryConsent">
       <arg name="resultCode" type="s" direction="out"/>
+      <arg name="service_instance_uuid" type="s" direction="out"/>
+      <arg name="service_generation" type="t" direction="out"/>
+      <arg name="event_sequence" type="t" direction="out"/>
       <arg name="enabled" type="b" direction="out"/>
       <arg name="revision" type="t" direction="out"/>
     </method>
@@ -19,6 +22,10 @@
       <arg name="revision" type="t" direction="out"/>
     </method>
     <signal name="ProductTelemetryConsentChanged">
+      <arg name="service_instance_uuid" type="s"/>
+      <arg name="service_generation" type="t"/>
+      <arg name="event_sequence" type="t"/>
+      <arg name="subject_id" type="s"/>
       <arg name="enabled" type="b"/>
       <arg name="revision" type="t"/>
     </signal>

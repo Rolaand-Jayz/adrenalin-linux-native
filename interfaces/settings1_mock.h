@@ -21,6 +21,7 @@ public:
 private:
     QString instanceUuid_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
     quint64 generation_ = 1;
+    quint64 eventSequence_ = 0;
     bool enabled_ = false;
     quint64 revision_ = 0;
     struct Operation { bool enabled; quint64 expected; quint64 result; };

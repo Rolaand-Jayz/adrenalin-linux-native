@@ -23,6 +23,8 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
   criteria below are covered. The v1 interface topology/operation families and
   ID-185 recovery sequence are not complete, so this ticket is not closed.
+- ID-093 event contract: the consent tracer now uses the required event envelope;
+  applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
   D-Bus names and object paths are protocol identities, not filesystem paths.
 
@@ -66,6 +68,17 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 - [x] Canonical D-Bus bindings expose service readiness and a typed Settings operation for the tracer preference.
 - [x] The preference survives service and GUI restart and stale expected revisions fail explicitly.
 - [x] Structured logs identify the service instance/generation and recovery completes before the service reports READY.
+
+**Additional audited-spec tracking (ID-093):**
+
+- [x] Consent change events carry service-instance UUID, service generation,
+  monotonic service event sequence, and stable subject ID.
+- [x] Consent snapshots return the event cursor; the client refreshes authoritative
+  state when it observes an event-sequence or revision gap.
+- [x] The client refreshes on event UUID, generation, or subject mismatch and
+  ignores duplicate sequences without an unnecessary read.
+- [ ] Apply the same event envelope and gap-reconciliation contract to every
+  remaining cross-process event family in the v1 topology.
 
 ### 04 — Adrenalin design system, accessibility, and localization shell
 

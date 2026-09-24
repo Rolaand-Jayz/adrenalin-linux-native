@@ -51,6 +51,12 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   initialization advances readiness. The contract test observes the D-Bus signal
   and checks the published generation; the complete focused session suite passes
   12/12 QtTest totals after this correction.
+- The consent-change event now carries the service UUID, generation, monotonic
+  sequence, and stable subject. Its read snapshot includes the corresponding
+  event cursor, and the client requests an authoritative refresh after sequence
+  or revision gaps. UUID/generation/subject mismatch also forces a refresh, and
+  duplicate sequences are ignored. The updated private-bus session suite passes
+  15/15 totals. Other service event families still need this envelope.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.
@@ -66,25 +72,11 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
 - Local full CMake test configuration currently lacks Catch2 v3. CI installs
   Catch2, but the full CTest run has not been observed in this environment.
-- The private-bus tests require permissions for their temporary D-Bus socket;
-  the focused run succeeded with those permissions. The full clean-checkout
-  CMake/CTest workflow is still unverified locally because Catch2 v3 is absent.
+- The focused private-bus session suite passes 15/15 QtTest totals with socket
+  permissions. The full clean-checkout CMake/CTest workflow is still unverified
+  locally because Catch2 v3 is absent.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
-- The full project CTest configure is still unavailable locally because
-  Catch2 v3 is missing. The Qt session-contract test source was built and run
-  through a temporary out-of-tree harness on a private D-Bus session; all eight
-  then-existing test cases passed (10 QtTest totals including setup/cleanup).
-- The follow-up stale-retry-timer regression also passes in the private D-Bus
-  harness. Its reconnect read is held past the retry deadline to confirm that
-  no extra reconciliation read is queued.
-- The current mutation-result contract and terminal-error-recovery suite passes
-  12/12 QtTest totals. A full RelWithDebInfo build of shell and session service
-  also passes; full CTest remains unavailable locally because Catch2 v3 is not
-  installed.
-- The shared readiness-interface refactor builds and passes 12/12 private-bus
-  session totals. Independent review caught a missing `ServiceGeneration`
-  change notification; it is now emitted and the test verifies that event.
 
 ## Decisions and constraints
 
@@ -99,12 +91,12 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 
 ## Next actions
 
-1. Centralize the remaining ID-105/107 core interface schemas and operation
-   families around `Service1` plus the canonical mutation result model.
-2. Complete the ID-185 session recovery reconciliation sequence and test the
-   service generation/event contracts before advertising READY after restart.
-3. Re-run focused and cross-component validation, obtain adversarial review,
+1. Continue the eligible ID-105/107 topology and operation-family frontier,
+   keeping shared schema edits serialized and interfaces aligned to the audited
+   contract.
+2. Complete ID-185 recovery reconciliation and the event envelope for remaining
+   service families before advertising READY after restart.
+3. Implement Ticket 02 against authentic reference captures and a real candidate
+   screen/geometry probe; synthetic fixtures cannot satisfy the parity gate.
+4. Re-run focused and cross-component validation, obtain adversarial review,
    commit coherent slices, then recompute the dependency frontier.
-4. Ticket 02 still needs both authentic fixed-reference captures and a real
-   candidate screen/geometry probe; a generic exporter would not satisfy the
-   parity evidence contract.

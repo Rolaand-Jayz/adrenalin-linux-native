@@ -7,6 +7,12 @@
 #include <QDBusMessage>
 #include <QObject>
 
+SessionServiceRootAdaptor::SessionServiceRootAdaptor(QObject *parent)
+    : Service1Adaptor(parent)
+{
+    setAutoRelaySignals(false);
+}
+
 void installService1PropertyNotifications(SessionService *service)
 {
     if (service == nullptr) {

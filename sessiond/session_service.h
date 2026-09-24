@@ -47,8 +47,12 @@ public:
 
 signals:
     void initializationStateChanged();
-    void productTelemetryConsentChanged(bool enabled, quint64 revision);
-    void ProductTelemetryConsentChanged(bool enabled, qulonglong revision);
+    void ProductTelemetryConsentChanged(const QString &serviceInstanceUuid,
+                                        qulonglong serviceGeneration,
+                                        qulonglong eventSequence,
+                                        const QString &subjectId,
+                                        bool enabled,
+                                        qulonglong revision);
 
 private:
     void setState(State state, QString error = {});
@@ -58,5 +62,6 @@ private:
     State state_ = State::Starting;
     QString serviceInstanceUuid_;
     QString lastInitializationError_;
+    quint64 eventSequence_ = 0;
     std::unique_ptr<SessionDatabase> database_;
 };

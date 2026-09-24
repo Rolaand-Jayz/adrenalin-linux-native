@@ -6,6 +6,9 @@
 
 struct Settings1ReadResult {
     QString resultCode;
+    QString serviceInstanceUuid;
+    quint64 serviceGeneration = 0;
+    quint64 eventSequence = 0;
     bool enabled = false;
     quint64 revision = 0;
 };

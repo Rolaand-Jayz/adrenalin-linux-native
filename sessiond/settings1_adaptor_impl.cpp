@@ -11,15 +11,25 @@ Settings1Adaptor::Settings1Adaptor(QObject *parent)
 
 Settings1Adaptor::~Settings1Adaptor() = default;
 
-QString Settings1Adaptor::GetProductTelemetryConsent(bool &enabled, qulonglong &revision)
+QString Settings1Adaptor::GetProductTelemetryConsent(QString &service_instance_uuid,
+                                                     qulonglong &service_generation,
+                                                     qulonglong &event_sequence,
+                                                     bool &enabled,
+                                                     qulonglong &revision)
 {
     auto *service = qobject_cast<SessionService *>(parent());
     if (service == nullptr) {
         enabled = false;
+        service_instance_uuid.clear();
+        service_generation = 0;
+        event_sequence = 0;
         revision = 0;
         return QStringLiteral("SERVICE_UNAVAILABLE");
     }
     const Settings1ReadResult result = service->getProductTelemetryConsent();
+    service_instance_uuid = result.serviceInstanceUuid;
+    service_generation = result.serviceGeneration;
+    event_sequence = result.eventSequence;
     enabled = result.enabled;
     revision = result.revision;
     return result.resultCode;

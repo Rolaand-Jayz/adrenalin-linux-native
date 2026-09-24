@@ -30,21 +30,36 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
                     setDisconnected();
                 } else {
                     ready_ = false;
+                    serviceInstanceUuid_.clear();
+                    serviceGeneration_ = 0;
+                    eventSequence_ = 0;
                     status_ = QStringLiteral("RECONCILING");
                     emit stateChanged();
                     refresh();
                 }
             });
     connect(&proxy_, &OrgAdrenalinlinuxSession1Settings1Interface::ProductTelemetryConsentChanged,
-            this, [this](bool enabled, qulonglong revision) {
+            this, [this](const QString &serviceInstanceUuid, qulonglong serviceGeneration,
+                         qulonglong eventSequence, const QString &subjectId, bool enabled,
+                         qulonglong revision) {
                 if (!ready_ || requestInFlight_) {
                     refreshPending_ = true;
                     return;
                 }
-                if (revision <= revision_) {
+                if (serviceInstanceUuid != serviceInstanceUuid_
+                    || serviceGeneration != serviceGeneration_
+                    || subjectId != QStringLiteral("product.telemetry_consent")) {
+                    ready_ = false;
+                    status_ = QStringLiteral("RECONCILING");
+                    emit stateChanged();
+                    refresh();
                     return;
                 }
-                if (revision - revision_ != 1) {
+                if (eventSequence <= eventSequence_) {
+                    return;
+                }
+                if (eventSequence - eventSequence_ != 1 || revision <= revision_
+                    || revision - revision_ != 1) {
                     ready_ = false;
                     status_ = QStringLiteral("RECONCILING");
                     emit stateChanged();
@@ -53,6 +68,7 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
                 }
                 consent_ = enabled;
                 revision_ = revision;
+                eventSequence_ = eventSequence;
                 emit stateChanged();
             });
     refresh();
@@ -74,7 +90,7 @@ void Settings1Client::refresh()
     auto *call = new QDBusPendingCallWatcher(proxy_.GetProductTelemetryConsent(), this);
     connect(call, &QDBusPendingCallWatcher::finished, this, [this, call] {
         const bool reconcileAgain = finishRequest();
-        QDBusPendingReply<QString, bool, qulonglong> reply = *call;
+        QDBusPendingReply<QString, QString, qulonglong, qulonglong, bool, qulonglong> reply = *call;
         call->deleteLater();
         if (reconcileAgain) {
             ready_ = false;
@@ -97,8 +113,18 @@ void Settings1Client::refresh()
             }
             return;
         }
-        consent_ = reply.argumentAt<1>();
-        revision_ = reply.argumentAt<2>();
+        const QString serviceInstanceUuid = reply.argumentAt<1>();
+        const qulonglong serviceGeneration = reply.argumentAt<2>();
+        const qulonglong eventSequence = reply.argumentAt<3>();
+        if (serviceInstanceUuid.isEmpty() || serviceGeneration == 0) {
+            setDisconnected();
+            return;
+        }
+        serviceInstanceUuid_ = serviceInstanceUuid;
+        serviceGeneration_ = serviceGeneration;
+        eventSequence_ = eventSequence;
+        consent_ = reply.argumentAt<4>();
+        revision_ = reply.argumentAt<5>();
         if (pendingOperationId_.isEmpty()) {
             refreshRetryAttempt_ = 0;
         }

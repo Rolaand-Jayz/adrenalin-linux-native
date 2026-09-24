@@ -5,7 +5,7 @@ using adrenalin::contracts::OperationResultCode;
 
 Settings1ReadResult Settings1Mock::getProductTelemetryConsent()
 {
-    return {QStringLiteral("OK"), enabled_, revision_};
+    return {QStringLiteral("OK"), instanceUuid_, generation_, eventSequence_, enabled_, revision_};
 }
 
 Settings1WriteResult Settings1Mock::setProductTelemetryConsent(const QString &operationId,
@@ -46,6 +46,7 @@ Settings1WriteResult Settings1Mock::setProductTelemetryConsent(const QString &op
     }
     enabled_ = enabled;
     ++revision_;
+    ++eventSequence_;
     operations_.insert(operationId, Operation{enabled, expectedRevision, revision_});
     result.code = OperationResultCode::Ok;
     result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");
