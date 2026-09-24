@@ -16,7 +16,6 @@ int main(int argc, char *argv[])
     const bool smokeMode = app.arguments().contains(QStringLiteral("--smoke"));
 
     QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("smokeMode"), smokeMode);
     engine.rootContext()->setContextProperty(
         QStringLiteral("appDisplayName"), QString::fromUtf8(ADRENALIN_APP_NAME));
     engine.loadFromModule(QStringLiteral("Adrenalin.Shell"), QStringLiteral("Main"));

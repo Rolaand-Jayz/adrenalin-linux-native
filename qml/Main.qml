@@ -9,7 +9,7 @@ ApplicationWindow {
     height: 800
     minimumWidth: 960
     minimumHeight: 640
-    visible: !smokeMode
+    visible: true
     title: appDisplayName
     color: "#111318"
 

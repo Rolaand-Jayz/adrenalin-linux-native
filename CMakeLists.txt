@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 
+if(NOT CMAKE_GENERATOR MATCHES "^Ninja")
+    message(FATAL_ERROR "The canonical build generator is Ninja. Configure with -G Ninja.")
+endif()
+
 project(AdrenalinLinux VERSION 0.1.0 LANGUAGES CXX)
 
 option(ADRENALIN_BUILD_GUI "Build the native Qt/QML desktop application" ON)
