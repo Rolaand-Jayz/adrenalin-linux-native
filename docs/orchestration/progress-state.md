@@ -27,6 +27,12 @@ acceptance criterion remains open.
   signature and streamed field order, plus stale mock outputs and incomplete
   signal identity. The slice is not integrated and remains open; Ticket 03 is
   still blocked by Ticket 01 under the audited dependency graph.
+- A fresh read-only contract review also confirmed Hardware1 is not exported by
+  the production Session1 service, ID-107's remaining operation families are
+  absent, the event schema omits `subject_kind`, and ID-185 recovery is not part
+  of startup readiness. A bounded Hardware1 correction worker is addressing only
+  wire/mock/test defects; production topology and remaining operation families
+  still require lead-owned serialized implementation.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,
@@ -137,9 +143,9 @@ acceptance criterion remains open.
 
 ## Next actions
 
-1. Continue Ticket 02 candidate runtime capture/geometry work and Ticket 03's
-   independent Hardware1 contract review in parallel; keep authentic references
-   and hosted CI as open gates.
+1. Integrate and review Ticket 02 candidate runtime capture/geometry work and the
+   bounded Ticket 03 Hardware1 correction; keep authentic references and hosted
+   CI as open gates.
 2. Serialize any Ticket 03 contract changes through lead review, then implement
    and test the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
    and ID-185 recovery sequence.

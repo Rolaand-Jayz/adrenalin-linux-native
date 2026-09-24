@@ -122,6 +122,18 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
   - [x] An initial private-bus proxy/mock round-trip suite passes in the focused
     harness; independent review then found a reply-signature mismatch, so the
     overall contract task remains open pending correction and re-review.
+  - [ ] The generated Reply signature matches the complete serialized field
+    order, including typed subject identity; failed reads expose no stale payload.
+  - [ ] The production Session1 root exports Hardware1 through a truthful
+    provider-backed implementation; the test-only mock is never used as runtime data.
+  - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
+    notification, and Hardware1 operation families exist in the fixed v1 topology.
+
+**Additional audited-spec tracking (ID-185):**
+
+- [ ] Session readiness waits for database migration, hardware/display inventory
+  and display recovery, capability rebuild, telemetry recreation, hotkey portal
+  rebind, gamewatch/capture republish, and client snapshot reconciliation.
 
 ### 04 — Adrenalin design system, accessibility, and localization shell
 
