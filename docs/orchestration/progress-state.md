@@ -19,6 +19,11 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 - Ticket 02's deterministic visual-diff harness is committed. Its required
   authentic reference corpus, candidate render, geometry export, reviewed
   annotations, and screen-level passing comparison are still outstanding.
+- Ticket 02's manifest is now version 2. `not_applicable` rows must cite a
+  checksum-verified captured image from the same context and include reviewer
+  and review-record identities. The validator cannot prove that human review
+  occurred. The reference harness suite passes 40 tests; authentic captures are
+  still absent.
 - A follow-up harness commit adds the required confirmation capture state and a
   manifest-backed failure-only comparison test; synthetic data still cannot
   pass a parity gate.

@@ -24,7 +24,7 @@ REFERENCE = {
     "version": "26.9.1 Optional",
     "release_date": "2026-09-03",
 }
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 STATES = ("default", "hover", "focus", "open", "changed", "disabled", "confirmation", "error", "success")
 CONTEXTS = (
     {"id": "1920x1080-100", "kind": "resolution", "width": 1920, "height": 1080, "scale_percent": 100},
@@ -72,6 +72,7 @@ def initial_manifest(screen_id: str) -> dict[str, Any]:
                 "state": state,
                 "status": "pending",
                 "applicability_reason": None,
+                "applicability_evidence": None,
                 "image": None,
                 "sha256": None,
                 "physical_width": None,
@@ -341,6 +342,8 @@ def validate(manifest_path: Path) -> tuple[int, list[str]]:
 
     errors: list[str] = []
     captured_count = 0
+    captured_digests: dict[str, str] = {}
+    applicability_reviews: list[tuple[str, dict[str, Any]]] = []
     for capture_id in sorted(expected_ids):
         row = by_id[capture_id]
         context_id, state = capture_id.split(":", 1)
@@ -350,15 +353,32 @@ def validate(manifest_path: Path) -> tuple[int, list[str]]:
         if status not in PENDING_STATES:
             raise ManifestError(f"{capture_id}: status must be pending, captured, or not_applicable")
         if status == "pending":
+            if row.get("applicability_evidence") is not None:
+                raise ManifestError(f"{capture_id}: pending entries cannot contain applicability evidence")
             errors.append(f"{capture_id}: capture and reference applicability are unresolved")
             continue
         if status == "not_applicable":
             reason = row.get("applicability_reason")
             if not isinstance(reason, str) or not reason.strip():
-                raise ManifestError(f"{capture_id}: not_applicable requires an evidence-based reason")
+                raise ManifestError(f"{capture_id}: not_applicable requires a reason")
             if any(row.get(key) is not None for key in ("image", "sha256", "physical_width", "physical_height")):
                 raise ManifestError(f"{capture_id}: not_applicable rows cannot carry image metadata")
+            evidence = row.get("applicability_evidence")
+            evidence_keys = {"capture_id", "sha256", "reviewed_by", "review_record"}
+            if not isinstance(evidence, dict) or set(evidence) != evidence_keys:
+                raise ManifestError(
+                    f"{capture_id}: not_applicable requires applicability_evidence with capture_id, sha256, reviewed_by, and review_record"
+                )
+            for field in ("capture_id", "reviewed_by", "review_record"):
+                if not isinstance(evidence[field], str) or not evidence[field].strip():
+                    raise ManifestError(f"{capture_id}: applicability_evidence.{field} must be recorded")
+            if not isinstance(evidence["sha256"], str) or not SHA256_RE.fullmatch(evidence["sha256"]):
+                raise ManifestError(f"{capture_id}: applicability_evidence.sha256 must be a lowercase SHA-256 digest")
+            applicability_reviews.append((capture_id, evidence))
             continue
+
+        if row.get("applicability_evidence") is not None:
+            raise ManifestError(f"{capture_id}: captured entries cannot contain applicability evidence")
 
         observations = row.get("observations")
         if not isinstance(observations, dict):
@@ -374,6 +394,7 @@ def validate(manifest_path: Path) -> tuple[int, list[str]]:
         actual_digest = _sha256_file(image)
         if actual_digest != digest:
             raise ManifestError(f"{capture_id}: image checksum mismatch")
+        captured_digests[capture_id] = actual_digest
         width, height = _png_dimensions(image)
         declared_width, declared_height = row.get("physical_width"), row.get("physical_height")
         if (
@@ -393,6 +414,21 @@ def validate(manifest_path: Path) -> tuple[int, list[str]]:
         if context["kind"] == "resolution" and (width != context["width"] or height != context["height"]):
             raise ManifestError(f"{capture_id}: screenshot dimensions must equal physical reference resolution")
         captured_count += 1
+
+    for capture_id, evidence in applicability_reviews:
+        evidence_capture_id = evidence["capture_id"]
+        if evidence_capture_id not in by_id or by_id[evidence_capture_id].get("status") != "captured":
+            raise ManifestError(
+                f"{capture_id}: applicability evidence must reference a captured image in this manifest"
+            )
+        if by_id[evidence_capture_id].get("context_id") != by_id[capture_id].get("context_id"):
+            raise ManifestError(
+                f"{capture_id}: applicability evidence must reference a captured image from the same context"
+            )
+        if captured_digests.get(evidence_capture_id) != evidence["sha256"]:
+            raise ManifestError(
+                f"{capture_id}: applicability evidence SHA-256 does not match the referenced captured image"
+            )
 
     if not errors:
         for context in contexts:

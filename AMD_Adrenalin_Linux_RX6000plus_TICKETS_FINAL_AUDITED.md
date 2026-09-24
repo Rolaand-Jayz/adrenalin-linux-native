@@ -56,6 +56,13 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 - [x] The visual-diff harness uses checked-in deterministic fixtures and masks only approved dynamic regions.
 - [ ] At least one shell screen passes the configured geometry/SSIM/color parity gate and emits a diff artifact on failure.
 
+**Additional audited-spec tracking (ID-138):**
+
+- [x] `not_applicable` capture rows bind a reviewer record to a checksum-verified
+  captured image from the same display/window context.
+- [ ] Authentic capture metadata records the fixed reference environment and
+  observed behavior for every applicable context/state.
+
 ### 03 — Session service and persisted preference tracer
 
 **Blocked by:** 01

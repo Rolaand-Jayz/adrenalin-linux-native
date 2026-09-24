@@ -65,6 +65,7 @@ def captured_manifest(directory, image_bytes, context_id="1920x1080-100", physic
 class ManifestTests(unittest.TestCase):
     def test_initial_plan_has_fixed_reference_and_full_pending_matrix(self):
         data = manifest.initial_manifest("home")
+        self.assertEqual(data["manifest_version"], 2)
         self.assertEqual(data["reference"], manifest.REFERENCE)
         self.assertEqual(len(data["contexts"]), 6)
         self.assertEqual(len(data["captures"]), 6 * len(manifest.STATES))
@@ -84,6 +85,82 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(len(pending), 6 * len(manifest.STATES))
 
+    def test_not_applicable_requires_a_captured_image_review_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, data, captured = captured_manifest(directory, make_png(1920, 1080))
+            not_applicable = next(row for row in data["captures"] if row["id"] == "1920x1080-100:hover")
+            not_applicable.update(
+                status="not_applicable",
+                applicability_reason="The captured surface has no hoverable primary control.",
+                applicability_evidence=None,
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(manifest.ManifestError, "requires applicability_evidence"):
+                manifest.validate(path)
+
+            not_applicable["applicability_evidence"] = {
+                "capture_id": captured["id"],
+                "sha256": captured["sha256"],
+                "reviewed_by": "reviewer identity",
+                "review_record": "review decision reference",
+            }
+            path.write_text(json.dumps(data), encoding="utf-8")
+            count, pending = manifest.validate(path)
+            self.assertEqual(count, 1)
+            self.assertGreater(len(pending), 0)
+
+            not_applicable["applicability_evidence"]["sha256"] = "0" * 64
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(manifest.ManifestError, "does not match.*captured image"):
+                manifest.validate(path)
+
+    def test_not_applicable_free_text_without_any_captured_image_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture-manifest.json"
+            data = manifest.initial_manifest("home")
+            for row in data["captures"]:
+                row["status"] = "not_applicable"
+                row["applicability_reason"] = "not applicable"
+                row["applicability_evidence"] = {
+                    "capture_id": data["captures"][0]["id"],
+                    "sha256": "0" * 64,
+                    "reviewed_by": "reviewer identity",
+                    "review_record": "review decision reference",
+                }
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(manifest.ManifestError, "must reference a captured image"):
+                manifest.validate(path)
+
+    def test_not_applicable_evidence_rejects_captured_image_from_another_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, data, _ = captured_manifest(directory, make_png(1920, 1080))
+            other_image = Path(directory) / "other-context.png"
+            other_bytes = make_png(12, 12)
+            other_image.write_bytes(other_bytes)
+            other_capture = next(row for row in data["captures"] if row["id"] == "default-window:default")
+            other_capture.update(
+                status="captured",
+                image=other_image.name,
+                sha256=hashlib.sha256(other_bytes).hexdigest(),
+                physical_width=12,
+                physical_height=12,
+                observations={field: "synthetic test metadata" for field in manifest.OBSERVATION_FIELDS},
+            )
+            not_applicable = next(row for row in data["captures"] if row["id"] == "1920x1080-100:hover")
+            not_applicable.update(
+                status="not_applicable",
+                applicability_reason="This state does not apply to the tested control.",
+                applicability_evidence={
+                    "capture_id": other_capture["id"],
+                    "sha256": other_capture["sha256"],
+                    "reviewed_by": "reviewer identity",
+                    "review_record": "review decision reference",
+                },
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(manifest.ManifestError, "same context"):
+                manifest.validate(path)
+
     def test_reference_release_cannot_be_silently_changed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "capture-manifest.json"
@@ -91,6 +168,15 @@ class ManifestTests(unittest.TestCase):
             data["reference"]["version"] = "newer release"
             path.write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaisesRegex(manifest.ManifestError, "reference identity"):
+                manifest.validate(path)
+
+    def test_manifest_schema_version_one_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture-manifest.json"
+            data = manifest.initial_manifest("home")
+            data["manifest_version"] = 1
+            path.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(manifest.ManifestError, "manifest_version must be 2"):
                 manifest.validate(path)
 
     def test_validate_rejects_invalid_screen_id(self):
@@ -398,27 +484,53 @@ class VisualMetricUnitTests(unittest.TestCase):
             visual_diff._encode_png(candidate_path, 12, 12, candidate_pixels)
 
             data = manifest.initial_manifest("synthetic-screen")
+            default_captures = {}
             for context in data["contexts"]:
-                if context["width"] is None:
-                    context["width"] = 12
-                    context["height"] = 12
+                width = context["width"] if context["width"] is not None else 12
+                height = context["height"] if context["height"] is not None else 12
+                context["width"] = width
+                context["height"] = height
                 if context["scale_percent"] is None:
                     context["scale_percent"] = 100
+                image_path = root / f"capture-{context['id']}.png"
+                visual_diff._encode_png(image_path, width, height, bytes((0, 0, 0)) * (width * height))
+                captured_row = next(
+                    row for row in data["captures"]
+                    if row["context_id"] == context["id"] and row["state"] == "default"
+                )
+                captured_row.update({
+                    "status": "captured",
+                    "image": image_path.name,
+                    "sha256": hashlib.sha256(image_path.read_bytes()).hexdigest(),
+                    "physical_width": width,
+                    "physical_height": height,
+                    "observations": {field: "synthetic fixture only" for field in manifest.OBSERVATION_FIELDS},
+                })
+                default_captures[context["id"]] = captured_row
             data["capture_source"] = {
                 "host_id": "synthetic fixture only", "windows_version": "synthetic fixture only",
                 "gpu": "synthetic fixture only", "cpu": "synthetic fixture only",
                 "display": "synthetic fixture only",
             }
             for row in data["captures"]:
-                row["status"] = "not_applicable"
-                row["applicability_reason"] = "synthetic negative harness fixture; never golden evidence"
-            selected = next(row for row in data["captures"] if row["id"] == "default-window:default")
-            selected.update({
-                "status": "captured", "applicability_reason": None,
-                "image": golden_path.name, "sha256": hashlib.sha256(golden_path.read_bytes()).hexdigest(),
-                "physical_width": 12, "physical_height": 12,
-                "observations": {field: "synthetic fixture only" for field in manifest.OBSERVATION_FIELDS},
-            })
+                if row["state"] == "default":
+                    continue
+                if row["context_id"] in default_captures:
+                    row["status"] = "not_applicable"
+                    row["applicability_reason"] = "synthetic negative harness fixture; never golden evidence"
+                    captured_row = default_captures[row["context_id"]]
+                    row["applicability_evidence"] = {
+                        "capture_id": captured_row["id"],
+                        "sha256": captured_row["sha256"],
+                        "reviewed_by": "synthetic negative-only reviewer",
+                        "review_record": "synthetic fixture only",
+                    }
+            selected = default_captures["default-window"]
+            selected["image"] = golden_path.name
+            selected["sha256"] = hashlib.sha256(golden_path.read_bytes()).hexdigest()
+            for row in data["captures"]:
+                if row["status"] == "not_applicable" and row["context_id"] == "default-window":
+                    row["applicability_evidence"]["sha256"] = selected["sha256"]
             manifest_path.write_text(json.dumps(data), encoding="utf-8")
 
             geometry = {

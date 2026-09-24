@@ -14,8 +14,17 @@ engineering spec (ID-137 and ID-138): capture at 1920x1080/100%,
 2560x1440/100%, 3840x2160 at Windows-recommended scale, the narrowest supported
 window, the default window, and maximized state. Capture default, hover, focus,
 open, changed, disabled/unavailable, confirmation, failure, and success states
-where each state applies. A `not_applicable` decision needs an evidence-based
-reason; unknown applicability remains pending.
+where each state applies. A `not_applicable` decision requires a reason and a
+review record bound to a captured image in the same manifest. Its
+`applicability_evidence` contains the captured row's `capture_id` and exact
+lowercase SHA-256, plus nonempty `reviewed_by` and `review_record` identifiers.
+The referenced capture must use the same resolution/window context as the
+`not_applicable` row; another state in that context is allowed. The validator
+checks that the referenced row is `captured`, validates its PNG and checksum,
+and compares the evidence digest with that verified image. A
+review record is an auditable human assertion; validation cannot prove that a
+review occurred or that the reviewer is independent. Unknown applicability
+remains pending.
 
 Record the Windows build, reference-machine GPU/CPU/display, observed labels and
 control properties, enabled conditions, global/game scope, persistence,
@@ -37,13 +46,15 @@ python3 tools/reference/manifest.py validate "$REFERENCE_MANIFEST"
 PYTHONDONTWRITEBYTECODE=1 python3 tools/reference/test_manifest.py
 ```
 
-The initialized JSON is an empty capture plan. It contains all six required
+The initialized schema-version-2 JSON is an empty capture plan. It contains all six required
 contexts and the nine state slots, each marked `pending`; it contains no
 screenshots and cannot pass parity. Fill it only from actual captures. Captured
 image paths are normalized paths relative to the manifest file. Absolute
 paths, parent traversal, symlinks escaping the manifest directory, checksum
 mismatches, dimension mismatches, malformed/truncated PNG chunks or image
-streams, and unrecognized reference versions are rejected. No home directory,
+streams, and unrecognized reference versions are rejected. A matrix of
+`not_applicable` rows cannot validate without at least one real captured image
+to which each review assertion is bound. No home directory,
 mount point, or workstation-specific filesystem location is assumed.
 
 `validate` checks provenance metadata and PNG bytes only. It does **not** render
