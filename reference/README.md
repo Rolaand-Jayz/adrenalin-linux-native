@@ -13,9 +13,9 @@ For each production screen, follow the reference-capture contract in the
 engineering spec (ID-137 and ID-138): capture at 1920x1080/100%,
 2560x1440/100%, 3840x2160 at Windows-recommended scale, the narrowest supported
 window, the default window, and maximized state. Capture default, hover, focus,
-open, changed, disabled/unavailable, failure, and success states where each
-state applies. A `not_applicable` decision needs an evidence-based reason;
-unknown applicability remains pending.
+open, changed, disabled/unavailable, confirmation, failure, and success states
+where each state applies. A `not_applicable` decision needs an evidence-based
+reason; unknown applicability remains pending.
 
 Record the Windows build, reference-machine GPU/CPU/display, observed labels and
 control properties, enabled conditions, global/game scope, persistence,
@@ -38,7 +38,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/reference/test_manifest.py
 ```
 
 The initialized JSON is an empty capture plan. It contains all six required
-contexts and the eight state slots, each marked `pending`; it contains no
+contexts and the nine state slots, each marked `pending`; it contains no
 screenshots and cannot pass parity. Fill it only from actual captures. Captured
 image paths are normalized paths relative to the manifest file. Absolute
 paths, parent traversal, symlinks escaping the manifest directory, checksum
@@ -170,10 +170,11 @@ The comparator supports opaque, non-interlaced 8-bit RGB/RGBA PNGs; it rejects
 translucent pixels and PNG color profiles that conflict with its pinned sRGB
 transform. Broader image formats require a deliberate implementation revision.
 
-The deterministic synthetic unit fixtures in `tools/reference/test_manifest.py`
-test metric arithmetic, input provenance validation, and PNG handling only.
-They are not golden images, do not exercise the manifest-backed comparison
-command, and cannot produce a product parity result. No authentic Windows
+The deterministic synthetic fixtures in `tools/reference/test_manifest.py`
+test metric arithmetic, input provenance validation, PNG handling, and one
+manifest-backed **failure-only** comparison that asserts the failure report and
+diff artifact. They are not golden images, no test accepts a synthetic parity
+pass, and they cannot establish product parity. No authentic Windows
 26.9.1 capture or candidate UI screenshot/runtime geometry export is currently
 available, so this harness has not been run against product evidence and cannot
 produce a real parity pass until authentic captures, rendered-candidate

@@ -25,7 +25,7 @@ REFERENCE = {
     "release_date": "2026-09-03",
 }
 MANIFEST_VERSION = 1
-STATES = ("default", "hover", "focus", "open", "changed", "disabled", "error", "success")
+STATES = ("default", "hover", "focus", "open", "changed", "disabled", "confirmation", "error", "success")
 CONTEXTS = (
     {"id": "1920x1080-100", "kind": "resolution", "width": 1920, "height": 1080, "scale_percent": 100},
     {"id": "2560x1440-100", "kind": "resolution", "width": 2560, "height": 1440, "scale_percent": 100},

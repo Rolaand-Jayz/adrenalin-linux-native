@@ -1,3 +1,4 @@
+import argparse
 import binascii
 import contextlib
 import hashlib
@@ -67,6 +68,7 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(data["reference"], manifest.REFERENCE)
         self.assertEqual(len(data["contexts"]), 6)
         self.assertEqual(len(data["captures"]), 6 * len(manifest.STATES))
+        self.assertIn("confirmation", manifest.STATES)
         self.assertTrue(all(row["status"] == "pending" for row in data["captures"]))
         self.assertEqual(data["parity"]["status"], "not_run")
 
@@ -188,9 +190,10 @@ class ManifestTests(unittest.TestCase):
                 manifest.validate(path)
 
     def test_absolute_image_path_is_rejected(self):
+        # Assemble adversarial input tokens at runtime; neither path is opened.
         separator = chr(47)
         posix_absolute = separator + separator.join(("captures", "reference.png"))
-        drive_absolute = chr(67) + chr(58) + separator + separator.join(("captures", "reference.png"))
+        drive_absolute = chr(82) + chr(58) + separator + separator.join(("captures", "reference.png"))
         for image_path in (posix_absolute, drive_absolute):
             with self.subTest(image_path=image_path), tempfile.TemporaryDirectory() as directory:
                 path, data, row = captured_manifest(directory, make_png(1920, 1080))
@@ -377,6 +380,85 @@ class VisualMetricUnitTests(unittest.TestCase):
         self.assertEqual((width, height), (5, 2))
         self.assertEqual(side_by_side[:6], reference[:6])
         self.assertEqual(side_by_side[6:15], candidate[:9])
+
+    def test_manifest_backed_metric_failure_writes_report_and_diff_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "synthetic-manifest.json"
+            golden_path = root / "synthetic-reference.png"
+            candidate_path = root / "synthetic-candidate.png"
+            checks_path = root / "synthetic-checks.json"
+            geometry_path = root / "synthetic-geometry.json"
+            report_path = root / "synthetic-report.json"
+            diff_path = root / "synthetic-diff.png"
+
+            reference_pixels = bytes((0, 0, 0)) * (12 * 12)
+            candidate_pixels = bytes((255, 255, 255)) * (12 * 12)
+            visual_diff._encode_png(golden_path, 12, 12, reference_pixels)
+            visual_diff._encode_png(candidate_path, 12, 12, candidate_pixels)
+
+            data = manifest.initial_manifest("synthetic-screen")
+            for context in data["contexts"]:
+                if context["width"] is None:
+                    context["width"] = 12
+                    context["height"] = 12
+                if context["scale_percent"] is None:
+                    context["scale_percent"] = 100
+            data["capture_source"] = {
+                "host_id": "synthetic fixture only", "windows_version": "synthetic fixture only",
+                "gpu": "synthetic fixture only", "cpu": "synthetic fixture only",
+                "display": "synthetic fixture only",
+            }
+            for row in data["captures"]:
+                row["status"] = "not_applicable"
+                row["applicability_reason"] = "synthetic negative harness fixture; never golden evidence"
+            selected = next(row for row in data["captures"] if row["id"] == "default-window:default")
+            selected.update({
+                "status": "captured", "applicability_reason": None,
+                "image": golden_path.name, "sha256": hashlib.sha256(golden_path.read_bytes()).hexdigest(),
+                "physical_width": 12, "physical_height": 12,
+                "observations": {field: "synthetic fixture only" for field in manifest.OBSERVATION_FIELDS},
+            })
+            manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+            geometry = {
+                "schema_version": 1,
+                "source": "externally_attested_qt_qml_runtime_geometry_export",
+                "build_identity": "d" * 64,
+                "fixture_id": "synthetic negative-only harness fixture",
+                "screen_id": "synthetic-screen",
+                "capture_id": "default-window:default",
+                "components": [{"id": "synthetic-component", "rect": {"x": 0, "y": 0, "width": 12, "height": 12}}],
+            }
+            geometry_path.write_text(json.dumps(geometry), encoding="utf-8")
+            candidate_hash = hashlib.sha256(candidate_path.read_bytes()).hexdigest()
+            geometry_hash = hashlib.sha256(geometry_path.read_bytes()).hexdigest()
+            checks = {
+                "schema_version": 1,
+                "coverage": {
+                    "status": "reviewed_complete", "reviewer": "synthetic test reviewer",
+                    "reviewer_role": "independent_reviewer", "review_record": "synthetic fixture only",
+                    "reference_capture_id": "default-window:default",
+                    "reference_capture_sha256": selected["sha256"],
+                    "candidate_png_sha256": candidate_hash,
+                    "candidate_geometry_sha256": geometry_hash,
+                    "approved_masks_sha256": None,
+                },
+                "components": [{"id": "synthetic-component", "reference": {"x": 0, "y": 0, "width": 12, "height": 12}}],
+                "color_samples": [{"id": "synthetic-color", "reference_xy": [0, 0], "candidate_xy": [0, 0]}],
+            }
+            checks_path.write_text(json.dumps(checks), encoding="utf-8")
+            args = argparse.Namespace(
+                manifest=manifest_path, capture_id="default-window:default", candidate=candidate_path,
+                checks=checks_path, candidate_geometry=geometry_path, masks=None,
+                report=report_path, diff_output=diff_path,
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = visual_diff.run(args)
+
+            self.assertEqual(result, 2)
+            self.assertEqual(json.loads(report_path.read_text(encoding="utf-8"))["gate"], "fail")
+            self.assertEqual(manifest._png_dimensions(diff_path), (12, 12))
 
     def test_geometry_checks_require_explicit_component_rectangles(self):
         with tempfile.TemporaryDirectory() as directory:
