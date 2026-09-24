@@ -1,5 +1,7 @@
 #pragma once
 
+#include "operation_result.h"
+
 #include <QString>
 
 struct Settings1ReadResult {
@@ -9,8 +11,7 @@ struct Settings1ReadResult {
 };
 
 struct Settings1WriteResult {
-    QString resultCode;
-    quint64 revision = 0;
+    adrenalin::contracts::MutationResult result;
 };
 
 class Settings1Contract

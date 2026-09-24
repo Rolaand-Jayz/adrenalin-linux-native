@@ -10,6 +10,7 @@
 #include <QDBusVariant>
 #include <QDBusVirtualObject>
 #include <QHash>
+#include <QSet>
 #include <QStringList>
 #include <QDir>
 #include <QQmlApplicationEngine>
@@ -27,6 +28,8 @@ namespace {
 constexpr auto kServiceName = adrenalin::session1::serviceName;
 constexpr auto kObjectPath = adrenalin::session1::objectPath;
 constexpr auto kSettingsInterface = adrenalin::session1::settingsInterface;
+using SettingsWriteReply = QDBusPendingReply<QString, QString, QString, QString, bool, QString,
+                                             QString, qulonglong>;
 
 class DelayedSettingsFixture final : public QDBusVirtualObject
 {
@@ -63,6 +66,9 @@ public:
             "<method name='SetProductTelemetryConsent'>"
             "<arg direction='in' type='s'/><arg direction='in' type='b'/>"
             "<arg direction='in' type='t'/><arg direction='out' type='s'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='s'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='b'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='s'/>"
             "<arg direction='out' type='t'/></method></interface></node>");
     }
 
@@ -121,7 +127,11 @@ public:
         if (message.interface() == QString::fromLatin1(kSettingsInterface)
             && message.member() == QStringLiteral("SetProductTelemetryConsent")) {
             return connection.send(message.createReply(
-                QVariantList{QStringLiteral("NOT_IMPLEMENTED"), revision_}));
+                QVariantList{QStringLiteral("UNSUPPORTED"), message.arguments().value(0),
+                             QStringLiteral("settings.operation.unsupported"),
+                             QStringLiteral("The fixture does not implement writes"), false,
+                             QStringLiteral("test-fixture"),
+                             QStringLiteral("product.telemetry_consent"), revision_}));
         }
         return false;
     }
@@ -170,9 +180,10 @@ class RetrySettingsFixture final : public QDBusVirtualObject
 {
 public:
     RetrySettingsFixture(ConsentMutationState *state, bool dropFirstWriteReply,
-                         QObject *parent = nullptr, bool emitChangeSignal = false)
+                         QObject *parent = nullptr, bool emitChangeSignal = false,
+                         bool failNextWrite = false)
         : QDBusVirtualObject(parent), state_(state), dropFirstWriteReply_(dropFirstWriteReply),
-          emitChangeSignal_(emitChangeSignal)
+          emitChangeSignal_(emitChangeSignal), failNextWrite_(failNextWrite)
     {
     }
 
@@ -184,6 +195,9 @@ public:
             "<arg direction='out' type='b'/><arg direction='out' type='t'/></method>"
             "<method name='SetProductTelemetryConsent'><arg direction='in' type='s'/>"
             "<arg direction='in' type='b'/><arg direction='in' type='t'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='s'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='s'/>"
+            "<arg direction='out' type='b'/><arg direction='out' type='s'/>"
             "<arg direction='out' type='s'/><arg direction='out' type='t'/></method>"
             "</interface></node>");
     }
@@ -213,17 +227,33 @@ public:
         const bool enabled = message.arguments().at(1).toBool();
         const qulonglong expectedRevision = message.arguments().at(2).toULongLong();
         state_->operationIds.append(operationId);
+        if (failNextWrite_) {
+            failNextWrite_ = false;
+            return connection.send(message.createReply(QVariantList{
+                QStringLiteral("IO_ERROR"), operationId,
+                QStringLiteral("settings.operation.storage_failed"),
+                QStringLiteral("Simulated storage failure"), false,
+                QStringLiteral("session-settings"),
+                QStringLiteral("product.telemetry_consent"), state_->revision}));
+        }
         QString resultCode = QStringLiteral("OK");
+        QString humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");
+        QString diagnosticMessage;
+        bool retryable = false;
         qulonglong resultRevision = state_->revision;
         const auto existing = state_->operations.constFind(operationId);
         if (existing != state_->operations.cend()) {
             if (existing->enabled != enabled || existing->expectedRevision != expectedRevision) {
-                resultCode = QStringLiteral("OPERATION_CONFLICT");
+                resultCode = QStringLiteral("CONFLICT");
+                humanMessageKey = QStringLiteral("settings.operation.conflict");
+                diagnosticMessage = QStringLiteral("Operation ID was reused with different values");
             } else {
                 resultRevision = existing->resultRevision;
             }
         } else if (expectedRevision != state_->revision) {
             resultCode = QStringLiteral("STALE_REVISION");
+            humanMessageKey = QStringLiteral("settings.operation.stale_revision");
+            diagnosticMessage = QStringLiteral("Expected revision does not match current state");
         } else {
             state_->enabled = enabled;
             ++state_->revision;
@@ -247,7 +277,10 @@ public:
                 QStringLiteral("org.freedesktop.DBus.Error.NoReply"),
                 QStringLiteral("Simulated accepted write with lost reply")));
         }
-        return connection.send(message.createReply(QVariantList{resultCode, resultRevision}));
+        return connection.send(message.createReply(QVariantList{
+            resultCode, operationId, humanMessageKey, diagnosticMessage, retryable,
+            QStringLiteral("session-settings"), QStringLiteral("product.telemetry_consent"),
+            resultRevision}));
     }
 
     int readCount() const { return readCount_; }
@@ -267,6 +300,7 @@ private:
     ConsentMutationState *state_ = nullptr;
     bool dropFirstWriteReply_ = false;
     bool emitChangeSignal_ = false;
+    bool failNextWrite_ = false;
     int readCount_ = 0;
     bool holdNextRead_ = false;
     bool hasPendingRead_ = false;
@@ -279,15 +313,60 @@ class SessionContractTest final : public QObject
     Q_OBJECT
 
 private slots:
+    void operationResultVocabularyIsStable();
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
     void clientOwnerRecoveryWhileInitialReadIsOutstanding();
     void clientRetriesUncertainMutationWithSameOperationId();
+    void clientRecoversAfterTerminalMutationFailure();
     void clientConsumesOwnWriteSignalWithoutReplaying();
     void clientRefreshesAfterRevisionGap();
     void qmlPreferenceRoundTripsAndSurvivesGuiRestart();
 };
+
+void SessionContractTest::operationResultVocabularyIsStable()
+{
+    const QStringList expected{
+        QStringLiteral("OK"),
+        QStringLiteral("INVALID_ARGUMENT"),
+        QStringLiteral("UNSUPPORTED"),
+        QStringLiteral("NOT_FOUND"),
+        QStringLiteral("PERMISSION_DENIED"),
+        QStringLiteral("AUTHORIZATION_CANCELLED"),
+        QStringLiteral("CANCELLED"),
+        QStringLiteral("INTERACTION_REQUIRED"),
+        QStringLiteral("BUSY"),
+        QStringLiteral("CONFLICT"),
+        QStringLiteral("STALE_REVISION"),
+        QStringLiteral("INCOMPATIBLE_VERSION"),
+        QStringLiteral("BACKEND_UNAVAILABLE"),
+        QStringLiteral("BACKEND_FAILURE"),
+        QStringLiteral("TIMEOUT"),
+        QStringLiteral("DEVICE_DISCONNECTED"),
+        QStringLiteral("STALE_CAPABILITY"),
+        QStringLiteral("VALIDATION_FAILED"),
+        QStringLiteral("APPLY_FAILED"),
+        QStringLiteral("VERIFY_FAILED"),
+        QStringLiteral("ROLLBACK_FAILED"),
+        QStringLiteral("IO_ERROR"),
+        QStringLiteral("ENCODER_UNAVAILABLE"),
+        QStringLiteral("PORTAL_DENIED"),
+        QStringLiteral("AUTH_REQUIRED"),
+        QStringLiteral("NETWORK_ERROR"),
+        QStringLiteral("INTERNAL_ERROR"),
+    };
+    QSet<QString> uniqueCodes;
+    for (const QString &name : expected) {
+        const auto code = adrenalin::contracts::operationResultCodeFromName(name);
+        QVERIFY(code.has_value());
+        QCOMPARE(adrenalin::contracts::operationResultCodeName(*code), name);
+        QVERIFY(!uniqueCodes.contains(name));
+        uniqueCodes.insert(name);
+    }
+    QCOMPARE(uniqueCodes.size(), expected.size());
+    QVERIFY(!adrenalin::contracts::operationResultCodeFromName(QStringLiteral("NOT_READY")));
+}
 
 void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency()
 {
@@ -300,15 +379,18 @@ void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency(
     QCOMPARE(initial.revision, quint64(0));
 
     const auto write = mock.setProductTelemetryConsent(QStringLiteral("operation-1"), true, 0);
-    QCOMPARE(write.resultCode, QStringLiteral("OK"));
-    QCOMPARE(write.revision, quint64(1));
+    QCOMPARE(write.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QCOMPARE(write.result.revision, quint64(1));
+    QCOMPARE(write.result.operationId, QStringLiteral("operation-1"));
+    QCOMPARE(write.result.provider, QStringLiteral("session-settings"));
+    QCOMPARE(write.result.subjectId, QStringLiteral("product.telemetry_consent"));
     const auto duplicate = mock.setProductTelemetryConsent(QStringLiteral("operation-1"), true, 0);
-    QCOMPARE(duplicate.resultCode, QStringLiteral("OK"));
-    QCOMPARE(duplicate.revision, quint64(1));
-    QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-1"), false, 0).resultCode,
-             QStringLiteral("OPERATION_CONFLICT"));
-    QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-2"), false, 0).resultCode,
-             QStringLiteral("STALE_REVISION"));
+    QCOMPARE(duplicate.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QCOMPARE(duplicate.result.revision, quint64(1));
+    QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-1"), false, 0).result.code,
+             adrenalin::contracts::OperationResultCode::Conflict);
+    QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-2"), false, 0).result.code,
+             adrenalin::contracts::OperationResultCode::StaleRevision);
 }
 
 void SessionContractTest::unsupportedSchemaFailsBeforeReady()
@@ -394,9 +476,11 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     auto notReadyWritePending = proxy.SetProductTelemetryConsent(
         QStringLiteral("pre-recovery-write"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(notReadyWritePending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> notReadyWrite = notReadyWritePending;
+    const SettingsWriteReply notReadyWrite = notReadyWritePending;
     QVERIFY(!notReadyWrite.isError());
-    QCOMPARE(notReadyWrite.argumentAt<0>(), QStringLiteral("NOT_READY"));
+    QCOMPARE(notReadyWrite.argumentAt<0>(), QStringLiteral("BACKEND_UNAVAILABLE"));
+    QCOMPARE(notReadyWrite.argumentAt<1>(), QStringLiteral("pre-recovery-write"));
+    QVERIFY(notReadyWrite.argumentAt<4>());
     QVERIFY(service->initialize());
 
     const QString firstUuid = service->serviceInstanceUuid();
@@ -421,44 +505,55 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
 
     auto writePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-1"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(writePending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> write = writePending;
+    const SettingsWriteReply write = writePending;
     QVERIFY(!write.isError());
     QCOMPARE(write.argumentAt<0>(), QStringLiteral("OK"));
-    QCOMPARE(write.argumentAt<1>(), qulonglong(1));
+    QCOMPARE(write.argumentAt<1>(), QStringLiteral("settings-write-1"));
+    QCOMPARE(write.argumentAt<2>(), QStringLiteral("settings.telemetry_consent.updated"));
+    QCOMPARE(write.argumentAt<3>(), QString());
+    QVERIFY(!write.argumentAt<4>());
+    QCOMPARE(write.argumentAt<5>(), QStringLiteral("session-settings"));
+    QCOMPARE(write.argumentAt<6>(), QStringLiteral("product.telemetry_consent"));
+    QCOMPARE(write.argumentAt<7>(), qulonglong(1));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 1, 2000);
 
     auto duplicatePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-1"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(duplicatePending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> duplicate = duplicatePending;
+    const SettingsWriteReply duplicate = duplicatePending;
     QCOMPARE(duplicate.argumentAt<0>(), QStringLiteral("OK"));
-    QCOMPARE(duplicate.argumentAt<1>(), qulonglong(1));
+    QCOMPARE(duplicate.argumentAt<7>(), qulonglong(1));
     QTest::qWait(50);
     QCOMPARE(changed.count(), 1);
 
     auto conflictPending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-1"), false, 0);
     QTRY_VERIFY_WITH_TIMEOUT(conflictPending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> conflict = conflictPending;
-    QCOMPARE(conflict.argumentAt<0>(), QStringLiteral("OPERATION_CONFLICT"));
+    const SettingsWriteReply conflict = conflictPending;
+    QCOMPARE(conflict.argumentAt<0>(), QStringLiteral("CONFLICT"));
+    QCOMPARE(conflict.argumentAt<1>(), QStringLiteral("settings-write-1"));
+    QCOMPARE(conflict.argumentAt<2>(), QStringLiteral("settings.operation.conflict"));
+    QVERIFY(!conflict.argumentAt<4>());
 
     auto nextWritePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-2"), false, 1);
     QTRY_VERIFY_WITH_TIMEOUT(nextWritePending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> nextWrite = nextWritePending;
+    const SettingsWriteReply nextWrite = nextWritePending;
     QCOMPARE(nextWrite.argumentAt<0>(), QStringLiteral("OK"));
-    QCOMPARE(nextWrite.argumentAt<1>(), qulonglong(2));
+    QCOMPARE(nextWrite.argumentAt<7>(), qulonglong(2));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 2, 2000);
     QCOMPARE(changed.at(1).at(0).toBool(), false);
     QCOMPARE(changed.at(1).at(1).toULongLong(), qulonglong(2));
 
     auto stalePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-3"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(stalePending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> stale = stalePending;
+    const SettingsWriteReply stale = stalePending;
     QCOMPARE(stale.argumentAt<0>(), QStringLiteral("STALE_REVISION"));
+    QCOMPARE(stale.argumentAt<1>(), QStringLiteral("settings-write-3"));
+    QCOMPARE(stale.argumentAt<2>(), QStringLiteral("settings.operation.stale_revision"));
 
     auto replayPending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-1"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(replayPending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> replay = replayPending;
+    const SettingsWriteReply replay = replayPending;
     QCOMPARE(replay.argumentAt<0>(), QStringLiteral("OK"));
-    QCOMPARE(replay.argumentAt<1>(), qulonglong(1));
+    QCOMPARE(replay.argumentAt<7>(), qulonglong(1));
     QTest::qWait(50);
     QCOMPARE(changed.count(), 2);
 
@@ -479,9 +574,9 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     auto retriedAfterRestartPending = proxy.SetProductTelemetryConsent(
         QStringLiteral("settings-write-1"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(retriedAfterRestartPending.isFinished(), 2000);
-    const QDBusPendingReply<QString, qulonglong> retriedAfterRestart = retriedAfterRestartPending;
+    const SettingsWriteReply retriedAfterRestart = retriedAfterRestartPending;
     QCOMPARE(retriedAfterRestart.argumentAt<0>(), QStringLiteral("OK"));
-    QCOMPARE(retriedAfterRestart.argumentAt<1>(), qulonglong(1));
+    QCOMPARE(retriedAfterRestart.argumentAt<7>(), qulonglong(1));
     QTest::qWait(50);
     QCOMPARE(changed.count(), 2);
 
@@ -596,6 +691,42 @@ void SessionContractTest::clientRetriesUncertainMutationWithSameOperationId()
     QCOMPARE(mutationState.operationIds.size(), 2);
     QCOMPARE(mutationState.operationIds.at(0), mutationState.operationIds.at(1));
     QCOMPARE(replacement->readCount(), 2);
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
+void SessionContractTest::clientRecoversAfterTerminalMutationFailure()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    ConsentMutationState mutationState;
+    auto service = std::make_unique<RetrySettingsFixture>(&mutationState, false, this, false, true);
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), service.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-terminal-failure-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    client->setProductTelemetryConsent(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready()
+                                 && client->lastOperationCode() == QStringLiteral("IO_ERROR"),
+                             2000);
+    QVERIFY(!client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(0));
+
+    client->setProductTelemetryConsent(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready() && client->productTelemetryConsent(), 2000);
+    QCOMPARE(client->lastOperationCode(), QString());
+    QCOMPARE(client->revision(), qulonglong(1));
+    QCOMPARE(mutationState.revision, qulonglong(1));
+    QCOMPARE(mutationState.operationIds.size(), 2);
+    QVERIFY(mutationState.operationIds.at(0) != mutationState.operationIds.at(1));
 
     client.reset();
     QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));

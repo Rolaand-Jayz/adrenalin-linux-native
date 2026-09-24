@@ -7,6 +7,8 @@
 #include <QStandardPaths>
 #include <QUuid>
 
+using adrenalin::contracts::OperationResultCode;
+
 SessionService::SessionService(QString databasePath, QObject *parent)
     : QObject(parent), serviceInstanceUuid_(QUuid::createUuid().toString(QUuid::WithoutBraces)),
       database_(std::make_unique<SessionDatabase>(std::move(databasePath)))
@@ -111,42 +113,50 @@ Settings1ReadResult SessionService::getProductTelemetryConsent()
     return result;
 }
 
-QString SessionService::setProductTelemetryConsent(const QString &operationId, bool enabled,
-                                                   quint64 expectedRevision,
-                                                   quint64 *newRevision,
-                                                   bool *replayed)
+Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &operationId,
+                                                                bool enabled,
+                                                                quint64 expectedRevision)
 {
+    Settings1WriteResult writeResult;
+    auto &result = writeResult.result;
+    result.operationId = operationId;
+    result.provider = QStringLiteral("session-settings");
+    result.subjectId = QStringLiteral("product.telemetry_consent");
     if (state_ != State::Ready) {
-        return QStringLiteral("NOT_READY");
+        result.code = OperationResultCode::BackendUnavailable;
+        result.humanMessageKey = QStringLiteral("service.recovering");
+        result.diagnosticMessage = QStringLiteral("Session service is not READY");
+        result.retryable = true;
+        return writeResult;
     }
     bool stale = false;
     bool conflict = false;
     bool operationReplayed = false;
     QString error;
     if (!database_->updateProductTelemetryConsent(operationId, enabled, expectedRevision,
-                                                   newRevision, &stale, &conflict,
+                                                   &result.revision, &stale, &conflict,
                                                    &operationReplayed, &error)) {
-        if (stale) return QStringLiteral("STALE_REVISION");
-        if (conflict) return QStringLiteral("OPERATION_CONFLICT");
-        if (error.startsWith(QStringLiteral("Operation ID"))) return QStringLiteral("INVALID_ARGUMENT");
-        return QStringLiteral("STORAGE_FAILURE");
-    }
-    if (replayed != nullptr) {
-        *replayed = operationReplayed;
+        result.diagnosticMessage = error;
+        if (stale) {
+            result.code = OperationResultCode::StaleRevision;
+            result.humanMessageKey = QStringLiteral("settings.operation.stale_revision");
+        } else if (conflict) {
+            result.code = OperationResultCode::Conflict;
+            result.humanMessageKey = QStringLiteral("settings.operation.conflict");
+        } else if (error.startsWith(QStringLiteral("Operation ID"))) {
+            result.code = OperationResultCode::InvalidArgument;
+            result.humanMessageKey = QStringLiteral("settings.operation.invalid_argument");
+        } else {
+            result.code = OperationResultCode::IoError;
+            result.humanMessageKey = QStringLiteral("settings.operation.storage_failed");
+        }
+        return writeResult;
     }
     if (!operationReplayed) {
-        emit productTelemetryConsentChanged(enabled, newRevision != nullptr ? *newRevision : expectedRevision + 1);
-        emit ProductTelemetryConsentChanged(enabled, newRevision != nullptr ? *newRevision : expectedRevision + 1);
+        emit productTelemetryConsentChanged(enabled, result.revision);
+        emit ProductTelemetryConsentChanged(enabled, result.revision);
     }
-    return QStringLiteral("OK");
-}
-
-Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &operationId,
-                                                                bool enabled,
-                                                                quint64 expectedRevision)
-{
-    Settings1WriteResult result;
-    result.resultCode = setProductTelemetryConsent(operationId, enabled, expectedRevision,
-                                                   &result.revision);
-    return result;
+    result.code = OperationResultCode::Ok;
+    result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");
+    return writeResult;
 }

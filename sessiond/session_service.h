@@ -42,9 +42,6 @@ public:
 
     bool getProductTelemetryConsent(bool *enabled, quint64 *revision, QString *error);
     Settings1ReadResult getProductTelemetryConsent() override;
-    QString setProductTelemetryConsent(const QString &operationId, bool enabled,
-                                       quint64 expectedRevision, quint64 *newRevision,
-                                       bool *replayed = nullptr);
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId, bool enabled,
                                                     quint64 expectedRevision) override;
 

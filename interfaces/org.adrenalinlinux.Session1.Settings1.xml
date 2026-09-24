@@ -15,8 +15,14 @@
       <arg name="operationId" type="s" direction="in"/>
       <arg name="enabled" type="b" direction="in"/>
       <arg name="expectedRevision" type="t" direction="in"/>
-      <arg name="resultCode" type="s" direction="out"/>
-      <arg name="newRevision" type="t" direction="out"/>
+      <arg name="code" type="s" direction="out"/>
+      <arg name="operation_id" type="s" direction="out"/>
+      <arg name="human_message_key" type="s" direction="out"/>
+      <arg name="diagnostic_message" type="s" direction="out"/>
+      <arg name="retryable" type="b" direction="out"/>
+      <arg name="provider" type="s" direction="out"/>
+      <arg name="subject_id" type="s" direction="out"/>
+      <arg name="revision" type="t" direction="out"/>
     </method>
     <signal name="ProductTelemetryConsentChanged">
       <arg name="enabled" type="b"/>

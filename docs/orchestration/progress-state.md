@@ -31,6 +31,14 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   cause a duplicate operation; revision gaps also force a snapshot refresh.
   Retry timers skip stale work after recovery and do not mark an in-flight
   request for an unnecessary extra refresh.
+- The current Ticket 03 slice now defines the audited v1 result-code vocabulary
+  and returns the consent mutation as named D-Bus result fields, including
+  operation identity, message key, retryability, provider and subject using the
+  spec's snake_case wire names. Exact code-name round trips and result fields
+  are covered by the session contract test. Terminal errors preserve the typed
+  result for the UI while refreshing authoritative state so a failed write
+  does not leave the preference disabled. This does not complete the remaining
+  interface topology or operation families.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.
@@ -54,10 +62,14 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 - The full project CTest configure is still unavailable locally because
   Catch2 v3 is missing. The Qt session-contract test source was built and run
   through a temporary out-of-tree harness on a private D-Bus session; all eight
-  test cases passed (10 QtTest totals including setup/cleanup).
+  then-existing test cases passed (10 QtTest totals including setup/cleanup).
 - The follow-up stale-retry-timer regression also passes in the private D-Bus
   harness. Its reconnect read is held past the retry deadline to confirm that
   no extra reconciliation read is queued.
+- The current mutation-result contract and terminal-error-recovery suite passes
+  12/12 QtTest totals. A full RelWithDebInfo build of shell and session service
+  also passes; full CTest remains unavailable locally because Catch2 v3 is not
+  installed.
 
 ## Decisions and constraints
 

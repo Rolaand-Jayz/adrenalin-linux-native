@@ -1,10 +1,15 @@
 #include "settings1_client.h"
+#include "operation_result.h"
 #include "session_identity.h"
 
 #include <QDBusConnection>
 #include <QDBusPendingCallWatcher>
 #include <QTimer>
 #include <QUuid>
+
+using adrenalin::contracts::OperationResultCode;
+using adrenalin::contracts::operationResultCodeFromName;
+using adrenalin::contracts::operationResultCodeName;
 
 Settings1Client::Settings1Client(QObject *parent)
     : Settings1Client(QDBusConnection::sessionBus(), parent)
@@ -57,6 +62,7 @@ bool Settings1Client::ready() const { return ready_; }
 bool Settings1Client::productTelemetryConsent() const { return consent_; }
 qulonglong Settings1Client::revision() const { return revision_; }
 QString Settings1Client::status() const { return status_; }
+QString Settings1Client::lastOperationCode() const { return lastOperationCode_; }
 
 void Settings1Client::refresh()
 {
@@ -118,6 +124,7 @@ void Settings1Client::setProductTelemetryConsent(bool enabled)
         }
         return;
     }
+    lastOperationCode_.clear();
     pendingOperationId_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
     pendingConsent_ = enabled;
     pendingExpectedRevision_ = revision_;
@@ -140,7 +147,8 @@ void Settings1Client::submitPendingConsent()
                                           pendingExpectedRevision_), this);
     connect(call, &QDBusPendingCallWatcher::finished, this, [this, call] {
         const bool reconcileAgain = finishRequest();
-        QDBusPendingReply<QString, qulonglong> reply = *call;
+        QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString,
+                          qulonglong> reply = *call;
         call->deleteLater();
         if (reply.isError()) {
             pendingOperationUncertain_ = true;
@@ -154,25 +162,27 @@ void Settings1Client::submitPendingConsent()
             }
             return;
         }
-        status_ = reply.argumentAt<0>();
-        if (status_ == QStringLiteral("OK")) {
+        const auto resultCode = operationResultCodeFromName(reply.argumentAt<0>());
+        const OperationResultCode code = resultCode.value_or(OperationResultCode::InternalError);
+        status_ = operationResultCodeName(code);
+        if (code == OperationResultCode::Ok) {
             pendingOperationId_.clear();
             pendingOperationUncertain_ = false;
+            lastOperationCode_.clear();
             refresh();
             return;
         }
-        if (status_ == QStringLiteral("NOT_READY")) {
+        if (code == OperationResultCode::BackendUnavailable && reply.argumentAt<4>()) {
             pendingOperationUncertain_ = true;
             refresh();
             return;
         }
         pendingOperationId_.clear();
         pendingOperationUncertain_ = false;
+        lastOperationCode_ = status_;
         ready_ = false;
-        if (reconcileAgain || status_ == QStringLiteral("STALE_REVISION")) {
-            refresh();
-        }
         emit stateChanged();
+        refresh();
     });
 }
 

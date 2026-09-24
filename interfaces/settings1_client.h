@@ -13,6 +13,7 @@ class Settings1Client final : public QObject
     Q_PROPERTY(bool productTelemetryConsent READ productTelemetryConsent NOTIFY stateChanged)
     Q_PROPERTY(qulonglong revision READ revision NOTIFY stateChanged)
     Q_PROPERTY(QString status READ status NOTIFY stateChanged)
+    Q_PROPERTY(QString lastOperationCode READ lastOperationCode NOTIFY stateChanged)
 
 public:
     explicit Settings1Client(QObject *parent = nullptr);
@@ -21,6 +22,7 @@ public:
     bool productTelemetryConsent() const;
     qulonglong revision() const;
     QString status() const;
+    QString lastOperationCode() const;
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void setProductTelemetryConsent(bool enabled);
@@ -40,6 +42,7 @@ private:
     bool consent_ = false;
     qulonglong revision_ = 0;
     QString status_ = QStringLiteral("CONNECTING");
+    QString lastOperationCode_;
     QString pendingOperationId_;
     bool pendingConsent_ = false;
     qulonglong pendingExpectedRevision_ = 0;

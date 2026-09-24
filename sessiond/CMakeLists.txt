@@ -10,6 +10,7 @@ endfunction()
 
 add_library(adrenalin-session-contract STATIC
     ../interfaces/settings1_client.cpp
+    ../interfaces/operation_result.cpp
 )
 set(ADRENALIN_SETTINGS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Settings1.xml")
 qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
@@ -30,6 +31,7 @@ add_library(adrenalin-session-contract-mock STATIC
 )
 target_include_directories(adrenalin-session-contract-mock PUBLIC "${ADRENALIN_SOURCE_ROOT}")
 target_link_libraries(adrenalin-session-contract-mock PUBLIC Qt6::Core)
+target_link_libraries(adrenalin-session-contract-mock PUBLIC adrenalin-session-contract)
 adrenalin_session_enable_strict_warnings(adrenalin-session-contract-mock)
 
 if(ADRENALIN_BUILD_SESSION_SERVICE)
@@ -62,7 +64,12 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         "${ADRENALIN_SOURCE_ROOT}"
         "${ADRENALIN_GENERATED_INCLUDE_DIR}"
     )
-    target_link_libraries(adrenalin-session-core PUBLIC Qt6::Core Qt6::DBus Qt6::Sql)
+    target_link_libraries(adrenalin-session-core PUBLIC
+        adrenalin-session-contract
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Sql
+    )
     adrenalin_session_enable_strict_warnings(adrenalin-session-core)
 
     qt_add_executable(adrenalin-sessiond main.cpp)

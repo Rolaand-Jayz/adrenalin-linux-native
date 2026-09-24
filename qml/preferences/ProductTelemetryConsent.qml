@@ -53,13 +53,16 @@ Item {
         Label {
             Layout.fillWidth: true
             visible: root.settingsClient !== null
-                && root.settingsClient.status !== "READY"
-                && root.settingsClient.status !== "CONNECTING"
+                && (root.settingsClient.lastOperationCode !== ""
+                    || (root.settingsClient.status !== "READY"
+                        && root.settingsClient.status !== "CONNECTING"))
             text: root.settingsClient === null
                 ? qsTr("Settings service unavailable")
-                : root.settingsClient.status === "STALE_REVISION"
+                : root.settingsClient.lastOperationCode === "STALE_REVISION"
                     ? qsTr("Preferences changed elsewhere. Reloading the current choice.")
-                    : qsTr("Settings service: %1").arg(root.settingsClient.status)
+                    : root.settingsClient.lastOperationCode !== ""
+                        ? qsTr("Settings update result: %1").arg(root.settingsClient.lastOperationCode)
+                        : qsTr("Settings service: %1").arg(root.settingsClient.status)
             wrapMode: Text.WordWrap
             color: "#f2b84b"
         }
