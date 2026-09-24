@@ -49,7 +49,8 @@ private slots:
     void onServiceOwnerChanged(const QString &service, const QString &oldOwner,
                                const QString &newOwner);
     void onEventPublished(const QString &serviceInstanceUuid, qulonglong serviceGeneration,
-                          qulonglong eventSequence, const QString &subjectId);
+                          qulonglong eventSequence, const QString &subjectKind,
+                          const QString &subjectId);
 
 private:
     void clearSnapshot(const QString &status);

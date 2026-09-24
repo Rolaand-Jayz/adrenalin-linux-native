@@ -56,7 +56,9 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
     Settings1/Service1 private-bus, and Hardware1 private-bus coverage (Qt 6.11.2,
     GCC 16.2.1, Catch2 3.4.0). Hosted CI remains a separate open requirement.
   - [x] On baseline commit `b8dc833`, all checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
-  - [ ] Hosted CI run evidence is still unverified; this workspace has no configured Git remote.
+  - [ ] Hosted CI run evidence is still unverified. The public GitHub repository
+    has been created and is empty; the first pushed commit must trigger and pass
+    the checked-in workflow before this criterion closes.
 
 ### 02 — Reference corpus and parity harness
 
@@ -86,6 +88,9 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - [x] Capture-only arguments fail closed when incomplete; `--capture-size` is
   validated even when combined with `--smoke`. Focused CLI cases cover
   incomplete, undersized, oversized, and integer-overflow requests.
+- [x] Manifest, comparison-check, mask, and runtime-geometry readers reject
+  duplicate JSON keys instead of silently selecting one ambiguous evidence value;
+  focused reference-tooling tests pass 43/43.
 
 ### 03 — Session service and persisted preference tracer
 
@@ -103,16 +108,20 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 **Additional audited-spec tracking (ID-093):**
 
 - [x] Consent change events carry service-instance UUID, service generation,
-  monotonic service event sequence, and stable subject ID.
+  monotonic service event sequence, and typed stable subject kind and ID.
 - [x] Consent snapshots return the event cursor; the client refreshes authoritative
   state when it observes an event-sequence or revision gap.
 - [x] The client refreshes on event UUID, generation, or subject mismatch and
   ignores duplicate sequences without an unnecessary read.
 - [x] Consent and Service1 readiness events share one monotonically increasing
-  per-service cursor. Versioned Service1 `EventPublished` carries the UUID,
-  generation, sequence, and stable subject envelope; the readiness client
-  ignores duplicates, advances over sequential events from other families, and
-  reconciles gaps. Standard `PropertiesChanged` includes only changed values.
+  per-service cursor. Versioned Service1 `EventPublished` carries UUID,
+  generation, sequence, typed subject kind, and stable subject ID; the readiness
+  client ignores duplicates, advances over sequential events from other families,
+  and reconciles gaps. Standard `PropertiesChanged` includes only changed values.
+- [x] Event-sequence exhaustion fails closed: the final available sequence can
+  be emitted once; later mutations are rejected before storage changes, no
+  wrapped/duplicate event is published, initialization cannot report success,
+  and the daemon exits so clients observe owner loss and reconcile.
 - [ ] Apply the same event envelope and gap-reconciliation contract to every
   remaining cross-process event family in the v1 topology.
 

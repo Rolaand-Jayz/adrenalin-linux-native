@@ -45,14 +45,15 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
             });
     connect(&proxy_, &OrgAdrenalinlinuxSession1Settings1Interface::ProductTelemetryConsentChanged,
             this, [this](const QString &serviceInstanceUuid, qulonglong serviceGeneration,
-                         qulonglong eventSequence, const QString &subjectId, bool enabled,
-                         qulonglong revision) {
+                         qulonglong eventSequence, const QString &subjectKind,
+                         const QString &subjectId, bool enabled, qulonglong revision) {
                 if (!ready_ || requestInFlight_) {
                     refreshPending_ = true;
                     return;
                 }
                 if (serviceInstanceUuid != serviceInstanceUuid_
                     || serviceGeneration != serviceGeneration_
+                    || subjectKind != QStringLiteral("PREFERENCE")
                     || subjectId != QStringLiteral("product.telemetry_consent")) {
                     ready_ = false;
                     status_ = QStringLiteral("RECONCILING");

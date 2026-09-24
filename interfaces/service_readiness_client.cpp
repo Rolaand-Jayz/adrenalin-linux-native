@@ -114,9 +114,11 @@ void ServiceReadinessClient::onServiceOwnerChanged(const QString &, const QStrin
 void ServiceReadinessClient::onEventPublished(const QString &instanceUuid,
                                                qulonglong generation,
                                                qulonglong incomingSequence,
+                                               const QString &subjectKind,
                                                const QString &subjectId)
 {
-    if (instanceUuid.isEmpty() || incomingSequence == 0 || subjectId.isEmpty()) {
+    if (instanceUuid.isEmpty() || incomingSequence == 0 || subjectKind.isEmpty()
+        || subjectId.isEmpty()) {
         clearSnapshot(QStringLiteral("INVALID_EVENT"));
         refresh();
         return;
@@ -143,9 +145,10 @@ void ServiceReadinessClient::onEventPublished(const QString &instanceUuid,
         return;
     }
     const bool snapshotSequenceGap = available_ && incomingSequence - eventSequence_ != 1;
+    const bool readinessEvent = subjectKind == QStringLiteral("SERVICE")
+        && subjectId == QStringLiteral("service.readiness");
     lastEventSequence_ = incomingSequence;
-    if (available_ && !eventSequenceGap && !snapshotSequenceGap
-        && subjectId != QStringLiteral("service.readiness")) {
+    if (available_ && !eventSequenceGap && !snapshotSequenceGap && !readinessEvent) {
         if (requestInFlight_) {
             refreshPending_ = true;
         }

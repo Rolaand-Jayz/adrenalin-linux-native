@@ -15,6 +15,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import visual_diff
+import strict_json
 
 
 MODULE_PATH = Path(__file__).with_name("manifest.py")
@@ -72,6 +73,20 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("confirmation", manifest.STATES)
         self.assertTrue(all(row["status"] == "pending" for row in data["captures"]))
         self.assertEqual(data["parity"]["status"], "not_run")
+
+    def test_json_decoder_rejects_duplicate_keys_at_every_object_depth(self):
+        with self.assertRaisesRegex(strict_json.DuplicateJSONKeyError, "duplicate JSON object key: repeated"):
+            strict_json.loads('{"outer":{"repeated":1,"repeated":2}}')
+
+    def test_manifest_rejects_duplicate_identity_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture-manifest.json"
+            path.write_text(
+                '{"manifest_version":2,"reference":{},"screen_id":"home","screen_id":"other"}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(manifest.ManifestError, "duplicate JSON object key: screen_id"):
+                manifest.validate(path)
 
     def test_screen_id_is_validated(self):
         with self.assertRaises(manifest.ManifestError):
@@ -669,6 +684,19 @@ class VisualMetricUnitTests(unittest.TestCase):
                 visual_diff._load_runtime_geometry(path, 16, 16, "synthetic-screen", "synthetic-capture")
         self.assertEqual(components["fixture-component"], (1, 2, 8, 9))
         self.assertEqual(provenance["source"], "externally_attested_qt_qml_runtime_geometry_export")
+
+    def test_runtime_geometry_rejects_duplicate_provenance_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "runtime-geometry.json"
+            path.write_text(
+                '{"schema_version":1,"source":"externally_attested_qt_qml_runtime_geometry_export",'
+                '"build_identity":"' + "d" * 64 + '","fixture_id":"fixture",'
+                '"screen_id":"synthetic-screen","screen_id":"other-screen",'
+                '"capture_id":"synthetic-capture","components":[]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(visual_diff.VisualDiffError, "duplicate JSON object key: screen_id"):
+                visual_diff._load_runtime_geometry(path, 16, 16, "synthetic-screen", "synthetic-capture")
 
     def test_runtime_geometry_build_identity_must_be_digest(self):
         with tempfile.TemporaryDirectory() as directory:

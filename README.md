@@ -1,34 +1,67 @@
-# AMD Software for Linux
+# Adrenalin Linux
 
-Native Qt 6/QML desktop application for Linux. The shipping application is a
-C++20 process and has no Python runtime dependency.
+An independent early-stage project exploring a native Qt/QML Linux desktop for workflows inspired by AMD Software: Adrenalin Edition. Radeon RX 6000 and newer GPUs are the intended scope, not certified or supported hardware. The visual and behavior target is AMD Software: Adrenalin Edition 26.9.1 Optional.
 
-## Build
+This project is not affiliated with or endorsed by AMD.
 
-Install CMake 3.24+, Ninja, a C++20 compiler, Qt 6.8+ (Core, Gui, Qml, Quick,
-Quick Controls 2 and Test), and Catch2 v3. Then run:
+AMD, Radeon, and AMD Software: Adrenalin Edition are trademarks of [Advanced Micro Devices, Inc.](https://www.amd.com/en/legal/trademarks.html).
+
+## Project status
+
+**Early development.** The repository contains a native application shell, a session service, and a persisted telemetry-consent preference. Hardware discovery and production GPU providers are not implemented, and no Adrenalin screen has passed the project’s visual-parity gate.
+
+This build is not a GPU control utility. Live hardware telemetry, tuning, display changes, recording, streaming, and other hardware-facing features are not available. It does not transmit product telemetry; the saved preference only stores the user’s consent choice. No release packages or certified GPU/distribution configurations are available.
+
+## Current implementation
+
+- C++20 application shell built with Qt 6 and QML
+- Per-user D-Bus session service with SQLite-backed telemetry-consent preference
+- Versioned Settings1, Service1, and Hardware1 contract code with test fixtures
+- Reference-capture manifest validation and visual-diff tooling
+- Candidate capture of the running QML window and its self-reported component geometry
+
+Hardware1 currently provides a contract and test mock, not live hardware data. Candidate geometry is application-reported and does not count as independent attestation. See the [audited ticket pack](AMD_Adrenalin_Linux_RX6000plus_TICKETS_FINAL_AUDITED.md) for acceptance status and remaining work.
+
+## Build and test
+
+### Requirements
+
+- CMake 3.24 or newer
+- Ninja
+- A C++20 compiler
+- Qt 6.8 or newer: Core, DBus, Gui, Qml, Quick, Quick Controls 2, and Sql
+- Catch2 v3 and Qt Test
+- pkg-config and systemd development metadata for session-service installation
+- D-Bus and `dbus-run-session` for the private-bus integration tests
+
+### Configure and build
+
+Set a final logical installation prefix supplied by your environment. The build and staging directories below are created dynamically.
 
 ```sh
-export ADRENALIN_BUILD_DIR="$(mktemp -d)"
-: "${ADRENALIN_INSTALL_PREFIX:?Set this to the final logical install prefix}"
-export ADRENALIN_STAGE_ROOT="$(mktemp -d)"
-cmake -S . -B "$ADRENALIN_BUILD_DIR" -G Ninja \
-  -DCMAKE_INSTALL_PREFIX="$ADRENALIN_INSTALL_PREFIX"
-cmake --build "$ADRENALIN_BUILD_DIR"
-ctest --test-dir "$ADRENALIN_BUILD_DIR" --output-on-failure
-DESTDIR="$ADRENALIN_STAGE_ROOT" cmake --install "$ADRENALIN_BUILD_DIR"
+: "${INSTALL_PREFIX:?Set the final logical installation prefix}"
+build_dir="$(mktemp -d)"
+stage_root="$(mktemp -d)"
+
+cmake -S . -B "$build_dir" -G Ninja \
+  -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX"
+cmake --build "$build_dir" --parallel
+ctest --test-dir "$build_dir" --output-on-failure
+QT_QPA_PLATFORM=offscreen "$build_dir/adrenalin-shell" --smoke
+DESTDIR="$stage_root" cmake --install "$build_dir"
 ```
 
-The installed desktop entry launches the native shell. For a headless startup
-check, run `QT_QPA_PLATFORM=offscreen adrenalin-shell --smoke`. CMake chooses
-platform-specific install directories beneath the caller-selected logical
-prefix. `DESTDIR` stages those files without changing the activation paths
-embedded for the final installation. For a custom prefix, make its installed
-data directory available to session D-Bus service discovery and its executable
-directory available to the desktop launcher environment. The session D-Bus
-activation executable path must not contain whitespace because the D-Bus
-service-file `Exec` value has no portable quoting rule; CMake rejects that
-configuration. Configure with the final logical prefix and use `DESTDIR` for
-staging; an install-time `cmake --install --prefix` override is unsupported
-because activation paths are generated at configure time. The application and
-build configuration do not assume a machine-specific filesystem path.
+`CMAKE_INSTALL_PREFIX` determines the final executable and activation paths. `DESTDIR` stages the installation without changing those paths. The D-Bus activation executable path must not contain whitespace. The generated desktop executable path must not contain `=` or line breaks. CMake rejects these unsupported paths during configuration. Configure with the final prefix instead of overriding it during installation.
+
+## Platform ownership
+
+Kernel, Mesa, firmware, and package changes remain under distribution ownership. The project does not replace those components or install Windows Radeon driver packages.
+
+## Project documents
+
+- [Final audited engineering spec](AMD_Adrenalin_Linux_RX6000plus_ENGINEERING_SPEC_FINAL_AUDITED%281%29.md)
+- [Final audited ticket pack](AMD_Adrenalin_Linux_RX6000plus_TICKETS_FINAL_AUDITED.md)
+- [Hardware1 contract notes](docs/architecture/hardware1-contract.md)
+- [Reference-capture tooling](reference/README.md)
+
+A license file has not yet been added.

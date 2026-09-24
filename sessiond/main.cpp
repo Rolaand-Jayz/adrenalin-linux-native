@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
     auto *settings = new Settings1Adaptor(&service);
     auto *readiness = new SessionServiceRootAdaptor(&service);
     installService1PropertyNotifications(&service);
+    QObject::connect(&service, &SessionService::eventSequenceExhausted,
+                     &app, &QCoreApplication::quit);
     Q_UNUSED(settings);
     Q_UNUSED(readiness);
 

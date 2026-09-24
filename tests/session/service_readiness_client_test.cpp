@@ -62,7 +62,7 @@ public:
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
             "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
-            "<arg type='t'/><arg type='s'/></signal>"
+            "<arg type='t'/><arg type='s'/><arg type='s'/></signal>"
             "</interface></node>");
     }
 
@@ -100,7 +100,7 @@ public:
             QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kReadinessInterface),
             QStringLiteral("EventPublished"));
         eventSignal << instanceUuid_ << generation_ << eventSequence_
-                    << QStringLiteral("service.readiness");
+                    << QStringLiteral("SERVICE") << QStringLiteral("service.readiness");
         const bool eventSent = connection.send(eventSignal);
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kPropertiesInterface),
@@ -124,8 +124,19 @@ public:
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kReadinessInterface),
             QStringLiteral("EventPublished"));
-        signal << instanceUuid_ << generation_ << eventSequence_
+        signal << instanceUuid_ << generation_ << eventSequence_ << QStringLiteral("SERVICE")
                << QStringLiteral("service.readiness");
+        return connection.send(signal);
+    }
+
+    bool publishEvent(const QDBusConnection &connection, const QString &subjectKind,
+                      const QString &subjectId)
+    {
+        ++eventSequence_;
+        QDBusMessage signal = QDBusMessage::createSignal(
+            QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kReadinessInterface),
+            QStringLiteral("EventPublished"));
+        signal << instanceUuid_ << generation_ << eventSequence_ << subjectKind << subjectId;
         return connection.send(signal);
     }
 
@@ -180,6 +191,8 @@ private slots:
     void cleanup();
     void readinessSnapshotAndChangesAreReconciled();
     void readinessEventsReconcileGapsAndIgnoreDuplicates();
+    void sequentialNonReadinessEventsAdvanceSharedCursor();
+    void emptyEventSubjectIdentityFailsClosed();
     void duplicateDuringReconciliationDoesNotQueueAnotherSnapshot();
     void pendingSnapshotCannotUndoAPropertyChange();
     void unsupportedApiMajorFailsClosed();
@@ -295,6 +308,70 @@ void ServiceReadinessClientTest::readinessEventsReconcileGapsAndIgnoreDuplicates
     QTest::qWait(50);
     QCOMPARE(fixture->getAllCount(), 2);
 
+}
+
+void ServiceReadinessClientTest::sequentialNonReadinessEventsAdvanceSharedCursor()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    PrivateClientConnection clientBus;
+    QVERIFY(clientBus.connection().isConnected());
+    auto fixture = std::make_unique<ReadinessFixture>();
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kTestObjectPath), fixture.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kTestServiceName)));
+
+    ServiceReadinessClient client(QString::fromLatin1(kTestServiceName),
+                                  QString::fromLatin1(kTestObjectPath),
+                                  clientBus.connection(), 1);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    // A SERVICE event for another subject is not a readiness transition.
+    QVERIFY(fixture->publishEvent(bus, QStringLiteral("SERVICE"),
+                                  QStringLiteral("service.other")));
+    QTRY_COMPARE_WITH_TIMEOUT(client.eventSequence(), qulonglong(1), 3000);
+    QCOMPARE(client.status(), QStringLiteral("READY"));
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    // The readiness subject under another kind is also an ordinary family event.
+    QVERIFY(fixture->publishEvent(bus, QStringLiteral("DISPLAY"),
+                                  QStringLiteral("service.readiness")));
+    QTRY_COMPARE_WITH_TIMEOUT(client.eventSequence(), qulonglong(2), 3000);
+    QCOMPARE(client.status(), QStringLiteral("READY"));
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    // Only the exact typed readiness identity triggers reconciliation.
+    QVERIFY(fixture->publish(bus, QStringLiteral("RECOVERING"), {}, false));
+    QTRY_COMPARE_WITH_TIMEOUT(client.initializationState(), QStringLiteral("RECOVERING"), 3000);
+    QCOMPARE(client.eventSequence(), qulonglong(3));
+    QTRY_COMPARE_WITH_TIMEOUT(fixture->getAllCount(), 2, 3000);
+}
+
+void ServiceReadinessClientTest::emptyEventSubjectIdentityFailsClosed()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    PrivateClientConnection clientBus;
+    QVERIFY(clientBus.connection().isConnected());
+    auto fixture = std::make_unique<ReadinessFixture>();
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kTestObjectPath), fixture.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kTestServiceName)));
+
+    ServiceReadinessClient client(QString::fromLatin1(kTestServiceName),
+                                  QString::fromLatin1(kTestObjectPath),
+                                  clientBus.connection(), 1);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    QVERIFY(fixture->publishEvent(bus, QString(), QStringLiteral("subject.one")));
+    QTRY_VERIFY_WITH_TIMEOUT(client.status() == QStringLiteral("READY")
+                                 && fixture->getAllCount() == 2,
+                             3000);
+    QVERIFY(client.available());
+
+    QVERIFY(fixture->publishEvent(bus, QStringLiteral("GPU"), QString()));
+    QTRY_VERIFY_WITH_TIMEOUT(client.status() == QStringLiteral("READY")
+                                 && fixture->getAllCount() == 3,
+                             3000);
+    QVERIFY(client.available());
 }
 
 void ServiceReadinessClientTest::duplicateDuringReconciliationDoesNotQueueAnotherSnapshot()

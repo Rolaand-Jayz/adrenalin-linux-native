@@ -11,6 +11,8 @@
 
 class SessionService final : public QObject, public Settings1Contract
 {
+    friend class SessionContractTest;
+
     Q_OBJECT
     Q_PROPERTY(QString initializationState READ initializationState NOTIFY initializationStateChanged)
     Q_PROPERTY(QString serviceInstanceUuid READ serviceInstanceUuid CONSTANT)
@@ -39,6 +41,7 @@ public:
     QString serviceInstanceUuid() const override;
     qulonglong serviceGeneration() const override;
     qulonglong eventSequence() const;
+    QString eventSubjectKind() const;
     QString eventSubjectId() const;
     ushort apiMajor() const override;
     ushort apiMinor() const override;
@@ -52,16 +55,19 @@ public:
 signals:
     void initializationStateChanged();
     void eventPublished();
+    void eventSequenceExhausted();
     void ProductTelemetryConsentChanged(const QString &serviceInstanceUuid,
                                         qulonglong serviceGeneration,
                                         qulonglong eventSequence,
+                                        const QString &subjectKind,
                                         const QString &subjectId,
                                         bool enabled,
                                         qulonglong revision);
 
 private:
-    qulonglong nextEventSequence(const QString &subjectId);
-    void setState(State state, QString error = {});
+    qulonglong nextEventSequence(const QString &subjectKind, const QString &subjectId);
+    void failEventSequenceExhausted();
+    bool setState(State state, QString error = {});
     void logEvent(const QString &eventName, const QString &level,
                   const QString &detail = {}) const;
 
@@ -69,6 +75,7 @@ private:
     QString serviceInstanceUuid_;
     QString lastInitializationError_;
     quint64 eventSequence_ = 0;
+    QString eventSubjectKind_;
     QString eventSubjectId_;
     std::unique_ptr<SessionDatabase> database_;
 };

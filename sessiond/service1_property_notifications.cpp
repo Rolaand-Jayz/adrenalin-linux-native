@@ -25,7 +25,8 @@ void installService1PropertyNotifications(SessionService *service)
             QStringLiteral("org.adrenalinlinux.Session1.Service1"),
             QStringLiteral("EventPublished"));
         eventSignal << service->serviceInstanceUuid() << service->serviceGeneration()
-                    << service->eventSequence() << service->eventSubjectId();
+                    << service->eventSequence() << service->eventSubjectKind()
+                    << service->eventSubjectId();
         QDBusConnection::sessionBus().send(eventSignal);
 
         QDBusMessage propertySignal = QDBusMessage::createSignal(

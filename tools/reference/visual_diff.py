@@ -16,6 +16,7 @@ from typing import Any
 
 sys.dont_write_bytecode = True
 import manifest as capture_manifest
+import strict_json
 
 
 IMPLEMENTATION_VERSION = "adrenalin-reference-diff/1.0.0"
@@ -324,8 +325,8 @@ def _load_checks(path: Path, width: int, height: int, capture_id: str,
                  reference_sha256: str, candidate_sha256: str, geometry_sha256: str,
                  approved_masks_sha256: str | None):
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        data = strict_json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError) as exc:
         raise VisualDiffError(f"cannot read geometry/color checks: {exc}") from exc
     expected_keys = {"schema_version", "coverage", "components", "color_samples"}
     if not isinstance(data, dict) or set(data) != expected_keys or data["schema_version"] != 1:
@@ -394,8 +395,8 @@ def _load_checks(path: Path, width: int, height: int, capture_id: str,
 def _load_runtime_geometry(path: Path, width: int, height: int, screen_id: str,
                            capture_id: str) -> tuple[dict[str, tuple[int, int, int, int]], dict[str, str]]:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        data = strict_json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError) as exc:
         raise VisualDiffError(f"cannot read candidate runtime-geometry evidence: {exc}") from exc
     keys = {"schema_version", "source", "build_identity", "fixture_id", "screen_id", "capture_id", "components"}
     if not isinstance(data, dict) or set(data) != keys or data["schema_version"] != 1:
@@ -431,8 +432,8 @@ def _load_masks(path: Path | None, width: int, height: int, screen_id: str,
     if path is None:
         return bitmap, [], None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        data = strict_json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError) as exc:
         raise VisualDiffError(f"cannot read approved-mask file: {exc}") from exc
     required = {
         "schema_version", "review_status", "reviewed_by", "reviewed_at", "approval_reference",
@@ -583,8 +584,8 @@ def _manifest_capture(manifest_path: Path, capture_id: str) -> tuple[dict[str, A
     if pending:
         _fail(f"capture manifest is incomplete ({count} verified images; {len(pending)} unresolved entries)")
     try:
-        data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        data = strict_json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError) as exc:
         raise VisualDiffError(f"cannot read capture manifest: {exc}") from exc
     row = next((item for item in data["captures"] if item["id"] == capture_id), None)
     if row is None or row["status"] != "captured":
@@ -642,9 +643,9 @@ def run(args: argparse.Namespace) -> int:
     cand_width, cand_height, candidate = load_rgb(candidate_path)
     if (ref_width, ref_height) != (cand_width, cand_height):
         try:
-            checks_data = json.loads(args.checks.read_text(encoding="utf-8"))
+            checks_data = strict_json.loads(args.checks.read_text(encoding="utf-8"))
             coverage = checks_data.get("coverage", {}) if isinstance(checks_data, dict) else {}
-        except (OSError, UnicodeError, json.JSONDecodeError):
+        except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError):
             coverage = {}
         report = {
             "implementation": IMPLEMENTATION_VERSION,
@@ -702,7 +703,7 @@ def run(args: argparse.Namespace) -> int:
     report["reference"] = {
         "version": capture_manifest.REFERENCE["version"],
         "release_date": capture_manifest.REFERENCE["release_date"],
-        "screen_id": json.loads(args.manifest.read_text(encoding="utf-8"))["screen_id"],
+        "screen_id": strict_json.loads(args.manifest.read_text(encoding="utf-8"))["screen_id"],
         "capture_id": row["id"],
         "sha256": row["sha256"],
     }

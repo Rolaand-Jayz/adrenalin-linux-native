@@ -7,6 +7,8 @@
 #include <QStandardPaths>
 #include <QUuid>
 
+#include <limits>
+
 using adrenalin::contracts::OperationResultCode;
 
 SessionService::SessionService(QString databasePath, QObject *parent)
@@ -20,14 +22,18 @@ SessionService::~SessionService() = default;
 
 bool SessionService::initialize()
 {
-    setState(State::Recovering);
+    if (!setState(State::Recovering)) {
+        return false;
+    }
     QString error;
     if (!database_->initialize(&error)) {
         setState(State::Failed, error);
         logEvent(QStringLiteral("initialization_failed"), QStringLiteral("error"), error);
         return false;
     }
-    setState(State::Ready);
+    if (!setState(State::Ready)) {
+        return false;
+    }
     logEvent(QStringLiteral("service_ready"), QStringLiteral("info"));
     return true;
 }
@@ -47,26 +53,46 @@ QString SessionService::initializationState() const
 QString SessionService::serviceInstanceUuid() const { return serviceInstanceUuid_; }
 qulonglong SessionService::serviceGeneration() const { return database_->generation(); }
 qulonglong SessionService::eventSequence() const { return eventSequence_; }
+QString SessionService::eventSubjectKind() const { return eventSubjectKind_; }
 QString SessionService::eventSubjectId() const { return eventSubjectId_; }
-qulonglong SessionService::nextEventSequence(const QString &subjectId)
+qulonglong SessionService::nextEventSequence(const QString &subjectKind, const QString &subjectId)
 {
+    if (eventSequence_ == std::numeric_limits<quint64>::max()) {
+        return 0;
+    }
+    eventSubjectKind_ = subjectKind;
     eventSubjectId_ = subjectId;
     return ++eventSequence_;
 }
+
+void SessionService::failEventSequenceExhausted()
+{
+    state_ = State::Failed;
+    lastInitializationError_ = QStringLiteral("Per-service event sequence exhausted");
+    emit initializationStateChanged();
+    emit eventSequenceExhausted();
+    logEvent(QStringLiteral("event_sequence_exhausted"), QStringLiteral("error"),
+             lastInitializationError_);
+}
+
 ushort SessionService::apiMajor() const { return 1; }
 ushort SessionService::apiMinor() const { return 0; }
 QString SessionService::lastInitializationError() const { return lastInitializationError_; }
 
-void SessionService::setState(State state, QString error)
+bool SessionService::setState(State state, QString error)
 {
     state_ = state;
     lastInitializationError_ = std::move(error);
-    nextEventSequence(QStringLiteral("service.readiness"));
+    if (nextEventSequence(QStringLiteral("SERVICE"), QStringLiteral("service.readiness")) == 0) {
+        failEventSequenceExhausted();
+        return false;
+    }
     emit eventPublished();
     emit initializationStateChanged();
     logEvent(QStringLiteral("state_changed"), state_ == State::Failed ? QStringLiteral("error")
                                                                        : QStringLiteral("info"),
              initializationState());
+    return true;
 }
 
 void SessionService::logEvent(const QString &eventName, const QString &level,
@@ -141,6 +167,14 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
         result.retryable = true;
         return writeResult;
     }
+    if (eventSequence_ == std::numeric_limits<quint64>::max()) {
+        failEventSequenceExhausted();
+        result.code = OperationResultCode::InternalError;
+        result.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+        result.diagnosticMessage = QStringLiteral("No further sequenced events can be published");
+        result.retryable = false;
+        return writeResult;
+    }
     bool stale = false;
     bool conflict = false;
     bool operationReplayed = false;
@@ -165,10 +199,10 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
         return writeResult;
     }
     if (!operationReplayed) {
-        nextEventSequence(result.subjectId);
+        nextEventSequence(QStringLiteral("PREFERENCE"), result.subjectId);
         emit ProductTelemetryConsentChanged(serviceInstanceUuid(), serviceGeneration(),
-                                            eventSequence_, result.subjectId, enabled,
-                                            result.revision);
+                                            eventSequence_, eventSubjectKind_, result.subjectId,
+                                            enabled, result.revision);
         emit eventPublished();
     }
     result.code = OperationResultCode::Ok;

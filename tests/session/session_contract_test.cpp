@@ -17,6 +17,7 @@
 #include <QSet>
 #include <QStringList>
 #include <QDir>
+#include <QFileInfo>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
@@ -27,6 +28,7 @@
 #include <QUuid>
 
 #include <memory>
+#include <limits>
 
 namespace {
 constexpr auto kServiceName = adrenalin::session1::serviceName;
@@ -66,7 +68,7 @@ public:
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
             "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
-            "<arg type='t'/><arg type='s'/></signal>"
+            "<arg type='t'/><arg type='s'/><arg type='s'/></signal>"
             "</interface>"
             "<interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'>"
@@ -85,7 +87,8 @@ public:
     bool updateAndEmitConsentChanged(const QDBusConnection &connection, bool consent,
                                      qulonglong revision, const QString &eventInstanceUuid = {},
                                      qulonglong eventGeneration = 0,
-                                     const QString &subjectId = QStringLiteral("product.telemetry_consent"))
+                                     const QString &subjectId = QStringLiteral("product.telemetry_consent"),
+                                     const QString &subjectKind = QStringLiteral("PREFERENCE"))
     {
         consent_ = consent;
         revision_ = revision;
@@ -95,21 +98,22 @@ public:
             QStringLiteral("ProductTelemetryConsentChanged"));
         signal << (eventInstanceUuid.isEmpty() ? instanceUuid_ : eventInstanceUuid)
                << (eventGeneration == 0 ? generation_ : eventGeneration) << eventSequence_
-               << subjectId << consent_ << revision_;
+               << subjectKind << subjectId << consent_ << revision_;
         return connection.send(signal);
     }
 
     bool emitConsentChanged(const QDBusConnection &connection, bool enabled,
                             qulonglong revision, qulonglong eventSequence,
                             const QString &eventInstanceUuid = {}, qulonglong eventGeneration = 0,
-                            const QString &subjectId = QStringLiteral("product.telemetry_consent"))
+                            const QString &subjectId = QStringLiteral("product.telemetry_consent"),
+                            const QString &subjectKind = QStringLiteral("PREFERENCE"))
     {
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kObjectPath), QString::fromLatin1(kSettingsInterface),
             QStringLiteral("ProductTelemetryConsentChanged"));
         signal << (eventInstanceUuid.isEmpty() ? instanceUuid_ : eventInstanceUuid)
                << (eventGeneration == 0 ? generation_ : eventGeneration) << eventSequence
-               << subjectId << enabled << revision;
+               << subjectKind << subjectId << enabled << revision;
         return connection.send(signal);
     }
 
@@ -200,7 +204,7 @@ public:
             QString::fromLatin1(kObjectPath), QStringLiteral("org.adrenalinlinux.Session1.Service1"),
             QStringLiteral("EventPublished"));
         eventSignal << instanceUuid_ << generation_ << eventSequence_
-                    << QStringLiteral("service.readiness");
+                    << QStringLiteral("SERVICE") << QStringLiteral("service.readiness");
         if (!connection.send(eventSignal)) {
             return false;
         }
@@ -291,7 +295,7 @@ public:
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
             "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
-            "<arg type='t'/><arg type='s'/></signal>"
+            "<arg type='t'/><arg type='s'/><arg type='s'/></signal>"
             "</interface><interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'><arg direction='out' type='s'/>"
             "<arg direction='out' type='s'/><arg direction='out' type='t'/>"
@@ -397,6 +401,7 @@ public:
                     QString::fromLatin1(kObjectPath), QString::fromLatin1(kSettingsInterface),
                     QStringLiteral("ProductTelemetryConsentChanged"));
                 signal << instanceUuid_ << generation_ << eventSequence_
+                       << QStringLiteral("PREFERENCE")
                        << QStringLiteral("product.telemetry_consent")
                        << state_->enabled << state_->revision;
                 if (!connection.send(signal)) {
@@ -428,7 +433,7 @@ public:
             QString::fromLatin1(kObjectPath), QStringLiteral("org.adrenalinlinux.Session1.Service1"),
             QStringLiteral("EventPublished"));
         eventSignal << instanceUuid_ << generation_ << eventSequence_
-                    << QStringLiteral("service.readiness");
+                    << QStringLiteral("SERVICE") << QStringLiteral("service.readiness");
         if (!connection.send(eventSignal)) {
             return false;
         }
@@ -489,6 +494,8 @@ private slots:
     void operationResultVocabularyIsStable();
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
+    void eventSequenceExhaustionFailsClosedBeforeMutation();
+    void initializationStopsWhenReadinessSequenceIsExhausted();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
     void clientWaitsForServiceReadinessBeforeSettingsCalls();
     void clientRejectsIncompatibleServiceApiMajor();
@@ -628,6 +635,80 @@ void SessionContractTest::unsupportedSchemaFailsBeforeReady()
     QVERIFY(!service.lastInitializationError().isEmpty());
 }
 
+void SessionContractTest::eventSequenceExhaustionFailsClosedBeforeMutation()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    {
+        SessionService service(databasePath);
+        QVERIFY(service.initialize());
+        QSignalSpy exhausted(&service, &SessionService::eventSequenceExhausted);
+        QSignalSpy published(&service, &SessionService::eventPublished);
+        QSignalSpy consentPublished(&service, &SessionService::ProductTelemetryConsentChanged);
+        QVERIFY(exhausted.isValid());
+        QVERIFY(published.isValid());
+        QVERIFY(consentPublished.isValid());
+        service.eventSequence_ = std::numeric_limits<quint64>::max() - 1;
+
+        const auto finalValidWrite = service.setProductTelemetryConsent(
+            QStringLiteral("last-sequence-write"), true, 0);
+        QCOMPARE(finalValidWrite.result.code, adrenalin::contracts::OperationResultCode::Ok);
+        QCOMPARE(service.eventSequence(), std::numeric_limits<quint64>::max());
+        QCOMPARE(exhausted.count(), 0);
+        QCOMPARE(published.count(), 1);
+        QCOMPARE(consentPublished.count(), 1);
+
+        const auto overflowWrite = service.setProductTelemetryConsent(
+            QStringLiteral("overflow-write"), false, 1);
+        QCOMPARE(overflowWrite.result.code, adrenalin::contracts::OperationResultCode::InternalError);
+        QCOMPARE(overflowWrite.result.humanMessageKey,
+                 QStringLiteral("service.event_sequence_exhausted"));
+        QVERIFY(!overflowWrite.result.retryable);
+        QCOMPARE(service.initializationState(), QStringLiteral("FAILED"));
+        QCOMPARE(service.eventSequence(), std::numeric_limits<quint64>::max());
+        QCOMPARE(exhausted.count(), 1);
+        QCOMPARE(published.count(), 1);
+        QCOMPARE(consentPublished.count(), 1);
+    }
+
+    SessionService recovered(databasePath);
+    QVERIFY(recovered.initialize());
+    const auto persisted = recovered.getProductTelemetryConsent();
+    QCOMPARE(persisted.resultCode, QStringLiteral("OK"));
+    QVERIFY(persisted.enabled);
+    QCOMPARE(persisted.revision, quint64(1));
+
+    recovered.eventSequence_ = std::numeric_limits<quint64>::max();
+    QSignalSpy readinessExhausted(&recovered, &SessionService::eventSequenceExhausted);
+    QSignalSpy readinessPublished(&recovered, &SessionService::eventPublished);
+    QVERIFY(readinessExhausted.isValid());
+    QVERIFY(readinessPublished.isValid());
+    recovered.setState(SessionService::State::Degraded);
+    QCOMPARE(recovered.initializationState(), QStringLiteral("FAILED"));
+    QCOMPARE(recovered.eventSequence(), std::numeric_limits<quint64>::max());
+    QCOMPARE(readinessExhausted.count(), 1);
+    QCOMPARE(readinessPublished.count(), 0);
+}
+
+void SessionContractTest::initializationStopsWhenReadinessSequenceIsExhausted()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    SessionService service(databasePath);
+    service.eventSequence_ = std::numeric_limits<quint64>::max();
+    QSignalSpy exhausted(&service, &SessionService::eventSequenceExhausted);
+    QVERIFY(exhausted.isValid());
+
+    QVERIFY(!service.initialize());
+    QCOMPARE(service.initializationState(), QStringLiteral("FAILED"));
+    QCOMPARE(service.lastInitializationError(), QStringLiteral("Per-service event sequence exhausted"));
+    QCOMPARE(service.eventSequence(), std::numeric_limits<quint64>::max());
+    QCOMPARE(exhausted.count(), 1);
+    QVERIFY(!QFileInfo::exists(databasePath));
+}
+
 void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites()
 {
     QTemporaryDir dataDirectory;
@@ -731,7 +812,8 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
     QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
     QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(2));
-    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("service.readiness"));
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("SERVICE"));
+    QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("service.readiness"));
     QVERIFY(serviceChangedProperties_.contains(QStringLiteral("InitializationState")));
 
     auto readPending = proxy.GetProductTelemetryConsent();
@@ -766,13 +848,15 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
     QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
     QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(3));
-    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("product.telemetry_consent"));
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("PREFERENCE"));
+    QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(0).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(0).at(1).toULongLong(), firstGeneration);
     QCOMPARE(changed.at(0).at(2).toULongLong(), qulonglong(3));
-    QCOMPARE(changed.at(0).at(3).toString(), QStringLiteral("product.telemetry_consent"));
-    QVERIFY(changed.at(0).at(4).toBool());
-    QCOMPARE(changed.at(0).at(5).toULongLong(), qulonglong(1));
+    QCOMPARE(changed.at(0).at(3).toString(), QStringLiteral("PREFERENCE"));
+    QCOMPARE(changed.at(0).at(4).toString(), QStringLiteral("product.telemetry_consent"));
+    QVERIFY(changed.at(0).at(5).toBool());
+    QCOMPARE(changed.at(0).at(6).toULongLong(), qulonglong(1));
 
     auto duplicatePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-1"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(duplicatePending.isFinished(), 2000);
@@ -801,9 +885,10 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(changed.at(1).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(1).at(1).toULongLong(), firstGeneration);
     QCOMPARE(changed.at(1).at(2).toULongLong(), qulonglong(4));
-    QCOMPARE(changed.at(1).at(3).toString(), QStringLiteral("product.telemetry_consent"));
-    QCOMPARE(changed.at(1).at(4).toBool(), false);
-    QCOMPARE(changed.at(1).at(5).toULongLong(), qulonglong(2));
+    QCOMPARE(changed.at(1).at(3).toString(), QStringLiteral("PREFERENCE"));
+    QCOMPARE(changed.at(1).at(4).toString(), QStringLiteral("product.telemetry_consent"));
+    QCOMPARE(changed.at(1).at(5).toBool(), false);
+    QCOMPARE(changed.at(1).at(6).toULongLong(), qulonglong(2));
 
     auto stalePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-3"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(stalePending.isFinished(), 2000);
@@ -1205,10 +1290,11 @@ void SessionContractTest::clientRefreshesAfterForeignOrMismatchedEvents()
         return predicate();
     };
     auto verifyRefresh = [&](bool enabled, qulonglong revision, const QString &eventUuid,
-                             qulonglong eventGeneration, const QString &subjectId) {
+                             qulonglong eventGeneration, const QString &subjectId,
+                             const QString &subjectKind = QStringLiteral("PREFERENCE")) {
         service->setDelayReads(true);
         if (!service->updateAndEmitConsentChanged(bus, enabled, revision, eventUuid,
-                                                  eventGeneration, subjectId)) {
+                                                  eventGeneration, subjectId, subjectKind)) {
             return false;
         }
         if (!waitUntil([&] {
@@ -1229,7 +1315,9 @@ void SessionContractTest::clientRefreshesAfterForeignOrMismatchedEvents()
     QVERIFY(verifyRefresh(true, 1, QStringLiteral("different-service-instance"), 1,
                           QStringLiteral("product.telemetry_consent")));
     QVERIFY(verifyRefresh(false, 2, {}, 99, QStringLiteral("product.telemetry_consent")));
-    QVERIFY(verifyRefresh(true, 3, {}, 0, QStringLiteral("different.subject")));
+    QVERIFY(verifyRefresh(true, 3, {}, 0, QStringLiteral("product.telemetry_consent"),
+                          QStringLiteral("SERVICE")));
+    QVERIFY(verifyRefresh(false, 4, {}, 0, QStringLiteral("different.subject")));
 
     client.reset();
     QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));

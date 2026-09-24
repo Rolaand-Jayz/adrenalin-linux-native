@@ -50,6 +50,11 @@ acceptance criterion remains open.
   and review-record identities. The validator cannot prove that human review
   occurred. The reference harness suite passes 40 tests; authentic captures are
   still absent.
+- Ticket 02's JSON evidence readers now reject duplicate keys at every object
+  depth across manifests, comparison checks, masks, and candidate geometry, so
+  ambiguous provenance fields fail closed. The focused reference suite passes
+  43/43. This improves validation integrity but does not supply authentic
+  reference captures or independently attested candidate geometry.
 - A follow-up harness commit adds the required confirmation capture state and a
   manifest-backed failure-only comparison test; synthetic data still cannot
   pass a parity gate.
@@ -145,21 +150,22 @@ acceptance criterion remains open.
 - The project workspace is the real `adrenalin-linux-native` directory. The old
   entry and symlink were removed; repository documentation does not encode its
   machine-specific parent path.
-- On 2026-09-24, the owner authorized local implementation/review beyond Ticket 01
-  while a repository is being set up. This does not pass Ticket 01's hosted-CI
-  criterion or mark its downstream dependencies complete.
+- On 2026-09-24, the owner authorized continued implementation/review beyond
+  Ticket 01 and directed that both `main` and the working checkout branch be
+  pushed. The public GitHub repository now exists but is empty; hosted CI is
+  pending the first push and a passing workflow run. This does not yet pass
+  Ticket 01 or mark its downstream dependencies complete.
 
 ## Next actions
 
 1. Complete and independently review Ticket 02's candidate runtime capture and
    geometry export; keep authentic references and hosted CI as open gates.
-2. Integrate the reviewed Hardware1 wire/mock/test slice, then serialize new
-   contract work. A separate Telemetry1 contract/mock/private-bus round-trip is a
-   candidate next seam; cross-service ID-093 event emission waits for a shared
-   cursor/reconciliation design.
-3. Implement the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
-   and ID-185 recovery sequence.
-4. When the owner sets up the repository, obtain a hosted clean-checkout CI run
-   and close Ticket 01 only if that run passes.
+2. Keep the Hardware1 production integration and Telemetry1 ABI review moving
+   on their independent seams; keep Telemetry1 isolated until its review clears.
+3. Continue the centralized ID-105/107 topology, ID-106 readiness, remaining
+   ID-093 event families, and ID-185 recovery sequence from the audited v1
+   contract.
+4. Push `main` and the working checkout branch to the created repository, obtain
+   a hosted clean-checkout CI run, and close Ticket 01 only if that run passes.
 5. Recompute the dependency frontier after each integration and continue through
    the Final 1:1 Parity Closure ticket.

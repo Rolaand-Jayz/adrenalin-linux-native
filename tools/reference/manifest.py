@@ -15,6 +15,8 @@ import re
 import struct
 import sys
 import zlib
+
+import strict_json
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -290,8 +292,8 @@ def _sha256_file(image: Path) -> str:
 def validate(manifest_path: Path) -> tuple[int, list[str]]:
     """Validate capture metadata and bytes; return count and pending diagnostics."""
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        manifest = strict_json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, strict_json.DuplicateJSONKeyError) as exc:
         raise ManifestError(f"cannot read manifest: {exc}") from exc
     if not isinstance(manifest, dict):
         raise ManifestError("manifest root must be an object")
