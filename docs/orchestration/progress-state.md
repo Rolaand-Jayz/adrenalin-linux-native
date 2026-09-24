@@ -57,6 +57,10 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   or revision gaps. UUID/generation/subject mismatch also forces a refresh, and
   duplicate sequences are ignored. The updated private-bus session suite passes
   15/15 totals. Other service event families still need this envelope.
+- Readiness fields now live in a shared `ServiceReadinessContract`, independent
+  of Settings1 operations. The session mock implements and tests all fields;
+  the focused private-bus suite still passes 15/15 totals. Other long-lived
+  service roots must adopt the same contract as they are implemented.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.
@@ -94,9 +98,11 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 1. Continue the eligible ID-105/107 topology and operation-family frontier,
    keeping shared schema edits serialized and interfaces aligned to the audited
    contract.
-2. Complete ID-185 recovery reconciliation and the event envelope for remaining
+2. Implement ID-105 session topology and make each long-lived root implement
+   the shared ID-106 readiness contract.
+3. Complete ID-185 recovery reconciliation and the event envelope for remaining
    service families before advertising READY after restart.
-3. Implement Ticket 02 against authentic reference captures and a real candidate
+4. Implement Ticket 02 against authentic reference captures and a real candidate
    screen/geometry probe; synthetic fixtures cannot satisfy the parity gate.
-4. Re-run focused and cross-component validation, obtain adversarial review,
+5. Re-run focused and cross-component validation, obtain adversarial review,
    commit coherent slices, then recompute the dependency frontier.

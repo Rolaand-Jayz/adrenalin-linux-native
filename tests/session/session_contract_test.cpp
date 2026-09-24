@@ -3,6 +3,7 @@
 #include <service1_interface.h>
 #include "interfaces/settings1_mock.h"
 #include "interfaces/settings1_client.h"
+#include "interfaces/service_readiness_contract.h"
 #include "session_identity.h"
 #include "sessiond/service1_property_notifications.h"
 #include "sessiond/session_service.h"
@@ -451,6 +452,13 @@ void SessionContractTest::operationResultVocabularyIsStable()
 void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency()
 {
     Settings1Mock mock;
+    const ServiceReadinessContract &readiness = mock;
+    QCOMPARE(readiness.initializationState(), QStringLiteral("READY"));
+    QVERIFY(!readiness.serviceInstanceUuid().isEmpty());
+    QCOMPARE(readiness.serviceGeneration(), quint64(1));
+    QCOMPARE(readiness.apiMajor(), ushort(1));
+    QCOMPARE(readiness.apiMinor(), ushort(0));
+    QVERIFY(readiness.lastInitializationError().isEmpty());
     QCOMPARE(mock.initializationState(), QStringLiteral("READY"));
     QCOMPARE(mock.apiMajor(), ushort(1));
     const auto initial = mock.getProductTelemetryConsent();

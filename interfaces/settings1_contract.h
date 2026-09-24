@@ -1,6 +1,7 @@
 #pragma once
 
 #include "operation_result.h"
+#include "service_readiness_contract.h"
 
 #include <QString>
 
@@ -17,15 +18,10 @@ struct Settings1WriteResult {
     adrenalin::contracts::MutationResult result;
 };
 
-class Settings1Contract
+class Settings1Contract : public ServiceReadinessContract
 {
 public:
     virtual ~Settings1Contract() = default;
-    virtual QString initializationState() const = 0;
-    virtual QString serviceInstanceUuid() const = 0;
-    virtual quint64 serviceGeneration() const = 0;
-    virtual ushort apiMajor() const = 0;
-    virtual ushort apiMinor() const = 0;
     virtual Settings1ReadResult getProductTelemetryConsent() = 0;
     virtual Settings1WriteResult setProductTelemetryConsent(const QString &operationId,
                                                             bool enabled,

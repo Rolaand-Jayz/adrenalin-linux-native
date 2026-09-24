@@ -11,6 +11,7 @@ endfunction()
 add_library(adrenalin-session-contract STATIC
     ../interfaces/settings1_client.cpp
     ../interfaces/operation_result.cpp
+    ../interfaces/service_readiness_contract.h
 )
 set(ADRENALIN_SETTINGS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Settings1.xml")
 set(ADRENALIN_SERVICE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Service1.xml")

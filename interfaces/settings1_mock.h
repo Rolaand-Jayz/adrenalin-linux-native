@@ -13,6 +13,7 @@ public:
     quint64 serviceGeneration() const override { return generation_; }
     ushort apiMajor() const override { return 1; }
     ushort apiMinor() const override { return 0; }
+    QString lastInitializationError() const override { return {}; }
     Settings1ReadResult getProductTelemetryConsent() override;
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId,
                                                     bool enabled,

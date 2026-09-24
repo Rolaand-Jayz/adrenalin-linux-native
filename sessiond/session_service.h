@@ -38,7 +38,7 @@ public:
     qulonglong serviceGeneration() const override;
     ushort apiMajor() const override;
     ushort apiMinor() const override;
-    QString lastInitializationError() const;
+    QString lastInitializationError() const override;
 
     bool getProductTelemetryConsent(bool *enabled, quint64 *revision, QString *error);
     Settings1ReadResult getProductTelemetryConsent() override;

@@ -80,6 +80,13 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 - [ ] Apply the same event envelope and gap-reconciliation contract to every
   remaining cross-process event family in the v1 topology.
 
+**Additional audited-spec tracking (ID-106):**
+
+- [x] Service readiness is a shared C++ contract separate from Settings1
+  operations; the session-service mock exercises every readiness field.
+- [ ] Every additional long-lived session/system service implements the same
+  readiness surface and gates READY on its required recovery.
+
 ### 04 — Adrenalin design system, accessibility, and localization shell
 
 **Blocked by:** 02, 03
