@@ -91,6 +91,8 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 
 - [x] Service readiness is a shared C++ contract separate from Settings1
   operations; the session-service mock exercises every readiness field.
+- [x] `ServiceReadinessClient` reconciles property/owner changes, rejects an
+  incompatible API major, and discards stale snapshots before restoring READY.
 - [ ] Every additional long-lived session/system service implements the same
   readiness surface and gates READY on its required recovery.
 

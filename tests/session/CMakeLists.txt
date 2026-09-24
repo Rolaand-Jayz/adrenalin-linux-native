@@ -44,3 +44,25 @@ set_tests_properties(adrenalin-session-contract PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     TIMEOUT 30
 )
+
+qt_add_executable(adrenalin-service-readiness-client-test
+    service_readiness_client_test.cpp
+)
+target_include_directories(adrenalin-service-readiness-client-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-service-readiness-client-test PRIVATE
+    adrenalin-session-contract
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-service-readiness-client-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-service-readiness-client
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-service-readiness-client-test>
+)
+set_tests_properties(adrenalin-service-readiness-client PROPERTIES TIMEOUT 30)
