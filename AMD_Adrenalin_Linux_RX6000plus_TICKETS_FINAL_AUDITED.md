@@ -6,11 +6,12 @@
 
 ## Dependency frontier
 
-Ticket 01 bootstrap and the Ticket 03 preference tracer have implementation evidence
-for part of their acceptance criteria. Ticket 02 is blocked on authentic reference
-captures and candidate-render/geometry evidence. Ticket 03's tracer criteria pass,
-but its audited-spec interface topology and recovery obligations remain open. Continue
-the session-contract frontier while Ticket 02 capture evidence is unavailable.
+Ticket 01 is the only eligible incomplete ticket: its clean-checkout CI build and
+smoke-test criterion still needs hosted-run evidence. Tickets 02 and 03 are blocked
+by Ticket 01; when it closes, both enter the frontier. Ticket 02 also needs authentic
+reference captures and candidate-render/geometry evidence. Ticket 03's tracer
+criteria pass, but its audited-spec interface topology and recovery obligations
+remain open.
 
 ## Progress ledger
 
@@ -27,6 +28,8 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
   applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
   D-Bus names and object paths are protocol identities, not filesystem paths.
+- [x] Project workspace folder was renamed to `adrenalin-linux-native`; the prior
+  workspace entry resolves to it for discoverability.
 
 ## Tickets
 
@@ -42,6 +45,8 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 - [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
 - [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
+  - [x] Local clean-archive reproduction: all 57 production build steps passed and the existing Qt shell smoke passed 3/3 cases on Qt 6.11.2.
+  - [ ] Hosted CI run evidence is still unverified; the workspace has no configured Git remote, and the local full-test configure lacks Catch2 v3.
 
 ### 02 — Reference corpus and parity harness
 
@@ -102,6 +107,15 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
   compatible READY plus a snapshot matching the current service UUID/generation.
 - [ ] Every additional long-lived session/system service implements the same
   readiness surface and gates READY on its required recovery.
+
+**Additional audited-spec tracking (ID-105/107):**
+
+- [ ] Add the typed Hardware1 device-list/static-info/capability contract,
+  generated bindings, test-only mock, and private-bus record round-trip before
+  wiring any production hardware provider.
+  - [x] An initial private-bus proxy/mock round-trip suite passes in the focused
+    harness; independent review then found a reply-signature mismatch, so the
+    overall contract task remains open pending correction and re-review.
 
 ### 04 — Adrenalin design system, accessibility, and localization shell
 

@@ -7,10 +7,21 @@ using the Final Audited Engineering Spec as the controlling contract.
 
 ## Current phase
 
-Ticket 03 — canonical cross-process contract and persisted preference tracer.
+Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 
 ## Completed evidence
 
+- Ticket 01 was rechecked from a clean `git archive` of the current commit. A
+  production-only CMake/Ninja build completed all 57 steps. The repository's
+  Qt shell smoke test was compiled and run against that build under a private
+  D-Bus session: 3/3 QtTest cases passed, including QML load and clean exit.
+  This reproduces the build/smoke behavior locally but does not establish a
+  hosted CI run.
+- The in-progress Hardware1 test target built and its focused private-bus CTest
+  passed 1/1. Independent review then found a mismatch between the Reply XML
+  signature and streamed field order, plus stale mock outputs and incomplete
+  signal identity. The slice is not integrated and remains open; Ticket 03 is
+  still blocked by Ticket 01 under the audited dependency graph.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,
@@ -95,6 +106,9 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
 - Local full CMake test configuration currently lacks Catch2 v3. CI installs
   Catch2, but the full CTest run has not been observed in this environment.
+- The Ticket 01 hosted CI criterion remains open: this checkout has no
+  configured Git remote or current workflow run evidence. The clean local
+  archive build and smoke result are recorded in the ticket pack.
 - The focused private-bus session-contract suite passes 17/17 QtTest totals and
   the focused readiness-client suite passes 8/8. The full clean-checkout
   CMake/CTest workflow is still unverified locally because Catch2 v3 is absent.
@@ -114,15 +128,14 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 
 ## Next actions
 
-1. Continue the eligible ID-105/107 topology and operation-family frontier,
-   keeping shared schema edits serialized and interfaces aligned to the audited
-   contract. The current event foundation covers consent and Service1 readiness;
-   remaining service event families are still open.
-2. Implement ID-105 session topology and make each long-lived root implement
-   the shared ID-106 readiness contract.
-3. Complete ID-185 recovery reconciliation and the event envelope for remaining
-   service families before advertising READY after restart.
-4. Implement Ticket 02 against authentic reference captures and a real candidate
-   screen/geometry probe; synthetic fixtures cannot satisfy the parity gate.
-5. Re-run focused and cross-component validation, obtain adversarial review,
-   commit coherent slices, then recompute the dependency frontier.
+1. Obtain a hosted clean-checkout CI run for Ticket 01. The local clean archive
+   build and Qt shell smoke pass are recorded but do not close this criterion.
+2. Once Ticket 01 is complete, recompute the frontier and resume Tickets 02 and
+   03. Ticket 02 requires authentic reference captures and real candidate
+   screen/geometry evidence; synthetic fixtures cannot pass its parity gate.
+3. For Ticket 03, fix and independently review the in-progress Hardware1
+   contract slice before integration. Keep shared schema work serialized, then
+   implement the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
+   and ID-185 recovery sequence.
+4. Continue implementing, testing, reviewing, committing coherent slices, and
+   recomputing the dependency frontier until the Final 1:1 Parity Closure passes.
