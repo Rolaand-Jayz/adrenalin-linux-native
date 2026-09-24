@@ -23,9 +23,10 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - Ticket 01: **partial** — build/install contract evidence exists; clean-checkout CI
   execution remains open. The existing QML load/clean-exit smoke passed on the
   CachyOS host.
-- Ticket 02: **partial / blocked** — fixed baseline and failure-only harness are
-  implemented; no authentic capture corpus, production candidate render, runtime
-  geometry probe, reviewed annotations, or passing comparison exists.
+- Ticket 02: **partial / blocked** — fixed baseline, live candidate capture, and
+  self-reported runtime geometry export exist; authentic reference captures,
+  independent geometry attestation, reviewed annotations, and a passing
+  comparison remain open.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
   criteria below are covered. The v1 interface topology/operation families and
   ID-185 recovery sequence are not complete, so this ticket is not closed.

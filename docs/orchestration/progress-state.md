@@ -124,10 +124,11 @@ acceptance criterion remains open.
   area for this session and were not added as reference evidence.
 - The Ticket 01 hosted CI criterion remains open: this checkout has no
   configured Git remote or current workflow run evidence. The clean local
-  archive build and 4/4 CTest result are recorded in the ticket pack.
+  archive build and 5/5 CTest result at `9561725` are recorded in the ticket
+  pack; hosted CI remains separate.
 - The focused private-bus session-contract suite passes 17/17 QtTest totals and
   the focused readiness-client suite passes 8/8. The clean-source full CTest
-  run now passes 4/4; a hosted CI run is still unverified.
+  run at `9561725` passes 5/5; a hosted CI run is still unverified.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 
