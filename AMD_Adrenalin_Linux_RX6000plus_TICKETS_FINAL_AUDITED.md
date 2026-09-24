@@ -6,23 +6,23 @@
 
 ## Dependency frontier
 
-Ticket 01 is the only eligible incomplete ticket: its clean-checkout CI build and
-smoke-test criterion still needs hosted-run evidence. Tickets 02 and 03 are blocked
-by Ticket 01; when it closes, both enter the frontier. Ticket 02 also needs authentic
-reference captures and candidate-render/geometry evidence. Ticket 03's tracer
-criteria pass, but its audited-spec interface topology and recovery obligations
-remain open.
+Tickets 02 and 03 are now the current frontier because Ticket 01's hosted
+clean-checkout workflow passed on both branches at `f6037f0`. Ticket 02 still needs
+authentic reference captures, independently attested candidate geometry, reviewed
+annotations, and a passing comparison. Ticket 03's tracer criteria pass, but its
+audited-spec interface topology and recovery obligations remain open.
 
-**Owner continuation authorization (2026-09-24):** Local implementation and review
-may proceed on Tickets 02 and 03 while the Ticket 01 hosted-CI criterion is pending.
-This does not close Ticket 01 or satisfy its declared dependency; downstream tickets
-remain incomplete until their own acceptance criteria and dependency gates pass.
+**Owner continuation authorization (2026-09-24):** The owner authorized local work
+on Tickets 02 and 03 while Ticket 01 hosted CI was pending. Ticket 01 has since
+passed its hosted gate; 02 and 03 are eligible now, but remain incomplete until their
+own acceptance criteria and dependency gates pass.
 
 ## Progress ledger
 
-- Ticket 01: **partial** — build/install contract evidence exists; clean-checkout CI
-  execution remains open. The existing QML load/clean-exit smoke passed on the
-  CachyOS host.
+- Ticket 01: **complete** — both pushed branches passed the clean-checkout hosted
+  workflow at `f6037f0`, including the GUI shell smoke, all 7 CTest suites, reference
+  manifest checks, staged install validation, D-Bus activation, and custom-prefix
+  quoting. See Actions runs [main #5](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069938259) and [work #6](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069940024).
 - Ticket 02: **partial / blocked** — fixed baseline, live candidate capture, and
   self-reported runtime geometry export exist; authentic reference captures,
   independent geometry attestation, reviewed annotations, and a passing
@@ -50,16 +50,16 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - [x] Project config enforces C++20, Qt 6.8+, CMake, Ninja, Catch2 v3 and Qt Test; the shipping app has no Python runtime dependency.
 - [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
 - [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
-- [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
+- [x] CI builds the shell and runs at least one smoke test from a clean checkout.
   - [x] Commit `9561725` built from a fresh `git archive`: all 101/101 Ninja
     steps succeeded and the full CTest suite passed 5/5, including shell CLI,
     Settings1/Service1 private-bus, and Hardware1 private-bus coverage (Qt 6.11.2,
     GCC 16.2.1, Catch2 3.4.0). Hosted CI remains a separate open requirement.
   - [x] On baseline commit `b8dc833`, all checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
-  - [ ] Hosted CI evidence remains open. Runs for commit `6a139a5` installed Qt
-    and configured successfully on both branches, then failed during the GUI build
-    because GCC 13 rejected the GCC 16-only `-Wno-error=sfinae-incomplete` option.
-    The compiler guard is now limited to GCC 16+; hosted revalidation is pending.
+  - [x] Hosted clean-checkout runs at commit `f6037f0` passed on both `main` and
+    `work/adrenalin-linux-native`: GUI build, CTest 7/7 including shell smoke,
+    reference-manifest checks, staged install validation, D-Bus activation, and
+    custom-prefix quoting. See [main run #5](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069938259) and [work run #6](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069940024).
 
 ### 02 — Reference corpus and parity harness
 

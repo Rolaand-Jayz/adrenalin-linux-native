@@ -127,14 +127,13 @@ acceptance criterion remains open.
   so Ticket 02 cannot pass its visual parity acceptance gate yet. The verified
   candidate PNG and self-reported geometry were written to the temporary output
   area for this session and were not added as reference evidence.
-- Ticket 01 hosted CI remains open. Runs for commit `6a139a5` on both `main`
-  and `work/adrenalin-linux-native` installed Qt and configured successfully,
-  then failed during the GUI build because GCC 13 rejected the GCC 16-only
-  `-Wno-error=sfinae-incomplete` option. The CMake guard now applies that flag
-  only to GCC 16+; the new hosted runs must still pass before Ticket 01 closes.
-- The focused private-bus session-contract suite passes 17/17 QtTest totals and
-  the focused readiness-client suite passes 8/8. The clean-source full CTest
-  run at `9561725` passes 5/5; a hosted CI run is still unverified.
+- Ticket 01 is complete: hosted clean-checkout runs on both pushed branches at
+  `f6037f0` passed the GUI build, CTest 7/7 including shell smoke, manifest checks,
+  staged install validation, D-Bus activation, and custom-prefix quoting. See [main
+  run #5](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069938259)
+  and [work run #6](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069940024).
+- The hosted full CTest run at `f6037f0` passes 7/7 on both branches, including
+  the shell smoke, session/readiness/Hardware1 contracts, and Telemetry1 fixtures.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 
@@ -153,20 +152,18 @@ acceptance criterion remains open.
   machine-specific parent path.
 - On 2026-09-24, the owner authorized continued implementation/review beyond
   Ticket 01 and directed that both `main` and the working checkout branch be
-  pushed. Both remote branches now point to `6a139a5`; hosted CI has reached
-  Qt installation and configuration, but the first build attempt failed on a
-  GCC-version-specific warning flag. Ticket 01 remains open pending passing
-  clean-checkout runs; its downstream dependencies remain incomplete.
+  pushed. Both local and remote branch tips now point to `f6037f0`, and hosted CI
+  passed on both branches. Ticket 01 is complete; Tickets 02 and 03 now enter the
+  implementation frontier, while their own evidence and architecture criteria
+  remain open.
 
 ## Next actions
 
-1. Re-run hosted CI on both pushed branches after the GCC-version guard; close
-   Ticket 01 only after the clean-checkout workflow passes.
-2. Once Ticket 01 closes, use the owner-authorized parallel continuation on
-   Tickets 02 and 03. Keep authentic references and capture attestation as open
-   gates for Ticket 02; keep telemetry fixtures distinct from production wiring.
-3. Continue the centralized ID-105/107 topology, ID-106 readiness, remaining
+1. Work the now-unblocked Tickets 02 and 03 in parallel on independent seams. Keep
+   authentic references and capture attestation as open gates for Ticket 02; keep
+   Telemetry1 fixtures distinct from production wiring.
+2. Continue the centralized ID-105/107 topology, ID-106 readiness, remaining
    ID-093 event families, and ID-185 recovery sequence from the audited v1
    contract.
-4. Recompute the dependency frontier after each integration and continue through
+3. Recompute the dependency frontier after each integration and continue through
    the Final 1:1 Parity Closure ticket.
