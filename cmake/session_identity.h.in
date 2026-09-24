@@ -1,0 +1,9 @@
+#pragma once
+
+namespace adrenalin::session1 {
+
+inline constexpr char serviceName[] = "@ADRENALIN_SESSION_BUS_NAME@";
+inline constexpr char objectPath[] = "@ADRENALIN_SESSION_OBJECT_PATH@";
+inline constexpr char settingsInterface[] = "@ADRENALIN_SETTINGS_INTERFACE@";
+
+}

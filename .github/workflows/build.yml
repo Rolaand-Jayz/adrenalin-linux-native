@@ -18,28 +18,111 @@ jobs:
       - name: Install build and test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes cmake ninja-build g++ libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 dbus catch2
+          sudo apt-get install --yes cmake ninja-build g++ pkg-config libsystemd-dev desktop-file-utils libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 dbus catch2
+      - name: Reject unsupported activation paths
+        run: |
+          invalid_parent="$(mktemp -d)"
+          invalid_build="$(mktemp -d)"
+          if cmake -S . -B "$invalid_build" -G Ninja \
+            -DCMAKE_INSTALL_PREFIX="$invalid_parent/prefix with spaces" \
+            >"$invalid_build/configure.log" 2>&1; then
+            cat "$invalid_build/configure.log"
+            exit 1
+          fi
+          grep -Fq 'D-Bus activation executable path must not contain whitespace' \
+            "$invalid_build/configure.log"
+          invalid_build="$(mktemp -d)"
+          vertical_tab="$(printf '\013')"
+          if cmake -S . -B "$invalid_build" -G Ninja \
+            -DCMAKE_INSTALL_PREFIX="$invalid_parent/prefix${vertical_tab}with-control" \
+            >"$invalid_build/configure.log" 2>&1; then
+            cat "$invalid_build/configure.log"
+            exit 1
+          fi
+          grep -Fq 'D-Bus activation executable path must not contain whitespace' \
+            "$invalid_build/configure.log"
+          invalid_build="$(mktemp -d)"
+          if cmake -S . -B "$invalid_build" -G Ninja \
+            -DCMAKE_INSTALL_PREFIX="$invalid_parent/prefix=invalid" \
+            >"$invalid_build/configure.log" 2>&1; then
+            cat "$invalid_build/configure.log"
+            exit 1
+          fi
+          grep -Fq "desktop executable path cannot contain '=' or line breaks" \
+            "$invalid_build/configure.log"
       - name: Configure
         run: |
           build_dir="$(mktemp -d)"
-          install_prefix="$(mktemp -d)"
+          install_base="$(mktemp -d)"
+          install_prefix="$install_base/package%prefix"
+          stage_root="$(mktemp -d)"
+          mkdir -p "$install_prefix"
           echo "ADRENALIN_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
           echo "ADRENALIN_INSTALL_PREFIX=$install_prefix" >> "$GITHUB_ENV"
+          echo "ADRENALIN_STAGE_ROOT=$stage_root" >> "$GITHUB_ENV"
           cmake -S . -B "$build_dir" -G Ninja -DCMAKE_INSTALL_PREFIX="$install_prefix"
       - name: Build
         run: cmake --build "$ADRENALIN_BUILD_DIR" --parallel
       - name: Test
         run: ctest --test-dir "$ADRENALIN_BUILD_DIR" --output-on-failure
+      - name: Validate reference manifest and comparator contracts
+        run: PYTHONDONTWRITEBYTECODE=1 python3 tools/reference/test_manifest.py
       - name: Install and verify service activation path
         run: |
-          cmake --install "$ADRENALIN_BUILD_DIR"
-          service_file="$(find "$ADRENALIN_INSTALL_PREFIX" -type f -name 'org.adrenalinlinux.Session1.service' -print -quit)"
+          DESTDIR="$ADRENALIN_STAGE_ROOT" cmake --install "$ADRENALIN_BUILD_DIR"
+          service_file="$(find "$ADRENALIN_STAGE_ROOT" -type f -name 'org.adrenalinlinux.Session1.service' -print -quit)"
           test -n "$service_file"
           service_exec="$(sed -n 's/^Exec=//p' "$service_file")"
           test -n "$service_exec"
-          test -x "$service_exec"
-          user_unit="$(find "$ADRENALIN_INSTALL_PREFIX" -type f -name 'adrenalin-sessiond.service' -print -quit)"
+          service_exec="${service_exec#\"}"
+          service_exec="${service_exec%\"}"
+          test -x "$ADRENALIN_STAGE_ROOT$service_exec"
+          user_unit="$(find "$ADRENALIN_STAGE_ROOT" -type f -name 'adrenalin-sessiond.service' -print -quit)"
           test -n "$user_unit"
           unit_exec="$(sed -n 's/^ExecStart=//p' "$user_unit")"
           test -n "$unit_exec"
-          test -x "$unit_exec"
+          unit_exec="${unit_exec#\"}"
+          unit_exec="${unit_exec%\"}"
+          unit_exec="${unit_exec//%%/%}"
+          test -x "$ADRENALIN_STAGE_ROOT$unit_exec"
+          mkdir -p "$(dirname "$unit_exec")"
+          if [ ! -e "$unit_exec" ]; then
+            ln -s "$ADRENALIN_STAGE_ROOT$unit_exec" "$unit_exec"
+          fi
+          systemd-analyze verify "$user_unit"
+          desktop_file="$(find "$ADRENALIN_STAGE_ROOT" -type f -name 'org.adrenalinlinux.App.desktop' -print -quit)"
+          test -n "$desktop_file"
+          desktop-file-validate "$desktop_file"
+          desktop_exec="$(sed -n 's/^Exec=//p' "$desktop_file")"
+          test -n "$desktop_exec"
+          desktop_exec="${desktop_exec#\"}"
+          desktop_exec="${desktop_exec%\"}"
+          desktop_exec="${desktop_exec//%%/%}"
+          test -x "$ADRENALIN_STAGE_ROOT$desktop_exec"
+      - name: Exercise session D-Bus service activation
+        run: |
+          user_data="$(mktemp -d)"
+          service_file="$(find "$ADRENALIN_STAGE_ROOT" -type f -name 'org.adrenalinlinux.Session1.service' -print -quit)"
+          service_exec="$(sed -n 's/^Exec=//p' "$service_file")"
+          mkdir -p "$(dirname "$service_exec")"
+          if [ ! -e "$service_exec" ]; then
+            ln -s "$ADRENALIN_STAGE_ROOT$service_exec" "$service_exec"
+          fi
+          service_data_root="${service_file%/dbus-1/services/*}"
+          XDG_DATA_DIRS="$service_data_root" \
+          XDG_DATA_HOME="$user_data" \
+            dbus-run-session -- dbus-send --session --print-reply \
+              --dest=org.adrenalinlinux.Session1 \
+              /org/adrenalinlinux/Session \
+              org.freedesktop.DBus.Introspectable.Introspect
+      - name: Validate desktop executable quoting for custom prefixes
+        run: |
+          quote_build="$(mktemp -d)"
+          quote_base="$(mktemp -d)"
+          quote_prefix="$quote_base/desktop % prefix with spaces"
+          cmake -S . -B "$quote_build" -G Ninja \
+            -DBUILD_TESTING=OFF \
+            -DADRENALIN_BUILD_GUI=OFF \
+            -DADRENALIN_BUILD_SESSION_SERVICE=OFF \
+            -DCMAKE_INSTALL_PREFIX="$quote_prefix"
+          desktop-file-validate "$quote_build/generated/org.adrenalinlinux.App.desktop"

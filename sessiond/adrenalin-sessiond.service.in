@@ -1,0 +1,8 @@
+[Unit]
+Description=Adrenalin Linux user session service
+
+[Service]
+Type=dbus
+BusName=org.adrenalinlinux.Session1
+ExecStart=@ADRENALIN_SYSTEMD_SESSION_EXEC@
+Restart=on-failure

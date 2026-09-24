@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=@ADRENALIN_SESSION_BUS_NAME@
+Exec=@ADRENALIN_DBUS_SESSION_EXEC@
+SystemdService=adrenalin-sessiond.service

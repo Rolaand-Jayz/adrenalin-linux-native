@@ -85,6 +85,11 @@ ApplicationWindow {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
+
+            ProductTelemetryConsent {
+                Layout.fillWidth: true
+                settingsClient: sessionSettingsClient
+            }
         }
 
         Item { Layout.fillHeight: true }

@@ -1,4 +1,5 @@
 #include "application_config.h"
+#include "interfaces/settings1_client.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -15,9 +16,12 @@ int main(int argc, char *argv[])
 
     const bool smokeMode = app.arguments().contains(QStringLiteral("--smoke"));
 
+    Settings1Client settingsClient;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(
         QStringLiteral("appDisplayName"), QString::fromUtf8(ADRENALIN_APP_NAME));
+    engine.rootContext()->setContextProperty(QStringLiteral("sessionSettingsClient"),
+                                             &settingsClient);
     engine.loadFromModule(QStringLiteral("Adrenalin.Shell"), QStringLiteral("Main"));
 
     if (engine.rootObjects().isEmpty()) {
