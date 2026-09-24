@@ -87,7 +87,7 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   identity definition instead of repeated in runtime code. A local
   RelWithDebInfo staged install verified the activation targets, systemd unit,
   desktop-entry syntax, custom desktop path quoting, and actual D-Bus activation.
-- Reference harness checks pass locally (36 tests) and are included in CI.
+- Reference harness checks pass locally (40 tests) and are included in CI.
 
 ## Current blockers
 
@@ -95,9 +95,9 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
 - Local full CMake test configuration currently lacks Catch2 v3. CI installs
   Catch2, but the full CTest run has not been observed in this environment.
-- The focused private-bus session suite passes 15/15 QtTest totals with socket
-  permissions. The full clean-checkout CMake/CTest workflow is still unverified
-  locally because Catch2 v3 is absent.
+- The focused private-bus session-contract suite passes 17/17 QtTest totals and
+  the focused readiness-client suite passes 8/8. The full clean-checkout
+  CMake/CTest workflow is still unverified locally because Catch2 v3 is absent.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 
