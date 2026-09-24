@@ -60,8 +60,15 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   sequence, and stable subject. Its read snapshot includes the corresponding
   event cursor, and the client requests an authoritative refresh after sequence
   or revision gaps. UUID/generation/subject mismatch also forces a refresh, and
-  duplicate sequences are ignored. The updated private-bus session suite passes
-  15/15 totals. Other service event families still need this envelope.
+  duplicate sequences are ignored. The readiness state event now uses the same
+  per-service cursor and publishes the same envelope through a dedicated
+  versioned `Service1.EventPublished` signal. Standard `PropertiesChanged`
+  carries only values that changed. The readiness client ignores duplicates,
+  advances over sequential events from other service families, and refreshes on
+  gaps, owner/identity changes, or malformed envelopes.
+  The focused private-bus session suite passes 17/17 QtTest totals, and the
+  focused readiness-client suite passes 8/8 totals. Other v1 service event
+  families still need this envelope.
 - Readiness fields now live in a shared `ServiceReadinessContract`, independent
   of Settings1 operations. The session mock implements and tests all fields;
   the focused session-contract suite passes 15/15 totals. A new
@@ -109,7 +116,8 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 
 1. Continue the eligible ID-105/107 topology and operation-family frontier,
    keeping shared schema edits serialized and interfaces aligned to the audited
-   contract.
+   contract. The current event foundation covers consent and Service1 readiness;
+   remaining service event families are still open.
 2. Implement ID-105 session topology and make each long-lived root implement
    the shared ID-106 readiness contract.
 3. Complete ID-185 recovery reconciliation and the event envelope for remaining

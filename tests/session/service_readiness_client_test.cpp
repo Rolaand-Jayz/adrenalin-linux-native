@@ -57,9 +57,12 @@ public:
             "<property name='InitializationState' type='s' access='read'/>"
             "<property name='ServiceInstanceUuid' type='s' access='read'/>"
             "<property name='ServiceGeneration' type='t' access='read'/>"
+            "<property name='EventSequence' type='t' access='read'/>"
             "<property name='ApiMajor' type='q' access='read'/>"
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
+            "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
+            "<arg type='t'/><arg type='s'/></signal>"
             "</interface></node>");
     }
 
@@ -82,22 +85,51 @@ public:
         return connection.send(message.createReply(snapshot()));
     }
 
-    bool publish(const QDBusConnection &connection, QString state, QString error = {})
+    bool publish(const QDBusConnection &connection, QString state, QString error = {},
+                 bool incrementGeneration = true)
     {
+        const qulonglong previousGeneration = generation_;
+        const QString previousError = lastError_;
         state_ = std::move(state);
         lastError_ = std::move(error);
-        ++generation_;
+        if (incrementGeneration) {
+            ++generation_;
+        }
+        ++eventSequence_;
+        QDBusMessage eventSignal = QDBusMessage::createSignal(
+            QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kReadinessInterface),
+            QStringLiteral("EventPublished"));
+        eventSignal << instanceUuid_ << generation_ << eventSequence_
+                    << QStringLiteral("service.readiness");
+        const bool eventSent = connection.send(eventSignal);
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kPropertiesInterface),
             QStringLiteral("PropertiesChanged"));
-        signal << QString::fromLatin1(kReadinessInterface)
-               << QVariantMap{{QStringLiteral("InitializationState"), state_},
-                              {QStringLiteral("ServiceGeneration"),
-                               QVariant::fromValue(generation_)},
-                              {QStringLiteral("LastInitializationError"), lastError_}}
-               << QStringList{};
+        QVariantMap changedProperties{
+            {QStringLiteral("InitializationState"), state_},
+            {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)}};
+        if (generation_ != previousGeneration) {
+            changedProperties.insert(QStringLiteral("ServiceGeneration"),
+                                     QVariant::fromValue(generation_));
+        }
+        if (lastError_ != previousError) {
+            changedProperties.insert(QStringLiteral("LastInitializationError"), lastError_);
+        }
+        signal << QString::fromLatin1(kReadinessInterface) << changedProperties << QStringList{};
+        return eventSent && connection.send(signal);
+    }
+
+    bool publishDuplicate(const QDBusConnection &connection)
+    {
+        QDBusMessage signal = QDBusMessage::createSignal(
+            QString::fromLatin1(kTestObjectPath), QString::fromLatin1(kReadinessInterface),
+            QStringLiteral("EventPublished"));
+        signal << instanceUuid_ << generation_ << eventSequence_
+               << QStringLiteral("service.readiness");
         return connection.send(signal);
     }
+
+    void skipEventSequences(qulonglong count) { eventSequence_ += count; }
 
     void holdNextGetAll() { holdNextGetAll_ = true; }
     bool hasPendingGetAll() const { return !pendingGetAll_.path().isEmpty(); }
@@ -121,6 +153,7 @@ private:
             {QStringLiteral("InitializationState"), state_},
             {QStringLiteral("ServiceInstanceUuid"), instanceUuid_},
             {QStringLiteral("ServiceGeneration"), QVariant::fromValue(generation_)},
+            {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)},
             {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)},
             {QStringLiteral("ApiMinor"), QVariant::fromValue(apiMinor_)},
             {QStringLiteral("LastInitializationError"), lastError_}
@@ -132,6 +165,7 @@ private:
     QString state_;
     QString lastError_;
     qulonglong generation_ = 4;
+    qulonglong eventSequence_ = 0;
     QString instanceUuid_;
     bool holdNextGetAll_ = false;
     QDBusMessage pendingGetAll_;
@@ -145,6 +179,8 @@ class ServiceReadinessClientTest final : public QObject
 private slots:
     void cleanup();
     void readinessSnapshotAndChangesAreReconciled();
+    void readinessEventsReconcileGapsAndIgnoreDuplicates();
+    void duplicateDuringReconciliationDoesNotQueueAnotherSnapshot();
     void pendingSnapshotCannotUndoAPropertyChange();
     void unsupportedApiMajorFailsClosed();
     void ownerReplacementReconcilesNewInstance();
@@ -230,6 +266,65 @@ void ServiceReadinessClientTest::pendingSnapshotCannotUndoAPropertyChange()
     QVERIFY(!postChangeStatuses.contains(QStringLiteral("READY")));
     QVERIFY(!client.ready());
     QCOMPARE(client.serviceGeneration(), qulonglong(5));
+}
+
+void ServiceReadinessClientTest::readinessEventsReconcileGapsAndIgnoreDuplicates()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    PrivateClientConnection clientBus;
+    QVERIFY(clientBus.connection().isConnected());
+    auto fixture = std::make_unique<ReadinessFixture>();
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kTestObjectPath), fixture.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kTestServiceName)));
+
+    ServiceReadinessClient client(QString::fromLatin1(kTestServiceName),
+                                  QString::fromLatin1(kTestObjectPath),
+                                  clientBus.connection(), 1);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+    QCOMPARE(client.eventSequence(), qulonglong(0));
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    fixture->skipEventSequences(1);
+    QVERIFY(fixture->publish(bus, QStringLiteral("RECOVERING"), {}, false));
+    QTRY_COMPARE_WITH_TIMEOUT(client.initializationState(), QStringLiteral("RECOVERING"), 3000);
+    QCOMPARE(client.eventSequence(), qulonglong(2));
+    QCOMPARE(client.serviceGeneration(), qulonglong(4));
+    QTRY_COMPARE_WITH_TIMEOUT(fixture->getAllCount(), 2, 3000);
+
+    QVERIFY(fixture->publishDuplicate(bus));
+    QTest::qWait(50);
+    QCOMPARE(fixture->getAllCount(), 2);
+
+}
+
+void ServiceReadinessClientTest::duplicateDuringReconciliationDoesNotQueueAnotherSnapshot()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    PrivateClientConnection clientBus;
+    QVERIFY(clientBus.connection().isConnected());
+    auto fixture = std::make_unique<ReadinessFixture>();
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kTestObjectPath), fixture.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kTestServiceName)));
+
+    ServiceReadinessClient client(QString::fromLatin1(kTestServiceName),
+                                  QString::fromLatin1(kTestObjectPath),
+                                  clientBus.connection(), 1);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+    QCOMPARE(fixture->getAllCount(), 1);
+
+    fixture->holdNextGetAll();
+    client.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(fixture->hasPendingGetAll(), 3000);
+    QCOMPARE(fixture->getAllCount(), 2);
+    QVERIFY(fixture->publish(bus, QStringLiteral("RECOVERING")));
+
+    QVERIFY(fixture->publishDuplicate(bus));
+    QTest::qWait(50);
+    QCOMPARE(fixture->getAllCount(), 2);
+    QVERIFY(fixture->releasePendingGetAll(bus));
+    QTRY_COMPARE_WITH_TIMEOUT(client.initializationState(), QStringLiteral("RECOVERING"), 3000);
+    QTest::qWait(50);
+    QCOMPARE(fixture->getAllCount(), 3);
 }
 
 void ServiceReadinessClientTest::unsupportedApiMajorFailsClosed()

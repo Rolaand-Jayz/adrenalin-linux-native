@@ -61,9 +61,12 @@ public:
             "<property name='InitializationState' type='s' access='read'/>"
             "<property name='ServiceInstanceUuid' type='s' access='read'/>"
             "<property name='ServiceGeneration' type='t' access='read'/>"
+            "<property name='EventSequence' type='t' access='read'/>"
             "<property name='ApiMajor' type='q' access='read'/>"
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
+            "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
+            "<arg type='t'/><arg type='s'/></signal>"
             "</interface>"
             "<interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'>"
@@ -124,6 +127,7 @@ public:
                 {QStringLiteral("InitializationState"), readinessState_},
                 {QStringLiteral("ServiceInstanceUuid"), instanceUuid_},
                 {QStringLiteral("ServiceGeneration"), QVariant::fromValue(generation_)},
+                {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)},
                 {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)},
                 {QStringLiteral("ApiMinor"), QVariant::fromValue(ushort(0))},
                 {QStringLiteral("LastInitializationError"), QString()},
@@ -141,6 +145,8 @@ public:
                 value = instanceUuid_;
             } else if (property == QStringLiteral("ServiceGeneration")) {
                 value = QVariant::fromValue(generation_);
+            } else if (property == QStringLiteral("EventSequence")) {
+                value = QVariant::fromValue(eventSequence_);
             } else if (property == QStringLiteral("ApiMajor")) {
                 value = QVariant::fromValue(apiMajor_);
             } else if (property == QStringLiteral("ApiMinor")) {
@@ -186,15 +192,29 @@ public:
     void setDelayReads(bool delay) { delayReads_ = delay; }
     bool publishReadiness(const QDBusConnection &connection, QString state, ushort apiMajor = 1)
     {
+        const ushort previousApiMajor = apiMajor_;
         readinessState_ = std::move(state);
         apiMajor_ = apiMajor;
+        ++eventSequence_;
+        QDBusMessage eventSignal = QDBusMessage::createSignal(
+            QString::fromLatin1(kObjectPath), QStringLiteral("org.adrenalinlinux.Session1.Service1"),
+            QStringLiteral("EventPublished"));
+        eventSignal << instanceUuid_ << generation_ << eventSequence_
+                    << QStringLiteral("service.readiness");
+        if (!connection.send(eventSignal)) {
+            return false;
+        }
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kObjectPath), QStringLiteral("org.freedesktop.DBus.Properties"),
             QStringLiteral("PropertiesChanged"));
+        QVariantMap changedProperties{
+            {QStringLiteral("InitializationState"), readinessState_},
+            {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)}};
+        if (apiMajor_ != previousApiMajor) {
+            changedProperties.insert(QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_));
+        }
         signal << QStringLiteral("org.adrenalinlinux.Session1.Service1")
-               << QVariantMap{{QStringLiteral("InitializationState"), readinessState_},
-                              {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)}}
-               << QStringList{};
+               << changedProperties << QStringList{};
         return connection.send(signal);
     }
 
@@ -266,9 +286,12 @@ public:
             "<property name='InitializationState' type='s' access='read'/>"
             "<property name='ServiceInstanceUuid' type='s' access='read'/>"
             "<property name='ServiceGeneration' type='t' access='read'/>"
+            "<property name='EventSequence' type='t' access='read'/>"
             "<property name='ApiMajor' type='q' access='read'/>"
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
+            "<signal name='EventPublished'><arg type='s'/><arg type='t'/>"
+            "<arg type='t'/><arg type='s'/></signal>"
             "</interface><interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'><arg direction='out' type='s'/>"
             "<arg direction='out' type='s'/><arg direction='out' type='t'/>"
@@ -294,6 +317,7 @@ public:
                 {QStringLiteral("InitializationState"), readinessState_},
                 {QStringLiteral("ServiceInstanceUuid"), instanceUuid_},
                 {QStringLiteral("ServiceGeneration"), QVariant::fromValue(generation_)},
+                {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)},
                 {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)},
                 {QStringLiteral("ApiMinor"), QVariant::fromValue(ushort(0))},
                 {QStringLiteral("LastInitializationError"), QString()},
@@ -396,15 +420,29 @@ public:
     int readCount() const { return readCount_; }
     bool publishReadiness(const QDBusConnection &connection, QString state, ushort apiMajor = 1)
     {
+        const ushort previousApiMajor = apiMajor_;
         readinessState_ = std::move(state);
         apiMajor_ = apiMajor;
+        ++eventSequence_;
+        QDBusMessage eventSignal = QDBusMessage::createSignal(
+            QString::fromLatin1(kObjectPath), QStringLiteral("org.adrenalinlinux.Session1.Service1"),
+            QStringLiteral("EventPublished"));
+        eventSignal << instanceUuid_ << generation_ << eventSequence_
+                    << QStringLiteral("service.readiness");
+        if (!connection.send(eventSignal)) {
+            return false;
+        }
         QDBusMessage signal = QDBusMessage::createSignal(
             QString::fromLatin1(kObjectPath), QStringLiteral("org.freedesktop.DBus.Properties"),
             QStringLiteral("PropertiesChanged"));
+        QVariantMap changedProperties{
+            {QStringLiteral("InitializationState"), readinessState_},
+            {QStringLiteral("EventSequence"), QVariant::fromValue(eventSequence_)}};
+        if (apiMajor_ != previousApiMajor) {
+            changedProperties.insert(QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_));
+        }
         signal << QStringLiteral("org.adrenalinlinux.Session1.Service1")
-               << QVariantMap{{QStringLiteral("InitializationState"), readinessState_},
-                              {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)}}
-               << QStringList{};
+               << changedProperties << QStringList{};
         return connection.send(signal);
     }
     void holdNextRead() { holdNextRead_ = true; }
@@ -639,6 +677,9 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
         QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath), bus);
     OrgAdrenalinlinuxSession1Service1Interface serviceProxy(
         QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath), bus);
+    QSignalSpy serviceEvents(
+        &serviceProxy, &OrgAdrenalinlinuxSession1Service1Interface::EventPublished);
+    QVERIFY(serviceEvents.isValid());
     QVERIFY(proxy.isValid());
     QVERIFY(serviceProxy.isValid());
     QVERIFY(bus.connect(QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath),
@@ -682,6 +723,15 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(serviceChangedInterface_, QStringLiteral("org.adrenalinlinux.Session1.Service1"));
     QCOMPARE(serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong(),
              firstGeneration);
+    QCOMPARE(serviceChangedProperties_.value(QStringLiteral("EventSequence")).toULongLong(),
+             qulonglong(2));
+    QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("ServiceInstanceUuid")));
+    QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("EventSubjectId")));
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 2, 2000);
+    QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
+    QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(2));
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("service.readiness"));
     QVERIFY(serviceChangedProperties_.contains(QStringLiteral("InitializationState")));
 
     auto readPending = proxy.GetProductTelemetryConsent();
@@ -692,7 +742,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(initial.argumentAt<0>(), QStringLiteral("OK"));
     QCOMPARE(initial.argumentAt<1>(), firstUuid);
     QCOMPARE(initial.argumentAt<2>(), firstGeneration);
-    QCOMPARE(initial.argumentAt<3>(), qulonglong(0));
+    QCOMPARE(initial.argumentAt<3>(), qulonglong(2));
     QVERIFY(!initial.argumentAt<4>());
     QCOMPARE(initial.argumentAt<5>(), qulonglong(0));
 
@@ -712,9 +762,14 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(write.argumentAt<6>(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(write.argumentAt<7>(), qulonglong(1));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 1, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 3, 2000);
+    QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
+    QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(3));
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(0).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(0).at(1).toULongLong(), firstGeneration);
-    QCOMPARE(changed.at(0).at(2).toULongLong(), qulonglong(1));
+    QCOMPARE(changed.at(0).at(2).toULongLong(), qulonglong(3));
     QCOMPARE(changed.at(0).at(3).toString(), QStringLiteral("product.telemetry_consent"));
     QVERIFY(changed.at(0).at(4).toBool());
     QCOMPARE(changed.at(0).at(5).toULongLong(), qulonglong(1));
@@ -741,9 +796,11 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(nextWrite.argumentAt<0>(), QStringLiteral("OK"));
     QCOMPARE(nextWrite.argumentAt<7>(), qulonglong(2));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 2, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 4, 2000);
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(4));
     QCOMPARE(changed.at(1).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(1).at(1).toULongLong(), firstGeneration);
-    QCOMPARE(changed.at(1).at(2).toULongLong(), qulonglong(2));
+    QCOMPARE(changed.at(1).at(2).toULongLong(), qulonglong(4));
     QCOMPARE(changed.at(1).at(3).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(1).at(4).toBool(), false);
     QCOMPARE(changed.at(1).at(5).toULongLong(), qulonglong(2));
@@ -769,7 +826,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
         currentPending;
     QCOMPARE(current.argumentAt<0>(), QStringLiteral("OK"));
     QVERIFY(!current.argumentAt<4>());
-    QCOMPARE(current.argumentAt<3>(), qulonglong(2));
+    QCOMPARE(current.argumentAt<3>(), qulonglong(4));
     QCOMPARE(current.argumentAt<5>(), qulonglong(2));
 
     stopService(service);
@@ -795,7 +852,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QVERIFY(!afterRestart.isError());
     QCOMPARE(afterRestart.argumentAt<0>(), QStringLiteral("OK"));
     QVERIFY(!afterRestart.argumentAt<4>());
-    QCOMPARE(afterRestart.argumentAt<3>(), qulonglong(0));
+    QCOMPARE(afterRestart.argumentAt<3>(), qulonglong(2));
     QCOMPARE(afterRestart.argumentAt<5>(), qulonglong(2));
     stopService(service);
 

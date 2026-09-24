@@ -84,6 +84,11 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
   state when it observes an event-sequence or revision gap.
 - [x] The client refreshes on event UUID, generation, or subject mismatch and
   ignores duplicate sequences without an unnecessary read.
+- [x] Consent and Service1 readiness events share one monotonically increasing
+  per-service cursor. Versioned Service1 `EventPublished` carries the UUID,
+  generation, sequence, and stable subject envelope; the readiness client
+  ignores duplicates, advances over sequential events from other families, and
+  reconciles gaps. Standard `PropertiesChanged` includes only changed values.
 - [ ] Apply the same event envelope and gap-reconciliation contract to every
   remaining cross-process event family in the v1 topology.
 

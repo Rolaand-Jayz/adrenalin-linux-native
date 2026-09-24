@@ -46,6 +46,13 @@ QString SessionService::initializationState() const
 
 QString SessionService::serviceInstanceUuid() const { return serviceInstanceUuid_; }
 qulonglong SessionService::serviceGeneration() const { return database_->generation(); }
+qulonglong SessionService::eventSequence() const { return eventSequence_; }
+QString SessionService::eventSubjectId() const { return eventSubjectId_; }
+qulonglong SessionService::nextEventSequence(const QString &subjectId)
+{
+    eventSubjectId_ = subjectId;
+    return ++eventSequence_;
+}
 ushort SessionService::apiMajor() const { return 1; }
 ushort SessionService::apiMinor() const { return 0; }
 QString SessionService::lastInitializationError() const { return lastInitializationError_; }
@@ -54,6 +61,8 @@ void SessionService::setState(State state, QString error)
 {
     state_ = state;
     lastInitializationError_ = std::move(error);
+    nextEventSequence(QStringLiteral("service.readiness"));
+    emit eventPublished();
     emit initializationStateChanged();
     logEvent(QStringLiteral("state_changed"), state_ == State::Failed ? QStringLiteral("error")
                                                                        : QStringLiteral("info"),
@@ -156,10 +165,11 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
         return writeResult;
     }
     if (!operationReplayed) {
-        ++eventSequence_;
+        nextEventSequence(result.subjectId);
         emit ProductTelemetryConsentChanged(serviceInstanceUuid(), serviceGeneration(),
                                             eventSequence_, result.subjectId, enabled,
                                             result.revision);
+        emit eventPublished();
     }
     result.code = OperationResultCode::Ok;
     result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");

@@ -35,6 +35,7 @@ public:
     QString initializationState() const;
     QString serviceInstanceUuid() const;
     qulonglong serviceGeneration() const;
+    qulonglong eventSequence() const;
     ushort apiMajor() const;
     ushort apiMinor() const;
     QString lastInitializationError() const;
@@ -47,8 +48,8 @@ signals:
 private slots:
     void onServiceOwnerChanged(const QString &service, const QString &oldOwner,
                                const QString &newOwner);
-    void onPropertiesChanged(const QString &interfaceName, const QVariantMap &changed,
-                             const QStringList &invalidated);
+    void onEventPublished(const QString &serviceInstanceUuid, qulonglong serviceGeneration,
+                          qulonglong eventSequence, const QString &subjectId);
 
 private:
     void clearSnapshot(const QString &status);
@@ -67,6 +68,10 @@ private:
     QString initializationState_;
     QString serviceInstanceUuid_;
     qulonglong serviceGeneration_ = 0;
+    qulonglong eventSequence_ = 0;
+    QString lastEventInstanceUuid_;
+    qulonglong lastEventServiceGeneration_ = 0;
+    qulonglong lastEventSequence_ = 0;
     ushort apiMajor_ = 0;
     ushort apiMinor_ = 0;
     QString lastInitializationError_;

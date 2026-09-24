@@ -15,12 +15,14 @@ class SessionService final : public QObject, public Settings1Contract
     Q_PROPERTY(QString initializationState READ initializationState NOTIFY initializationStateChanged)
     Q_PROPERTY(QString serviceInstanceUuid READ serviceInstanceUuid CONSTANT)
     Q_PROPERTY(qulonglong serviceGeneration READ serviceGeneration NOTIFY initializationStateChanged)
+    Q_PROPERTY(qulonglong eventSequence READ eventSequence NOTIFY eventPublished)
     Q_PROPERTY(ushort apiMajor READ apiMajor CONSTANT)
     Q_PROPERTY(ushort apiMinor READ apiMinor CONSTANT)
     Q_PROPERTY(QString lastInitializationError READ lastInitializationError NOTIFY initializationStateChanged)
     Q_PROPERTY(QString InitializationState READ initializationState NOTIFY initializationStateChanged)
     Q_PROPERTY(QString ServiceInstanceUuid READ serviceInstanceUuid CONSTANT)
     Q_PROPERTY(qulonglong ServiceGeneration READ serviceGeneration NOTIFY initializationStateChanged)
+    Q_PROPERTY(qulonglong EventSequence READ eventSequence NOTIFY eventPublished)
     Q_PROPERTY(ushort ApiMajor READ apiMajor CONSTANT)
     Q_PROPERTY(ushort ApiMinor READ apiMinor CONSTANT)
     Q_PROPERTY(QString LastInitializationError READ lastInitializationError NOTIFY initializationStateChanged)
@@ -36,6 +38,8 @@ public:
     QString initializationState() const override;
     QString serviceInstanceUuid() const override;
     qulonglong serviceGeneration() const override;
+    qulonglong eventSequence() const;
+    QString eventSubjectId() const;
     ushort apiMajor() const override;
     ushort apiMinor() const override;
     QString lastInitializationError() const override;
@@ -47,6 +51,7 @@ public:
 
 signals:
     void initializationStateChanged();
+    void eventPublished();
     void ProductTelemetryConsentChanged(const QString &serviceInstanceUuid,
                                         qulonglong serviceGeneration,
                                         qulonglong eventSequence,
@@ -55,6 +60,7 @@ signals:
                                         qulonglong revision);
 
 private:
+    qulonglong nextEventSequence(const QString &subjectId);
     void setState(State state, QString error = {});
     void logEvent(const QString &eventName, const QString &level,
                   const QString &detail = {}) const;
@@ -63,5 +69,6 @@ private:
     QString serviceInstanceUuid_;
     QString lastInitializationError_;
     quint64 eventSequence_ = 0;
+    QString eventSubjectId_;
     std::unique_ptr<SessionDatabase> database_;
 };

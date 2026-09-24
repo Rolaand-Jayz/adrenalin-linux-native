@@ -10,7 +10,6 @@
 
 namespace {
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
-constexpr auto kPropertiesChangedSignal = "PropertiesChanged";
 constexpr auto kServiceReadinessInterface =
     "org.adrenalinlinux.Session1.Service1";
 
@@ -46,9 +45,8 @@ ServiceReadinessClient::ServiceReadinessClient(QString serviceName, QString obje
 {
     connect(&ownerWatcher_, &QDBusServiceWatcher::serviceOwnerChanged, this,
             &ServiceReadinessClient::onServiceOwnerChanged);
-    connection_.connect(serviceName_, objectPath_, QString::fromLatin1(kPropertiesInterface),
-                        QString::fromLatin1(kPropertiesChangedSignal), this,
-                        SLOT(onPropertiesChanged(QString,QVariantMap,QStringList)));
+    connect(&proxy_, &OrgAdrenalinlinuxSession1Service1Interface::EventPublished,
+            this, &ServiceReadinessClient::onEventPublished);
     refresh();
 }
 
@@ -62,6 +60,7 @@ QString ServiceReadinessClient::status() const { return status_; }
 QString ServiceReadinessClient::initializationState() const { return initializationState_; }
 QString ServiceReadinessClient::serviceInstanceUuid() const { return serviceInstanceUuid_; }
 qulonglong ServiceReadinessClient::serviceGeneration() const { return serviceGeneration_; }
+qulonglong ServiceReadinessClient::eventSequence() const { return eventSequence_; }
 ushort ServiceReadinessClient::apiMajor() const { return apiMajor_; }
 ushort ServiceReadinessClient::apiMinor() const { return apiMinor_; }
 QString ServiceReadinessClient::lastInitializationError() const
@@ -99,21 +98,62 @@ void ServiceReadinessClient::onServiceOwnerChanged(const QString &, const QStrin
     requestInFlight_ = false;
     refreshPending_ = false;
     if (newOwner.isEmpty()) {
+        lastEventInstanceUuid_.clear();
+        lastEventServiceGeneration_ = 0;
+        lastEventSequence_ = 0;
         clearSnapshot(QStringLiteral("DISCONNECTED"));
         return;
     }
+    lastEventInstanceUuid_.clear();
+    lastEventServiceGeneration_ = 0;
+    lastEventSequence_ = 0;
     clearSnapshot(QStringLiteral("RECONCILING"));
     refresh();
 }
 
-void ServiceReadinessClient::onPropertiesChanged(const QString &interfaceName,
-                                                  const QVariantMap &changed,
-                                                  const QStringList &invalidated)
+void ServiceReadinessClient::onEventPublished(const QString &instanceUuid,
+                                               qulonglong generation,
+                                               qulonglong incomingSequence,
+                                               const QString &subjectId)
 {
-    Q_UNUSED(changed);
-    Q_UNUSED(invalidated);
-    if (interfaceName != QString::fromLatin1(kServiceReadinessInterface)) {
+    if (instanceUuid.isEmpty() || incomingSequence == 0 || subjectId.isEmpty()) {
+        clearSnapshot(QStringLiteral("INVALID_EVENT"));
+        refresh();
         return;
+    }
+
+    const bool sameEventOwner = lastEventInstanceUuid_ == instanceUuid
+        && lastEventServiceGeneration_ == generation;
+    if (sameEventOwner && incomingSequence <= lastEventSequence_) {
+        return;
+    }
+    const bool eventSequenceGap = sameEventOwner
+        && incomingSequence - lastEventSequence_ != 1;
+    const bool snapshotOwnerMismatch = available_
+        && (instanceUuid != serviceInstanceUuid_ || generation != serviceGeneration_);
+    if (!sameEventOwner || snapshotOwnerMismatch) {
+        lastEventInstanceUuid_ = instanceUuid;
+        lastEventServiceGeneration_ = generation;
+        lastEventSequence_ = incomingSequence;
+        clearSnapshot(QStringLiteral("RECONCILING"));
+        refresh();
+        return;
+    }
+    if (available_ && incomingSequence <= eventSequence_) {
+        return;
+    }
+    const bool snapshotSequenceGap = available_ && incomingSequence - eventSequence_ != 1;
+    lastEventSequence_ = incomingSequence;
+    if (available_ && !eventSequenceGap && !snapshotSequenceGap
+        && subjectId != QStringLiteral("service.readiness")) {
+        if (requestInFlight_) {
+            refreshPending_ = true;
+        }
+        eventSequence_ = incomingSequence;
+        return;
+    }
+    if (requestInFlight_) {
+        refreshPending_ = true;
     }
     clearSnapshot(QStringLiteral("RECONCILING"));
     refresh();
@@ -127,6 +167,7 @@ void ServiceReadinessClient::clearSnapshot(const QString &status)
     initializationState_.clear();
     serviceInstanceUuid_.clear();
     serviceGeneration_ = 0;
+    eventSequence_ = 0;
     apiMajor_ = 0;
     apiMinor_ = 0;
     lastInitializationError_.clear();
@@ -138,6 +179,7 @@ void ServiceReadinessClient::applySnapshot(const QVariantMap &properties)
     QVariant state;
     QVariant instanceUuid;
     QVariant generation;
+    QVariant eventSequence;
     QVariant apiMajor;
     QVariant apiMinor;
     QVariant error;
@@ -147,6 +189,8 @@ void ServiceReadinessClient::applySnapshot(const QVariantMap &properties)
                         QMetaType::fromType<QString>(), &instanceUuid)
         && readProperty(properties, QStringLiteral("ServiceGeneration"),
                         QMetaType::fromType<qulonglong>(), &generation)
+        && readProperty(properties, QStringLiteral("EventSequence"),
+                        QMetaType::fromType<qulonglong>(), &eventSequence)
         && readProperty(properties, QStringLiteral("ApiMajor"),
                         QMetaType::fromType<ushort>(), &apiMajor)
         && readProperty(properties, QStringLiteral("ApiMinor"),
@@ -162,6 +206,15 @@ void ServiceReadinessClient::applySnapshot(const QVariantMap &properties)
     initializationState_ = state.toString();
     serviceInstanceUuid_ = instanceUuid.toString();
     serviceGeneration_ = generation.toULongLong();
+    eventSequence_ = eventSequence.toULongLong();
+    if (lastEventInstanceUuid_.isEmpty()
+        || (lastEventInstanceUuid_ == serviceInstanceUuid_
+            && lastEventServiceGeneration_ == serviceGeneration_
+            && eventSequence_ > lastEventSequence_)) {
+        lastEventInstanceUuid_ = serviceInstanceUuid_;
+        lastEventServiceGeneration_ = serviceGeneration_;
+        lastEventSequence_ = eventSequence_;
+    }
     apiMajor_ = apiMajor.value<ushort>();
     apiMinor_ = apiMinor.value<ushort>();
     lastInitializationError_ = error.toString();

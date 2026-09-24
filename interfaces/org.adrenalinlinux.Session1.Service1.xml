@@ -3,8 +3,15 @@
     <property name="InitializationState" type="s" access="read"/>
     <property name="ServiceInstanceUuid" type="s" access="read"/>
     <property name="ServiceGeneration" type="t" access="read"/>
+    <property name="EventSequence" type="t" access="read"/>
     <property name="ApiMajor" type="q" access="read"/>
     <property name="ApiMinor" type="q" access="read"/>
     <property name="LastInitializationError" type="s" access="read"/>
+    <signal name="EventPublished">
+      <arg name="service_instance_uuid" type="s"/>
+      <arg name="service_generation" type="t"/>
+      <arg name="event_sequence" type="t"/>
+      <arg name="subject_id" type="s"/>
+    </signal>
   </interface>
 </node>
