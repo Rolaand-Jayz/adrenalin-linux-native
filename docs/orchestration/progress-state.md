@@ -12,11 +12,10 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 ## Completed evidence
 
 - Ticket 01 was rechecked from a clean `git archive` of the current commit. A
-  production-only CMake/Ninja build completed all 57 steps. The repository's
-  Qt shell smoke test was compiled and run against that build under a private
-  D-Bus session: 3/3 QtTest cases passed, including QML load and clean exit.
-  This reproduces the build/smoke behavior locally but does not establish a
-  hosted CI run.
+  clean-source CMake/Ninja build completed, and all 4/4 CTest suites passed,
+  including the shell smoke and both private-bus suites. The run used Qt 6.11.2,
+  GCC 16.2.1, and the workflow's Catch2 3.4.0 package. This proves the local
+  clean-source build/test path but does not establish a hosted CI run.
 - The in-progress Hardware1 test target built and its focused private-bus CTest
   passed 1/1. Independent review then found a mismatch between the Reply XML
   signature and streamed field order, plus stale mock outputs and incomplete
@@ -104,14 +103,12 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 
 - No authentic fixed-reference capture pack or candidate screen artifact is
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
-- Local full CMake test configuration currently lacks Catch2 v3. CI installs
-  Catch2, but the full CTest run has not been observed in this environment.
 - The Ticket 01 hosted CI criterion remains open: this checkout has no
   configured Git remote or current workflow run evidence. The clean local
-  archive build and smoke result are recorded in the ticket pack.
+  archive build and 4/4 CTest result are recorded in the ticket pack.
 - The focused private-bus session-contract suite passes 17/17 QtTest totals and
-  the focused readiness-client suite passes 8/8. The full clean-checkout
-  CMake/CTest workflow is still unverified locally because Catch2 v3 is absent.
+  the focused readiness-client suite passes 8/8. The clean-source full CTest
+  run now passes 4/4; a hosted CI run is still unverified.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 
@@ -128,8 +125,8 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 
 ## Next actions
 
-1. Obtain a hosted clean-checkout CI run for Ticket 01. The local clean archive
-   build and Qt shell smoke pass are recorded but do not close this criterion.
+1. Obtain a hosted clean-checkout CI run for Ticket 01. The local clean-source
+   build and full CTest pass are recorded but do not close this criterion.
 2. Once Ticket 01 is complete, recompute the frontier and resume Tickets 02 and
    03. Ticket 02 requires authentic reference captures and real candidate
    screen/geometry evidence; synthetic fixtures cannot pass its parity gate.

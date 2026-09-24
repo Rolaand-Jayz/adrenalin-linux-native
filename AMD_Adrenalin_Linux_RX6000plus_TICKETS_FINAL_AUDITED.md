@@ -45,8 +45,8 @@ remain open.
 - [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
 - [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
-  - [x] Local clean-archive reproduction: all 57 production build steps passed and the existing Qt shell smoke passed 3/3 cases on Qt 6.11.2.
-  - [ ] Hosted CI run evidence is still unverified; the workspace has no configured Git remote, and the local full-test configure lacks Catch2 v3.
+  - [x] Local clean-source CMake/Ninja build completed and CTest passed all 4/4 suites, including the shell smoke and both private-bus suites (Qt 6.11.2, GCC 16.2.1, Catch2 3.4.0).
+  - [ ] Hosted CI run evidence is still unverified; this workspace has no configured Git remote.
 
 ### 02 — Reference corpus and parity harness
 

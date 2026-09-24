@@ -1211,7 +1211,9 @@ void SessionContractTest::clientRefreshesAfterForeignOrMismatchedEvents()
                                                   eventGeneration, subjectId)) {
             return false;
         }
-        if (!waitUntil([&] { return service->readCount() == revision + 1; })
+        if (!waitUntil([&] {
+                return static_cast<qulonglong>(service->readCount()) == revision + 1;
+            })
             || !service->hasPendingRead() || client->ready()) {
             return false;
         }
