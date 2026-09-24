@@ -32,12 +32,15 @@ remains the active implementation frontier.
 - A read-only libdrm PCI inventory source is now implemented as isolated
   ID-104 groundwork. It bounds enumeration, validates PCI evidence, filters
   AMD vendor IDs, canonicalizes transient BDF evidence, rejects duplicates,
-  and releases libdrm records on every path. The source validation test is
-  wired into project CTest and passes 1/1 (10 test cases). The test-enabled
+  and releases libdrm records on every path. A versioned, domain-separated
+  SHA-256 mapper derives opaque `GPU_PCI` subject IDs from validated PCI evidence;
+  its stability boundary is the PCI address plus vendor/device IDs. The source
+  and identity tests are wired into project CTest and pass 2/2 (18 QtTest cases total).
+  The test-enabled
   configure used a temporary Catch2 package shim because Catch2 v3 is not
   installed; only the DRM target was built. The full production app/sessiond
-  build with tests disabled passed. `/dev/dri` is not exposed in this host,
-  so runtime hardware enumeration was not verified. The source remains
+  build with tests disabled passed. DRM device nodes are not exposed on this host,
+  so runtime hardware enumeration was not verified. The sources remain
   unconsumed by SessionService; no production Hardware1 provider is claimed.
 - Independent review confirms Hardware1 is still not exported by the production
   Session1 service; production event emission, ID-107's remaining operation

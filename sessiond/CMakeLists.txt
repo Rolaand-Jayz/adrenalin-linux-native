@@ -61,6 +61,8 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
     add_library(adrenalin-linux-drm-inventory-source STATIC
         ../interfaces/linux_drm_inventory_source.cpp
         ../interfaces/linux_drm_inventory_source.h
+        ../interfaces/pci_gpu_subject_identity.cpp
+        ../interfaces/pci_gpu_subject_identity.h
     )
     target_include_directories(adrenalin-linux-drm-inventory-source PUBLIC
         "${ADRENALIN_SOURCE_ROOT}/interfaces"

@@ -195,3 +195,25 @@ endif()
 add_test(NAME adrenalin-linux-drm-inventory-source
     COMMAND $<TARGET_FILE:adrenalin-linux-drm-inventory-source-test>
 )
+
+
+qt_add_executable(adrenalin-pci-gpu-subject-identity-test
+    pci_gpu_subject_identity_test.cpp
+    ../../interfaces/pci_gpu_subject_identity.cpp
+    ../../interfaces/pci_gpu_subject_identity.h
+)
+target_include_directories(adrenalin-pci-gpu-subject-identity-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-pci-gpu-subject-identity-test PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-pci-gpu-subject-identity-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-pci-gpu-subject-identity
+    COMMAND $<TARGET_FILE:adrenalin-pci-gpu-subject-identity-test>
+)
