@@ -153,3 +153,45 @@ add_test(NAME adrenalin-telemetry1-contract
     COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-telemetry1-contract-test>
 )
 set_tests_properties(adrenalin-telemetry1-contract PROPERTIES TIMEOUT 30)
+
+# The inventory source uses real libdrm enumeration in production; this target
+# enables only its validation seam so malformed records can be tested without
+# relying on host GPU visibility.
+add_library(adrenalin-linux-drm-inventory-source-testable STATIC
+    ../../interfaces/linux_drm_inventory_source.cpp
+    ../../interfaces/linux_drm_inventory_source.h
+)
+target_compile_definitions(adrenalin-linux-drm-inventory-source-testable PUBLIC
+    ADRENALIN_DRM_INVENTORY_SOURCE_TESTING
+)
+target_include_directories(adrenalin-linux-drm-inventory-source-testable PUBLIC
+    "${ADRENALIN_SOURCE_ROOT}/interfaces"
+)
+target_link_libraries(adrenalin-linux-drm-inventory-source-testable PUBLIC
+    Qt6::Core
+    PkgConfig::LIBDRM
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-drm-inventory-source-testable PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+
+qt_add_executable(adrenalin-linux-drm-inventory-source-test
+    linux_drm_inventory_source_test.cpp
+)
+target_include_directories(adrenalin-linux-drm-inventory-source-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-linux-drm-inventory-source-test PRIVATE
+    adrenalin-linux-drm-inventory-source-testable
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-drm-inventory-source-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-linux-drm-inventory-source
+    COMMAND $<TARGET_FILE:adrenalin-linux-drm-inventory-source-test>
+)

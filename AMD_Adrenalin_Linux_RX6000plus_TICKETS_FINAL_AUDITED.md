@@ -160,6 +160,12 @@ own acceptance criteria and dependency gates pass.
     provider-backed implementation; the test-only mock is never used as runtime data.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
+  - [x] A bounded libdrm PCI inventory source now provides read-only AMD device
+    identity evidence, rejects malformed or duplicate PCI evidence, distinguishes
+    enumeration errors from a valid empty inventory, and frees libdrm records on
+    all paths. Its isolated validation test is wired into project CTest and passes.
+    This is partial provider groundwork: it does not create stable user-facing
+    identities, export production Hardware1, or complete ID-185 recovery.
 
 **Additional audited-spec tracking (ID-185):**
 

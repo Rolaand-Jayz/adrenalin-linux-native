@@ -56,6 +56,21 @@ target_link_libraries(adrenalin-session-contract-mock PUBLIC adrenalin-session-c
 adrenalin_session_enable_strict_warnings(adrenalin-session-contract-mock)
 
 if(ADRENALIN_BUILD_SESSION_SERVICE)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
+    add_library(adrenalin-linux-drm-inventory-source STATIC
+        ../interfaces/linux_drm_inventory_source.cpp
+        ../interfaces/linux_drm_inventory_source.h
+    )
+    target_include_directories(adrenalin-linux-drm-inventory-source PUBLIC
+        "${ADRENALIN_SOURCE_ROOT}/interfaces"
+    )
+    target_link_libraries(adrenalin-linux-drm-inventory-source PUBLIC
+        Qt6::Core
+        PkgConfig::LIBDRM
+    )
+    adrenalin_session_enable_strict_warnings(adrenalin-linux-drm-inventory-source)
+
     find_package(Qt6 6.8 REQUIRED COMPONENTS Sql)
     set(ADRENALIN_SESSION_ADAPTOR_FILES)
     qt_add_dbus_adaptor(ADRENALIN_SESSION_ADAPTOR_FILES
