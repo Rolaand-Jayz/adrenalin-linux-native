@@ -12,11 +12,18 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/settings1_client.cpp
     ../interfaces/service_readiness_client.cpp
     ../interfaces/operation_result.cpp
+    ../interfaces/hardware1_contract_types.cpp
+    ../interfaces/hardware1_contract.h
+    ../interfaces/hardware1_contract_types.h
     ../interfaces/service_readiness_client.h
     ../interfaces/service_readiness_contract.h
 )
 set(ADRENALIN_SETTINGS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Settings1.xml")
 set(ADRENALIN_SERVICE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Service1.xml")
+set(ADRENALIN_HARDWARE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Hardware1.xml")
+set_source_files_properties("${ADRENALIN_HARDWARE1_XML}"
+    PROPERTIES INCLUDE "${ADRENALIN_SOURCE_ROOT}/interfaces/hardware1_contract_types.h"
+)
 qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
     "${ADRENALIN_SETTINGS1_XML}"
     settings1_interface
@@ -24,6 +31,10 @@ qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
 qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
     "${ADRENALIN_SERVICE1_XML}"
     service1_interface
+)
+qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
+    "${ADRENALIN_HARDWARE1_XML}"
+    hardware1_interface
 )
 target_sources(adrenalin-session-contract PRIVATE ${ADRENALIN_SESSION_CONTRACT_SOURCES})
 target_include_directories(adrenalin-session-contract PUBLIC
@@ -36,6 +47,8 @@ adrenalin_session_enable_strict_warnings(adrenalin-session-contract)
 
 add_library(adrenalin-session-contract-mock STATIC
     ../interfaces/settings1_mock.cpp
+    ../interfaces/hardware1_mock.cpp
+    ../interfaces/hardware1_mock.h
 )
 target_include_directories(adrenalin-session-contract-mock PUBLIC "${ADRENALIN_SOURCE_ROOT}")
 target_link_libraries(adrenalin-session-contract-mock PUBLIC Qt6::Core)

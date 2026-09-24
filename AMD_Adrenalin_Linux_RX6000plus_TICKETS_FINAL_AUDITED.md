@@ -73,6 +73,15 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
   captured image from the same display/window context.
 - [ ] Authentic capture metadata records the fixed reference environment and
   observed behavior for every applicable context/state.
+- [x] Candidate capture CLI renders the live Qt Quick window and measures named
+  visible QML items; requested and display-scaled capture dimensions are bounded
+  by the ID-137 physical-pixel envelope.
+- [x] Runtime-geometry rectangle records use the comparator's `{x, y, width,
+  height}` object shape. The source remains explicitly self-reported and cannot
+  satisfy the independent geometry-attestation gate.
+- [x] Capture-only arguments fail closed when incomplete; `--capture-size` is
+  validated even when combined with `--smoke`. Focused CLI cases cover
+  incomplete, undersized, oversized, and integer-overflow requests.
 
 ### 03 — Session service and persisted preference tracer
 
@@ -119,11 +128,14 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - [ ] Add the typed Hardware1 device-list/static-info/capability contract,
   generated bindings, test-only mock, and private-bus record round-trip before
   wiring any production hardware provider.
-  - [x] An initial private-bus proxy/mock round-trip suite passes in the focused
-    harness; independent review then found a reply-signature mismatch, so the
-    overall contract task remains open pending correction and re-review.
-  - [ ] The generated Reply signature matches the complete serialized field
+  - [x] The private-bus proxy/mock round-trip suite passes in the focused
+    harness. Independent review and lead re-review confirm the bounded
+    wire/mock/test slice below; production integration remains open.
+  - [x] The generated Reply signature matches the complete serialized field
     order, including typed subject identity; failed reads expose no stale payload.
+    Both seven-field event declarations are checked in order by introspection.
+    Independent lead review confirms this bounded wire/mock/test slice; production
+    event emission is not implemented.
   - [ ] The production Session1 root exports Hardware1 through a truthful
     provider-backed implementation; the test-only mock is never used as runtime data.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,

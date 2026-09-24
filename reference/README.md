@@ -199,3 +199,36 @@ project at the time this tooling was added. No golden pixels or passing parity
 fixtures are checked in. Phase-0 capture on the specified Windows reference is
 required before exact shell labels, geometry, behavior, fixtures, or parity
 results can be established.
+
+## Candidate runtime capture
+
+The native shell can capture its current rendered QML window and report measured
+rectangles for named visible components. The caller supplies all output paths
+and capture identities; the command writes a PNG and schema-version-1 geometry
+JSON. The PNG contains the actual `QQuickWindow` render, and the rectangles are
+measured from the live Qt Quick item tree and converted to the PNG's physical
+pixel coordinates.
+
+```sh
+: "${SHELL_EXECUTABLE:?Set SHELL_EXECUTABLE to the built native shell}"
+: "${CANDIDATE_PNG:?Set CANDIDATE_PNG to the chosen PNG output path}"
+: "${CANDIDATE_GEOMETRY:?Set CANDIDATE_GEOMETRY to the chosen geometry JSON output path}"
+"$SHELL_EXECUTABLE" \
+  --capture-candidate "$CANDIDATE_PNG" \
+  --candidate-geometry "$CANDIDATE_GEOMETRY" \
+  --screen-id home \
+  --capture-id default-window:default \
+  --fixture-id live-runtime-uncontrolled
+```
+
+`--capture-size WIDTHxHEIGHT` is capture-only and accepts logical sizes from
+960x640 through 3840x2160, with the request and resulting display-scaled render
+bounded by the 8,294,400-pixel ID-137 envelope. Requests that would exceed the
+physical envelope at the current display scale fail before resizing the window.
+The output reports the actual physical PNG size. Do not use a caller-supplied
+fixture identity unless the displayed data/state is actually controlled by that
+fixture. The current shell export identifies its geometry as
+application-self-reported. The parity comparator requires independent
+runtime-geometry attestation and intentionally rejects this self-report, so this
+capture is useful candidate evidence but cannot pass the geometry gate. The
+reference manifest and comparator schemas remain unchanged.

@@ -18,6 +18,7 @@ ApplicationWindow {
         spacing: 0
 
         Rectangle {
+            objectName: "header"
             Layout.fillWidth: true
             Layout.preferredHeight: 68
             color: "#191c23"
@@ -29,6 +30,7 @@ ApplicationWindow {
                 spacing: 14
 
                 Rectangle {
+                    objectName: "brandMark"
                     Layout.preferredWidth: 30
                     Layout.preferredHeight: 30
                     radius: 15
@@ -44,6 +46,7 @@ ApplicationWindow {
                 }
 
                 Text {
+                    objectName: "applicationTitle"
                     text: appDisplayName
                     color: "#f4f4f5"
                     font.pixelSize: 18
@@ -53,6 +56,7 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
 
                 Text {
+                    objectName: "platformLabel"
                     text: qsTr("Linux")
                     color: "#a8abb4"
                     font.pixelSize: 13
@@ -70,6 +74,7 @@ ApplicationWindow {
             spacing: 12
 
             Text {
+                objectName: "screenTitle"
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("%1 for Linux").arg(appDisplayName)
                 color: "#f4f4f5"
@@ -78,6 +83,7 @@ ApplicationWindow {
             }
 
             Text {
+                objectName: "screenDescription"
                 Layout.fillWidth: true
                 text: qsTr("The native desktop shell is running. Hardware and feature status will appear as their Linux providers become available.")
                 color: "#b5b8c2"
@@ -87,6 +93,7 @@ ApplicationWindow {
             }
 
             ProductTelemetryConsent {
+                objectName: "productTelemetryConsent"
                 Layout.fillWidth: true
                 settingsClient: sessionSettingsClient
             }

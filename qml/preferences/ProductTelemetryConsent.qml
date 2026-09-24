@@ -15,6 +15,7 @@ Item {
         spacing: 10
 
         RowLayout {
+            objectName: "telemetryPreferenceRow"
             Layout.fillWidth: true
 
             ColumnLayout {
@@ -22,6 +23,7 @@ Item {
                 spacing: 4
 
                 Label {
+                    objectName: "telemetryPreferenceLabel"
                     Layout.fillWidth: true
                     text: qsTr("Product telemetry participation")
                     font.pixelSize: 16
@@ -51,6 +53,7 @@ Item {
         }
 
         Label {
+            objectName: "serviceStatus"
             Layout.fillWidth: true
             visible: root.settingsClient !== null
                 && (root.settingsClient.lastOperationCode !== ""

@@ -22,25 +22,29 @@ acceptance criterion remains open.
   including the shell smoke and both private-bus suites. The run used Qt 6.11.2,
   GCC 16.2.1, and the workflow's Catch2 3.4.0 package. This proves the local
   clean-source build/test path but does not establish a hosted CI run.
-- The in-progress Hardware1 test target built and its focused private-bus CTest
-  passed 1/1. Independent review then found a mismatch between the Reply XML
-  signature and streamed field order, plus stale mock outputs and incomplete
-  signal identity. The slice is not integrated and remains open; Ticket 03 is
-  still blocked by Ticket 01 under the audited dependency graph.
-- A fresh read-only contract review also confirmed Hardware1 is not exported by
-  the production Session1 service, ID-107's remaining operation families are
-  absent, the event schema omits `subject_kind`, and ID-185 recovery is not part
-  of startup readiness. A bounded Hardware1 correction worker is addressing only
-  wire/mock/test defects; production topology and remaining operation families
-  still require lead-owned serialized implementation.
+- The Hardware1 wire/mock/test slice now has a matching Reply XML signature and
+  serialized field order, typed subject fields, failure-path output clearing, and
+  ordered seven-field event declarations for both inventory and capability
+  signals. Independent lead review confirms these bounded repairs. The latest
+  focused build passed, and the private-bus CTest passed 1/1 after the final
+  event assertion update.
+- Independent review confirms Hardware1 is still not exported by the production
+  Session1 service; production event emission, ID-107's remaining operation
+  families, event gap reconciliation, and ID-185 startup recovery remain open.
+  The corrected test-only mock is not used as runtime hardware data.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,
   and stderr was empty. This covers the platform smoke criterion, not a
   clean-checkout CI run.
-- Ticket 02's deterministic visual-diff harness is committed. Its required
-  authentic reference corpus, candidate render, geometry export, reviewed
-  annotations, and screen-level passing comparison are still outstanding.
+- Ticket 02's deterministic visual-diff harness is committed. Candidate capture
+  tooling now records the live Qt Quick render and named component rectangles,
+  with a comparator-compatible rectangle shape and fail-closed bounded CLI.
+  A live 1280x800 candidate PNG and 11-component geometry export were emitted and
+  structurally checked in-session; those temporary artifacts are not golden
+  evidence. The export remains application-self-reported and cannot satisfy
+  independent geometry attestation. The authentic reference corpus, reviewed
+  annotations, and passing screen comparison remain open.
 - Ticket 02's manifest is now version 2. `not_applicable` rows must cite a
   checksum-verified captured image from the same context and include reviewer
   and review-record identities. The validator cannot prove that human review
@@ -113,8 +117,11 @@ acceptance criterion remains open.
 
 ## Current blockers
 
-- No authentic fixed-reference capture pack or candidate screen artifact is
-  present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
+- No authentic fixed-reference capture pack, independently attested candidate
+  geometry export, reviewed annotations, or passing screen comparison is present,
+  so Ticket 02 cannot pass its visual parity acceptance gate yet. The verified
+  candidate PNG and self-reported geometry were written to the temporary output
+  area for this session and were not added as reference evidence.
 - The Ticket 01 hosted CI criterion remains open: this checkout has no
   configured Git remote or current workflow run evidence. The clean local
   archive build and 4/4 CTest result are recorded in the ticket pack.
@@ -143,13 +150,15 @@ acceptance criterion remains open.
 
 ## Next actions
 
-1. Integrate and review Ticket 02 candidate runtime capture/geometry work and the
-   bounded Ticket 03 Hardware1 correction; keep authentic references and hosted
-   CI as open gates.
-2. Serialize any Ticket 03 contract changes through lead review, then implement
-   and test the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
+1. Complete and independently review Ticket 02's candidate runtime capture and
+   geometry export; keep authentic references and hosted CI as open gates.
+2. Integrate the reviewed Hardware1 wire/mock/test slice, then serialize new
+   contract work. A separate Telemetry1 contract/mock/private-bus round-trip is a
+   candidate next seam; cross-service ID-093 event emission waits for a shared
+   cursor/reconciliation design.
+3. Implement the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
    and ID-185 recovery sequence.
-3. When the owner sets up the repository, obtain a hosted clean-checkout CI run
+4. When the owner sets up the repository, obtain a hosted clean-checkout CI run
    and close Ticket 01 only if that run passes.
-4. Recompute the dependency frontier after each integration and continue through
+5. Recompute the dependency frontier after each integration and continue through
    the Final 1:1 Parity Closure ticket.
