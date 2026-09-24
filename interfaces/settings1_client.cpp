@@ -22,8 +22,12 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
              QString::fromLatin1(adrenalin::session1::objectPath),
              connection, this),
       watcher_(QString::fromLatin1(adrenalin::session1::serviceName), connection,
-               QDBusServiceWatcher::WatchForOwnerChange, this)
+               QDBusServiceWatcher::WatchForOwnerChange, this),
+      readiness_(QString::fromLatin1(adrenalin::session1::serviceName),
+                 QString::fromLatin1(adrenalin::session1::objectPath), connection, 1)
 {
+    connect(&readiness_, &ServiceReadinessClient::stateChanged,
+            this, &Settings1Client::updateReadiness);
     connect(&watcher_, &QDBusServiceWatcher::serviceOwnerChanged, this,
             [this](const QString &, const QString &, const QString &newOwner) {
                 if (newOwner.isEmpty()) {
@@ -35,6 +39,7 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
                     eventSequence_ = 0;
                     status_ = QStringLiteral("RECONCILING");
                     emit stateChanged();
+                    readiness_.refresh();
                     refresh();
                 }
             });
@@ -71,10 +76,13 @@ Settings1Client::Settings1Client(const QDBusConnection &connection, QObject *par
                 eventSequence_ = eventSequence;
                 emit stateChanged();
             });
-    refresh();
+    updateReadiness();
 }
 
-bool Settings1Client::ready() const { return ready_; }
+bool Settings1Client::ready() const
+{
+    return ready_ && canUseSettingsService();
+}
 bool Settings1Client::productTelemetryConsent() const { return consent_; }
 qulonglong Settings1Client::revision() const { return revision_; }
 QString Settings1Client::status() const { return status_; }
@@ -82,6 +90,15 @@ QString Settings1Client::lastOperationCode() const { return lastOperationCode_; 
 
 void Settings1Client::refresh()
 {
+    if (!readiness_.ready()) {
+        ready_ = false;
+        const QString readinessStatus = readiness_.status();
+        if (status_ != readinessStatus) {
+            status_ = readinessStatus;
+            emit stateChanged();
+        }
+        return;
+    }
     if (requestInFlight_) {
         refreshPending_ = true;
         return;
@@ -103,6 +120,12 @@ void Settings1Client::refresh()
             setDisconnected();
             return;
         }
+        if (!readiness_.ready()) {
+            ready_ = false;
+            status_ = readiness_.status();
+            emit stateChanged();
+            return;
+        }
         const QString resultCode = reply.argumentAt<0>();
         if (resultCode != QStringLiteral("OK")) {
             ready_ = false;
@@ -120,6 +143,14 @@ void Settings1Client::refresh()
             setDisconnected();
             return;
         }
+        if (serviceInstanceUuid != readiness_.serviceInstanceUuid()
+            || serviceGeneration != readiness_.serviceGeneration()) {
+            ready_ = false;
+            status_ = QStringLiteral("RECONCILING");
+            emit stateChanged();
+            readiness_.refresh();
+            return;
+        }
         serviceInstanceUuid_ = serviceInstanceUuid;
         serviceGeneration_ = serviceGeneration;
         eventSequence_ = eventSequence;
@@ -132,7 +163,6 @@ void Settings1Client::refresh()
             submitPendingConsent();
             return;
         }
-        // GetProductTelemetryConsent returns OK only after the service has reached READY.
         ready_ = true;
         status_ = QStringLiteral("READY");
         emit stateChanged();
@@ -141,7 +171,7 @@ void Settings1Client::refresh()
 
 void Settings1Client::setProductTelemetryConsent(bool enabled)
 {
-    if (!ready_ || requestInFlight_) {
+    if (!ready() || requestInFlight_) {
         return;
     }
     if (!pendingOperationId_.isEmpty()) {
@@ -161,6 +191,12 @@ void Settings1Client::setProductTelemetryConsent(bool enabled)
 void Settings1Client::submitPendingConsent()
 {
     if (pendingOperationId_.isEmpty() || requestInFlight_) {
+        return;
+    }
+    if (!canUseSettingsService()) {
+        ready_ = false;
+        status_ = readiness_.status();
+        emit stateChanged();
         return;
     }
     requestInFlight_ = true;
@@ -230,6 +266,31 @@ void Settings1Client::scheduleRefreshRetry()
         }
         refresh();
     });
+}
+
+void Settings1Client::updateReadiness()
+{
+    if (!readiness_.ready()) {
+        const bool changed = ready_ || status_ != readiness_.status();
+        ready_ = false;
+        status_ = readiness_.status();
+        if (changed) {
+            emit stateChanged();
+        }
+        return;
+    }
+
+    if (!ready_ || serviceInstanceUuid_ != readiness_.serviceInstanceUuid()
+        || serviceGeneration_ != readiness_.serviceGeneration()) {
+        refresh();
+    }
+}
+
+bool Settings1Client::canUseSettingsService() const
+{
+    return readiness_.ready() && !serviceInstanceUuid_.isEmpty()
+        && serviceInstanceUuid_ == readiness_.serviceInstanceUuid()
+        && serviceGeneration_ == readiness_.serviceGeneration();
 }
 
 bool Settings1Client::finishRequest()

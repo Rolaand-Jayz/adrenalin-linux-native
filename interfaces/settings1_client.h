@@ -1,6 +1,7 @@
 #pragma once
 
 #include <settings1_interface.h>
+#include "service_readiness_client.h"
 
 #include <QDBusConnection>
 #include <QObject>
@@ -35,9 +36,12 @@ private:
     bool finishRequest();
     void submitPendingConsent();
     void scheduleRefreshRetry();
+    void updateReadiness();
+    bool canUseSettingsService() const;
 
     OrgAdrenalinlinuxSession1Settings1Interface proxy_;
     QDBusServiceWatcher watcher_;
+    ServiceReadinessClient readiness_;
     bool ready_ = false;
     bool consent_ = false;
     qulonglong revision_ = 0;

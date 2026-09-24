@@ -68,8 +68,11 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   `ServiceReadinessClient` reads the generated `Service1` properties, reconciles
   property/owner changes, rejects unsupported API majors, and discards an
   in-flight stale snapshot before publishing READY. Its focused private-bus
-  suite passes 6/6 totals. Other long-lived service roots must adopt the same
-  contract as they are implemented.
+  suite passes 6/6 totals. `Settings1Client` now gates reads, writes, and
+  uncertain-operation replay on compatible READY plus a matching service UUID
+  and generation. The full private-bus session-contract suite passes 17/17
+  totals after this integration. Other long-lived service roots must adopt the
+  same contract as they are implemented.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.

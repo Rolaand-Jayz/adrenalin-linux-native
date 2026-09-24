@@ -116,18 +116,33 @@ public:
                        const QDBusConnection &connection) override
     {
         if (message.interface() == QStringLiteral("org.freedesktop.DBus.Properties")
+            && message.member() == QStringLiteral("GetAll")
+            && message.arguments().size() == 1
+            && message.arguments().at(0).toString()
+                == QStringLiteral("org.adrenalinlinux.Session1.Service1")) {
+            QVariantMap properties{
+                {QStringLiteral("InitializationState"), readinessState_},
+                {QStringLiteral("ServiceInstanceUuid"), instanceUuid_},
+                {QStringLiteral("ServiceGeneration"), QVariant::fromValue(generation_)},
+                {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)},
+                {QStringLiteral("ApiMinor"), QVariant::fromValue(ushort(0))},
+                {QStringLiteral("LastInitializationError"), QString()},
+            };
+            return connection.send(message.createReply(QVariantList{properties}));
+        }
+        if (message.interface() == QStringLiteral("org.freedesktop.DBus.Properties")
             && message.member() == QStringLiteral("Get")
             && message.arguments().size() == 2) {
             const QString property = message.arguments().at(1).toString();
             QVariant value;
             if (property == QStringLiteral("InitializationState")) {
-                value = QStringLiteral("READY");
+                value = readinessState_;
             } else if (property == QStringLiteral("ServiceInstanceUuid")) {
                 value = instanceUuid_;
             } else if (property == QStringLiteral("ServiceGeneration")) {
                 value = QVariant::fromValue(generation_);
             } else if (property == QStringLiteral("ApiMajor")) {
-                value = QVariant::fromValue(ushort(1));
+                value = QVariant::fromValue(apiMajor_);
             } else if (property == QStringLiteral("ApiMinor")) {
                 value = QVariant::fromValue(ushort(0));
             } else if (property == QStringLiteral("LastInitializationError")) {
@@ -169,6 +184,19 @@ public:
     int readCount() const { return readCount_; }
     bool hasPendingRead() const { return hasPendingRead_; }
     void setDelayReads(bool delay) { delayReads_ = delay; }
+    bool publishReadiness(const QDBusConnection &connection, QString state, ushort apiMajor = 1)
+    {
+        readinessState_ = std::move(state);
+        apiMajor_ = apiMajor;
+        QDBusMessage signal = QDBusMessage::createSignal(
+            QString::fromLatin1(kObjectPath), QStringLiteral("org.freedesktop.DBus.Properties"),
+            QStringLiteral("PropertiesChanged"));
+        signal << QStringLiteral("org.adrenalinlinux.Session1.Service1")
+               << QVariantMap{{QStringLiteral("InitializationState"), readinessState_},
+                              {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)}}
+               << QStringList{};
+        return connection.send(signal);
+    }
 
     bool releasePendingRead(const QDBusConnection &connection)
     {
@@ -183,6 +211,8 @@ public:
 
 private:
     bool delayReads_ = false;
+    QString readinessState_ = QStringLiteral("READY");
+    ushort apiMajor_ = 1;
     bool consent_ = false;
     qulonglong revision_ = 0;
     bool pendingConsent_ = false;
@@ -207,6 +237,8 @@ struct ConsentMutationState {
     qulonglong revision = 0;
     QHash<QString, ConsentMutationRecord> operations;
     QStringList operationIds;
+    QList<bool> operationValues;
+    QList<qulonglong> expectedRevisions;
 };
 
 class RetrySettingsFixture final : public QDBusVirtualObject
@@ -214,10 +246,12 @@ class RetrySettingsFixture final : public QDBusVirtualObject
 public:
     RetrySettingsFixture(ConsentMutationState *state, bool dropFirstWriteReply,
                          QObject *parent = nullptr, bool emitChangeSignal = false,
-                         bool failNextWrite = false, qulonglong generation = 1)
+                         bool failNextWrite = false, qulonglong generation = 1,
+                         QString readinessState = QStringLiteral("READY"), ushort apiMajor = 1)
         : QDBusVirtualObject(parent), state_(state), dropFirstWriteReply_(dropFirstWriteReply),
           emitChangeSignal_(emitChangeSignal), failNextWrite_(failNextWrite),
-          generation_(generation),
+          generation_(generation), readinessState_(std::move(readinessState)),
+          apiMajor_(apiMajor),
           instanceUuid_(QUuid::createUuid().toString(QUuid::WithoutBraces))
     {
     }
@@ -225,7 +259,17 @@ public:
     QString introspect(const QString &) const override
     {
         return QStringLiteral(
-            "<node><interface name='org.adrenalinlinux.Session1.Settings1'>"
+            "<node><interface name='org.freedesktop.DBus.Properties'>"
+            "<method name='GetAll'><arg direction='in' type='s'/><arg direction='out' type='a{sv}'/></method>"
+            "<signal name='PropertiesChanged'><arg type='s'/><arg type='a{sv}'/><arg type='as'/></signal>"
+            "</interface><interface name='org.adrenalinlinux.Session1.Service1'>"
+            "<property name='InitializationState' type='s' access='read'/>"
+            "<property name='ServiceInstanceUuid' type='s' access='read'/>"
+            "<property name='ServiceGeneration' type='t' access='read'/>"
+            "<property name='ApiMajor' type='q' access='read'/>"
+            "<property name='ApiMinor' type='q' access='read'/>"
+            "<property name='LastInitializationError' type='s' access='read'/>"
+            "</interface><interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'><arg direction='out' type='s'/>"
             "<arg direction='out' type='s'/><arg direction='out' type='t'/>"
             "<arg direction='out' type='t'/><arg direction='out' type='b'/>"
@@ -241,6 +285,21 @@ public:
 
     bool handleMessage(const QDBusMessage &message, const QDBusConnection &connection) override
     {
+        if (message.interface() == QStringLiteral("org.freedesktop.DBus.Properties")
+            && message.member() == QStringLiteral("GetAll")
+            && message.arguments().size() == 1
+            && message.arguments().at(0).toString()
+                == QStringLiteral("org.adrenalinlinux.Session1.Service1")) {
+            QVariantMap properties{
+                {QStringLiteral("InitializationState"), readinessState_},
+                {QStringLiteral("ServiceInstanceUuid"), instanceUuid_},
+                {QStringLiteral("ServiceGeneration"), QVariant::fromValue(generation_)},
+                {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)},
+                {QStringLiteral("ApiMinor"), QVariant::fromValue(ushort(0))},
+                {QStringLiteral("LastInitializationError"), QString()},
+            };
+            return connection.send(message.createReply(QVariantList{properties}));
+        }
         if (message.interface() != QString::fromLatin1(kSettingsInterface)) {
             return false;
         }
@@ -268,6 +327,8 @@ public:
         const bool enabled = message.arguments().at(1).toBool();
         const qulonglong expectedRevision = message.arguments().at(2).toULongLong();
         state_->operationIds.append(operationId);
+        state_->operationValues.append(enabled);
+        state_->expectedRevisions.append(expectedRevision);
         if (failNextWrite_) {
             failNextWrite_ = false;
             return connection.send(message.createReply(QVariantList{
@@ -333,6 +394,19 @@ public:
     }
 
     int readCount() const { return readCount_; }
+    bool publishReadiness(const QDBusConnection &connection, QString state, ushort apiMajor = 1)
+    {
+        readinessState_ = std::move(state);
+        apiMajor_ = apiMajor;
+        QDBusMessage signal = QDBusMessage::createSignal(
+            QString::fromLatin1(kObjectPath), QStringLiteral("org.freedesktop.DBus.Properties"),
+            QStringLiteral("PropertiesChanged"));
+        signal << QStringLiteral("org.adrenalinlinux.Session1.Service1")
+               << QVariantMap{{QStringLiteral("InitializationState"), readinessState_},
+                              {QStringLiteral("ApiMajor"), QVariant::fromValue(apiMajor_)}}
+               << QStringList{};
+        return connection.send(signal);
+    }
     void holdNextRead() { holdNextRead_ = true; }
     bool hasPendingRead() const { return hasPendingRead_; }
     bool releasePendingRead(const QDBusConnection &connection)
@@ -352,6 +426,8 @@ private:
     bool emitChangeSignal_ = false;
     bool failNextWrite_ = false;
     qulonglong generation_ = 1;
+    QString readinessState_ = QStringLiteral("READY");
+    ushort apiMajor_ = 1;
     QString instanceUuid_;
     qulonglong eventSequence_ = 0;
     int readCount_ = 0;
@@ -376,6 +452,8 @@ private slots:
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
+    void clientWaitsForServiceReadinessBeforeSettingsCalls();
+    void clientRejectsIncompatibleServiceApiMajor();
     void clientOwnerRecoveryWhileInitialReadIsOutstanding();
     void clientRetriesUncertainMutationWithSameOperationId();
     void clientRecoversAfterTerminalMutationFailure();
@@ -723,6 +801,74 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
 
 }
 
+void SessionContractTest::clientWaitsForServiceReadinessBeforeSettingsCalls()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    ConsentMutationState mutationState;
+    auto service = std::make_unique<RetrySettingsFixture>(
+        &mutationState, false, this, false, false, 1, QStringLiteral("RECOVERING"));
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), service.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-not-ready-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_COMPARE_WITH_TIMEOUT(client->status(), QStringLiteral("RECOVERING"), 2000);
+    QVERIFY(!client->ready());
+    QCOMPARE(service->readCount(), 0);
+    client->setProductTelemetryConsent(true);
+    QCOMPARE(mutationState.operationIds.size(), 0);
+
+    QVERIFY(service->publishReadiness(bus, QStringLiteral("READY")));
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    QCOMPARE(service->readCount(), 1);
+    client->setProductTelemetryConsent(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready() && client->productTelemetryConsent(), 2000);
+    QCOMPARE(mutationState.operationIds.size(), 1);
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
+void SessionContractTest::clientRejectsIncompatibleServiceApiMajor()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    ConsentMutationState mutationState;
+    auto service = std::make_unique<RetrySettingsFixture>(
+        &mutationState, false, this, false, false, 1, QStringLiteral("READY"), 2);
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), service.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-incompatible-api-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_COMPARE_WITH_TIMEOUT(client->status(), QStringLiteral("INCOMPATIBLE_API_MAJOR"), 2000);
+    QVERIFY(!client->ready());
+    QCOMPARE(service->readCount(), 0);
+    client->setProductTelemetryConsent(true);
+    QCOMPARE(mutationState.operationIds.size(), 0);
+
+    QVERIFY(service->publishReadiness(bus, QStringLiteral("READY"), 1));
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    QCOMPARE(service->readCount(), 1);
+    client->setProductTelemetryConsent(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready() && client->productTelemetryConsent(), 2000);
+    QCOMPARE(mutationState.operationIds.size(), 1);
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
 void SessionContractTest::clientOwnerRecoveryWhileInitialReadIsOutstanding()
 {
     QDBusConnection bus = QDBusConnection::sessionBus();
@@ -807,14 +953,20 @@ void SessionContractTest::clientRetriesUncertainMutationWithSameOperationId()
     QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
     bus.unregisterObject(QString::fromLatin1(kObjectPath));
     auto replacement = std::make_unique<RetrySettingsFixture>(&mutationState, false, this,
-                                                              false, false, 2);
+                                                              false, false, 2,
+                                                              QStringLiteral("RECOVERING"));
     replacement->holdNextRead();
     QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), replacement.get()));
     QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
 
+    QTRY_COMPARE_WITH_TIMEOUT(client->status(), QStringLiteral("RECOVERING"), 2000);
+    QVERIFY(!client->ready());
+    QCOMPARE(replacement->readCount(), 0);
+    QCOMPARE(mutationState.operationIds.size(), 1);
+    QVERIFY(replacement->publishReadiness(bus, QStringLiteral("READY")));
     QTRY_VERIFY_WITH_TIMEOUT(replacement->hasPendingRead(), 2000);
-    QTest::qWait(150);
     QCOMPARE(replacement->readCount(), 1);
+    QCOMPARE(mutationState.operationIds.size(), 1);
     QVERIFY(replacement->releasePendingRead(bus));
     QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 3000);
     QCOMPARE(client->status(), QStringLiteral("READY"));
@@ -823,6 +975,8 @@ void SessionContractTest::clientRetriesUncertainMutationWithSameOperationId()
     QCOMPARE(mutationState.revision, qulonglong(1));
     QCOMPARE(mutationState.operationIds.size(), 2);
     QCOMPARE(mutationState.operationIds.at(0), mutationState.operationIds.at(1));
+    QCOMPARE(mutationState.operationValues, QList<bool>({true, true}));
+    QCOMPARE(mutationState.expectedRevisions, QList<qulonglong>({0, 0}));
     QCOMPARE(replacement->readCount(), 2);
 
     client.reset();
@@ -1073,6 +1227,9 @@ void SessionContractTest::qmlPreferenceRoundTripsAndSurvivesGuiRestart()
 
     SessionService service(databasePath);
     Settings1Adaptor adaptor(&service);
+    SessionServiceRootAdaptor readinessAdaptor(&service);
+    installService1PropertyNotifications(&service);
+    Q_UNUSED(readinessAdaptor);
     QVERIFY(bus.registerObject(QString::fromLatin1(kObjectPath), &service,
                                QDBusConnection::ExportAdaptors));
     QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
