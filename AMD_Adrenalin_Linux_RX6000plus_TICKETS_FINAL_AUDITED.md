@@ -28,8 +28,8 @@ remain open.
   applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
   D-Bus names and object paths are protocol identities, not filesystem paths.
-- [x] Project workspace folder was renamed to `adrenalin-linux-native`; the prior
-  workspace entry resolves to it for discoverability.
+- [x] Project workspace folder is a real `adrenalin-linux-native` directory; the
+  old workspace entry and symlink have been removed.
 
 ## Tickets
 

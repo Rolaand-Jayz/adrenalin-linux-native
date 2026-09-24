@@ -122,6 +122,9 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 - Fixed D-Bus service names and object paths remain protocol identities required
   by the engineering spec; they are not filesystem locations.
 - The user's path-portability requirement applies from bootstrap onward.
+- The project workspace is the real `adrenalin-linux-native` directory. The old
+  entry and symlink were removed; repository documentation does not encode its
+  machine-specific parent path.
 
 ## Next actions
 
