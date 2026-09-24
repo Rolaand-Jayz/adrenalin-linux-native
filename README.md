@@ -11,10 +11,11 @@ Quick Controls 2 and Test), and Catch2 v3. Then run:
 ```sh
 export ADRENALIN_BUILD_DIR="$(mktemp -d)"
 : "${ADRENALIN_INSTALL_PREFIX:?Set this to the caller-selected staging destination}"
-cmake -S . -B "$ADRENALIN_BUILD_DIR" -G Ninja
+cmake -S . -B "$ADRENALIN_BUILD_DIR" -G Ninja \
+  -DCMAKE_INSTALL_PREFIX="$ADRENALIN_INSTALL_PREFIX"
 cmake --build "$ADRENALIN_BUILD_DIR"
 ctest --test-dir "$ADRENALIN_BUILD_DIR" --output-on-failure
-cmake --install "$ADRENALIN_BUILD_DIR" --prefix "$ADRENALIN_INSTALL_PREFIX"
+cmake --install "$ADRENALIN_BUILD_DIR"
 ```
 
 The installed desktop entry starts `adrenalin-shell`. For a headless startup
