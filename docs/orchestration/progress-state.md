@@ -12,16 +12,16 @@ acceptance criterion remains open.
 
 ## Completed evidence
 
-- The full checked-in workflow was exercised locally from a fresh `git archive`:
+- The full checked-in workflow was exercised locally from a fresh `git archive` of baseline commit `b8dc833`:
   invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40
   manifest tests, staged install verification, systemd and desktop validation,
   live D-Bus activation, and custom desktop-path quoting all passed. Hosted CI
   evidence remains a separate open criterion.
-- Ticket 01 was rechecked from a clean `git archive` of the current commit. A
-  clean-source CMake/Ninja build completed, and all 4/4 CTest suites passed,
-  including the shell smoke and both private-bus suites. The run used Qt 6.11.2,
-  GCC 16.2.1, and the workflow's Catch2 3.4.0 package. This proves the local
-  clean-source build/test path but does not establish a hosted CI run.
+- Commit `9561725` was rebuilt from a fresh `git archive`: all 101/101 Ninja
+  steps succeeded and all 5/5 CTest suites passed, including the shell CLI,
+  Settings1/Service1 private-bus tests, and the new Hardware1 private-bus test.
+  This clean-source run used Qt 6.11.2, GCC 16.2.1, and Catch2 3.4.0. It does not
+  establish a hosted CI run.
 - The Hardware1 wire/mock/test slice now has a matching Reply XML signature and
   serialized field order, typed subject fields, failure-path output clearing, and
   ordered seven-field event declarations for both inventory and capability

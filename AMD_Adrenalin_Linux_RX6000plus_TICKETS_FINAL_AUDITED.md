@@ -50,8 +50,11 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
 - [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
-  - [x] Local clean-source CMake/Ninja build completed and CTest passed all 4/4 suites, including the shell smoke and both private-bus suites (Qt 6.11.2, GCC 16.2.1, Catch2 3.4.0).
-  - [x] All checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
+  - [x] Commit `9561725` built from a fresh `git archive`: all 101/101 Ninja
+    steps succeeded and the full CTest suite passed 5/5, including shell CLI,
+    Settings1/Service1 private-bus, and Hardware1 private-bus coverage (Qt 6.11.2,
+    GCC 16.2.1, Catch2 3.4.0). Hosted CI remains a separate open requirement.
+  - [x] On baseline commit `b8dc833`, all checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
   - [ ] Hosted CI run evidence is still unverified; this workspace has no configured Git remote.
 
 ### 02 — Reference corpus and parity harness
