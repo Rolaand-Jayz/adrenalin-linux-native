@@ -7,7 +7,8 @@ using the Final Audited Engineering Spec as the controlling contract.
 
 ## Current phase
 
-Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
+Tickets 02 and 03 — owner-authorized local continuation while Ticket 01's hosted-CI
+acceptance criterion remains open.
 
 ## Completed evidence
 
@@ -130,17 +131,19 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 - The project workspace is the real `adrenalin-linux-native` directory. The old
   entry and symlink were removed; repository documentation does not encode its
   machine-specific parent path.
+- On 2026-09-24, the owner authorized local implementation/review beyond Ticket 01
+  while a repository is being set up. This does not pass Ticket 01's hosted-CI
+  criterion or mark its downstream dependencies complete.
 
 ## Next actions
 
-1. Obtain a hosted clean-checkout CI run for Ticket 01. The local clean-source
-   build and full CTest pass are recorded but do not close this criterion.
-2. Once Ticket 01 is complete, recompute the frontier and resume Tickets 02 and
-   03. Ticket 02 requires authentic reference captures and real candidate
-   screen/geometry evidence; synthetic fixtures cannot pass its parity gate.
-3. For Ticket 03, fix and independently review the in-progress Hardware1
-   contract slice before integration. Keep shared schema work serialized, then
-   implement the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
+1. Continue Ticket 02 candidate runtime capture/geometry work and Ticket 03's
+   independent Hardware1 contract review in parallel; keep authentic references
+   and hosted CI as open gates.
+2. Serialize any Ticket 03 contract changes through lead review, then implement
+   and test the remaining ID-105/107 topology, ID-106 readiness, ID-093 events,
    and ID-185 recovery sequence.
-4. Continue implementing, testing, reviewing, committing coherent slices, and
-   recomputing the dependency frontier until the Final 1:1 Parity Closure passes.
+3. When the owner sets up the repository, obtain a hosted clean-checkout CI run
+   and close Ticket 01 only if that run passes.
+4. Recompute the dependency frontier after each integration and continue through
+   the Final 1:1 Parity Closure ticket.

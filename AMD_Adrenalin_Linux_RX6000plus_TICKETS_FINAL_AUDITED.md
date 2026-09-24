@@ -13,6 +13,11 @@ reference captures and candidate-render/geometry evidence. Ticket 03's tracer
 criteria pass, but its audited-spec interface topology and recovery obligations
 remain open.
 
+**Owner continuation authorization (2026-09-24):** Local implementation and review
+may proceed on Tickets 02 and 03 while the Ticket 01 hosted-CI criterion is pending.
+This does not close Ticket 01 or satisfy its declared dependency; downstream tickets
+remain incomplete until their own acceptance criteria and dependency gates pass.
+
 ## Progress ledger
 
 - Ticket 01: **partial** — build/install contract evidence exists; clean-checkout CI
