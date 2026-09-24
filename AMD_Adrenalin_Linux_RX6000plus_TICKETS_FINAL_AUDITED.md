@@ -46,6 +46,7 @@ remain open.
 - [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
   - [x] Local clean-source CMake/Ninja build completed and CTest passed all 4/4 suites, including the shell smoke and both private-bus suites (Qt 6.11.2, GCC 16.2.1, Catch2 3.4.0).
+  - [x] All checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
   - [ ] Hosted CI run evidence is still unverified; this workspace has no configured Git remote.
 
 ### 02 — Reference corpus and parity harness

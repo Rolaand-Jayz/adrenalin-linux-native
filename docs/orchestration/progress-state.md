@@ -11,6 +11,11 @@ Ticket 01 — clean-checkout CI build and smoke-test acceptance evidence.
 
 ## Completed evidence
 
+- The full checked-in workflow was exercised locally from a fresh `git archive`:
+  invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40
+  manifest tests, staged install verification, systemd and desktop validation,
+  live D-Bus activation, and custom desktop-path quoting all passed. Hosted CI
+  evidence remains a separate open criterion.
 - Ticket 01 was rechecked from a clean `git archive` of the current commit. A
   clean-source CMake/Ninja build completed, and all 4/4 CTest suites passed,
   including the shell smoke and both private-bus suites. The run used Qt 6.11.2,
