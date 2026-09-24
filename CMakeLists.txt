@@ -175,7 +175,8 @@ if(BUILD_TESTING)
         )
         target_link_libraries(adrenalin-shell-smoke-test PRIVATE Qt6::Test)
         adrenalin_enable_strict_warnings(adrenalin-shell-smoke-test)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+           AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
             target_compile_options(adrenalin-shell-smoke-test PRIVATE
                 -Wno-error=sfinae-incomplete
             )

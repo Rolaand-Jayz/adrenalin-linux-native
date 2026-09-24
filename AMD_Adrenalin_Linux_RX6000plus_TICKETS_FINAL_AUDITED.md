@@ -56,9 +56,10 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
     Settings1/Service1 private-bus, and Hardware1 private-bus coverage (Qt 6.11.2,
     GCC 16.2.1, Catch2 3.4.0). Hosted CI remains a separate open requirement.
   - [x] On baseline commit `b8dc833`, all checked-in workflow steps were exercised against a fresh `git archive`: invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40 manifest tests, staged install checks, systemd and desktop validation, live D-Bus activation, and custom desktop-path quoting.
-  - [ ] Hosted CI run evidence is still unverified. The public GitHub repository
-    has been created and is empty; the first pushed commit must trigger and pass
-    the checked-in workflow before this criterion closes.
+  - [ ] Hosted CI evidence remains open. Runs for commit `6a139a5` installed Qt
+    and configured successfully on both branches, then failed during the GUI build
+    because GCC 13 rejected the GCC 16-only `-Wno-error=sfinae-incomplete` option.
+    The compiler guard is now limited to GCC 16+; hosted revalidation is pending.
 
 ### 02 — Reference corpus and parity harness
 

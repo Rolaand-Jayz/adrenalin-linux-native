@@ -127,10 +127,11 @@ acceptance criterion remains open.
   so Ticket 02 cannot pass its visual parity acceptance gate yet. The verified
   candidate PNG and self-reported geometry were written to the temporary output
   area for this session and were not added as reference evidence.
-- The Ticket 01 hosted CI criterion remains open: this checkout has no
-  configured Git remote or current workflow run evidence. The clean local
-  archive build and 5/5 CTest result at `9561725` are recorded in the ticket
-  pack; hosted CI remains separate.
+- Ticket 01 hosted CI remains open. Runs for commit `6a139a5` on both `main`
+  and `work/adrenalin-linux-native` installed Qt and configured successfully,
+  then failed during the GUI build because GCC 13 rejected the GCC 16-only
+  `-Wno-error=sfinae-incomplete` option. The CMake guard now applies that flag
+  only to GCC 16+; the new hosted runs must still pass before Ticket 01 closes.
 - The focused private-bus session-contract suite passes 17/17 QtTest totals and
   the focused readiness-client suite passes 8/8. The clean-source full CTest
   run at `9561725` passes 5/5; a hosted CI run is still unverified.
@@ -152,20 +153,20 @@ acceptance criterion remains open.
   machine-specific parent path.
 - On 2026-09-24, the owner authorized continued implementation/review beyond
   Ticket 01 and directed that both `main` and the working checkout branch be
-  pushed. The public GitHub repository now exists but is empty; hosted CI is
-  pending the first push and a passing workflow run. This does not yet pass
-  Ticket 01 or mark its downstream dependencies complete.
+  pushed. Both remote branches now point to `6a139a5`; hosted CI has reached
+  Qt installation and configuration, but the first build attempt failed on a
+  GCC-version-specific warning flag. Ticket 01 remains open pending passing
+  clean-checkout runs; its downstream dependencies remain incomplete.
 
 ## Next actions
 
-1. Complete and independently review Ticket 02's candidate runtime capture and
-   geometry export; keep authentic references and hosted CI as open gates.
-2. Keep the Hardware1 production integration and Telemetry1 ABI review moving
-   on their independent seams; keep Telemetry1 isolated until its review clears.
+1. Re-run hosted CI on both pushed branches after the GCC-version guard; close
+   Ticket 01 only after the clean-checkout workflow passes.
+2. Once Ticket 01 closes, use the owner-authorized parallel continuation on
+   Tickets 02 and 03. Keep authentic references and capture attestation as open
+   gates for Ticket 02; keep telemetry fixtures distinct from production wiring.
 3. Continue the centralized ID-105/107 topology, ID-106 readiness, remaining
    ID-093 event families, and ID-185 recovery sequence from the audited v1
    contract.
-4. Push `main` and the working checkout branch to the created repository, obtain
-   a hosted clean-checkout CI run, and close Ticket 01 only if that run passes.
-5. Recompute the dependency frontier after each integration and continue through
+4. Recompute the dependency frontier after each integration and continue through
    the Final 1:1 Parity Closure ticket.
