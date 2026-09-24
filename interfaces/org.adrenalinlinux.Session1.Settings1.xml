@@ -1,11 +1,5 @@
 <node>
   <interface name="org.adrenalinlinux.Session1.Settings1">
-    <property name="InitializationState" type="s" access="read"/>
-    <property name="ServiceInstanceUuid" type="s" access="read"/>
-    <property name="ServiceGeneration" type="t" access="read"/>
-    <property name="ApiMajor" type="q" access="read"/>
-    <property name="ApiMinor" type="q" access="read"/>
-    <property name="LastInitializationError" type="s" access="read"/>
     <method name="GetProductTelemetryConsent">
       <arg name="resultCode" type="s" direction="out"/>
       <arg name="enabled" type="b" direction="out"/>

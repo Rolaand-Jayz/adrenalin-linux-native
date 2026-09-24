@@ -1,8 +1,11 @@
 #include <settings1_adaptor.h>
 #include <settings1_interface.h>
+#include <service1_adaptor.h>
+#include <service1_interface.h>
 #include "interfaces/settings1_mock.h"
 #include "interfaces/settings1_client.h"
 #include "session_identity.h"
+#include "sessiond/service1_property_notifications.h"
 #include "sessiond/session_service.h"
 
 #include <QDBusConnection>
@@ -53,13 +56,15 @@ public:
             "<arg direction='out' type='a{sv}'/></method>"
             "<signal name='PropertiesChanged'><arg type='s'/><arg type='a{sv}'/>"
             "<arg type='as'/></signal></interface>"
-            "<interface name='org.adrenalinlinux.Session1.Settings1'>"
+            "<interface name='org.adrenalinlinux.Session1.Service1'>"
             "<property name='InitializationState' type='s' access='read'/>"
             "<property name='ServiceInstanceUuid' type='s' access='read'/>"
             "<property name='ServiceGeneration' type='t' access='read'/>"
             "<property name='ApiMajor' type='q' access='read'/>"
             "<property name='ApiMinor' type='q' access='read'/>"
             "<property name='LastInitializationError' type='s' access='read'/>"
+            "</interface>"
+            "<interface name='org.adrenalinlinux.Session1.Settings1'>"
             "<method name='GetProductTelemetryConsent'>"
             "<arg direction='out' type='s'/><arg direction='out' type='b'/>"
             "<arg direction='out' type='t'/></method>"
@@ -313,6 +318,9 @@ class SessionContractTest final : public QObject
     Q_OBJECT
 
 private slots:
+    void servicePropertiesChanged(const QString &interfaceName,
+                                  const QVariantMap &changedProperties,
+                                  const QStringList &invalidatedProperties);
     void operationResultVocabularyIsStable();
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
@@ -323,7 +331,26 @@ private slots:
     void clientConsumesOwnWriteSignalWithoutReplaying();
     void clientRefreshesAfterRevisionGap();
     void qmlPreferenceRoundTripsAndSurvivesGuiRestart();
+
+private:
+    QVariantMap serviceChangedProperties_;
+    QStringList serviceInvalidatedProperties_;
+    QString serviceChangedInterface_;
 };
+
+void SessionContractTest::servicePropertiesChanged(const QString &interfaceName,
+                                                   const QVariantMap &changedProperties,
+                                                   const QStringList &invalidatedProperties)
+{
+    if (interfaceName != QStringLiteral("org.adrenalinlinux.Session1.Service1")) {
+        return;
+    }
+    serviceChangedInterface_ = interfaceName;
+    for (auto it = changedProperties.cbegin(); it != changedProperties.cend(); ++it) {
+        serviceChangedProperties_.insert(it.key(), it.value());
+    }
+    serviceInvalidatedProperties_.append(invalidatedProperties);
+}
 
 void SessionContractTest::operationResultVocabularyIsStable()
 {
@@ -430,7 +457,10 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     auto startService = [&](bool initializeNow = true) {
         auto *service = new SessionService(databasePath, this);
         auto *adaptor = new Settings1Adaptor(service);
+        auto *readinessAdaptor = new Service1Adaptor(service);
+        installService1PropertyNotifications(service);
         Q_UNUSED(adaptor);
+        Q_UNUSED(readinessAdaptor);
         if (!bus.registerObject(QString::fromLatin1(kObjectPath), service,
                                 QDBusConnection::ExportAdaptors)) {
             delete service;
@@ -463,11 +493,18 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
 
     OrgAdrenalinlinuxSession1Settings1Interface proxy(
         QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath), bus);
+    OrgAdrenalinlinuxSession1Service1Interface serviceProxy(
+        QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath), bus);
     QVERIFY(proxy.isValid());
-    QCOMPARE(proxy.apiMajor(), ushort(1));
-    QCOMPARE(proxy.apiMinor(), ushort(0));
-    QCOMPARE(proxy.initializationState(), QStringLiteral("STARTING"));
-    QCOMPARE(proxy.lastInitializationError(), QString());
+    QVERIFY(serviceProxy.isValid());
+    QVERIFY(bus.connect(QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath),
+                        QStringLiteral("org.freedesktop.DBus.Properties"),
+                        QStringLiteral("PropertiesChanged"), this,
+                        SLOT(servicePropertiesChanged(QString,QVariantMap,QStringList))));
+    QCOMPARE(serviceProxy.apiMajor(), ushort(1));
+    QCOMPARE(serviceProxy.apiMinor(), ushort(0));
+    QCOMPARE(serviceProxy.initializationState(), QStringLiteral("STARTING"));
+    QCOMPARE(serviceProxy.lastInitializationError(), QString());
     auto notReadyPending = proxy.GetProductTelemetryConsent();
     QTRY_VERIFY_WITH_TIMEOUT(notReadyPending.isFinished(), 2000);
     const QDBusPendingReply<QString, bool, qulonglong> notReady = notReadyPending;
@@ -487,10 +524,20 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     const quint64 firstGeneration = service->serviceGeneration();
     QCOMPARE(service->initializationState(), QStringLiteral("READY"));
 
-    QCOMPARE(proxy.initializationState(), QStringLiteral("READY"));
-    QCOMPARE(proxy.lastInitializationError(), QString());
-    QCOMPARE(proxy.serviceInstanceUuid(), firstUuid);
-    QCOMPARE(proxy.serviceGeneration(), firstGeneration);
+    QCOMPARE(serviceProxy.initializationState(), QStringLiteral("READY"));
+    QCOMPARE(serviceProxy.lastInitializationError(), QString());
+    QCOMPARE(serviceProxy.serviceInstanceUuid(), firstUuid);
+    QCOMPARE(serviceProxy.serviceGeneration(), firstGeneration);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong()
+                == firstGeneration
+            && serviceChangedProperties_.value(QStringLiteral("InitializationState")).toString()
+                == QStringLiteral("READY"),
+        2000);
+    QCOMPARE(serviceChangedInterface_, QStringLiteral("org.adrenalinlinux.Session1.Service1"));
+    QCOMPARE(serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong(),
+             firstGeneration);
+    QVERIFY(serviceChangedProperties_.contains(QStringLiteral("InitializationState")));
 
     auto readPending = proxy.GetProductTelemetryConsent();
     QTRY_VERIFY_WITH_TIMEOUT(readPending.isFinished(), 2000);

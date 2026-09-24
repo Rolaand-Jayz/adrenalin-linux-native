@@ -39,6 +39,14 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   result for the UI while refreshing authoritative state so a failed write
   does not leave the preference disabled. This does not complete the remaining
   interface topology or operation families.
+- A shared `Service1` D-Bus interface now owns the long-lived service readiness
+  properties; `Settings1` owns only the settings operation surface. The session
+  daemon exports both interfaces from the canonical root object, and integration
+  coverage reads readiness through `Service1`.
+- `ServiceGeneration` now emits a standard `PropertiesChanged` notification when
+  initialization advances readiness. The contract test observes the D-Bus signal
+  and checks the published generation; the complete focused session suite passes
+  12/12 QtTest totals after this correction.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.
@@ -54,9 +62,9 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
 - Local full CMake test configuration currently lacks Catch2 v3. CI installs
   Catch2, but the full CTest run has not been observed in this environment.
-- In this sandbox, an offscreen shell run cannot finish because session D-Bus
-  access blocks during client startup; `dbus-run-session` cannot bind its
-  socket here. CI provides the required session-bus test environment.
+- The private-bus test requires permissions for its temporary D-Bus socket; the
+  focused run succeeded with those permissions. An offscreen desktop shell run
+  has not been verified in this environment.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 - The full project CTest configure is still unavailable locally because
@@ -70,6 +78,9 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   12/12 QtTest totals. A full RelWithDebInfo build of shell and session service
   also passes; full CTest remains unavailable locally because Catch2 v3 is not
   installed.
+- The shared readiness-interface refactor builds and passes 12/12 private-bus
+  session totals. Independent review caught a missing `ServiceGeneration`
+  change notification; it is now emitted and the test verifies that event.
 
 ## Decisions and constraints
 
@@ -84,11 +95,12 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 
 ## Next actions
 
-1. Integrate the reviewed ASCII-whitespace path guard, configure-time prefix
-   documentation, and path-derived D-Bus service discovery into the Ticket 03
-   slice; retain the successful production build/staged-install evidence.
-2. Centralize and review the complete v1 service schema before adding more
-   independent D-Bus contract variants.
-3. Re-run focused Ticket 03 tests after schema integration, then obtain
-   independent adversarial review and commit only a coherent verified slice.
-4. Resume the dependency frontier and record acceptance evidence per ticket.
+1. Centralize the remaining ID-105/107 core interface schemas and operation
+   families around `Service1` plus the canonical mutation result model.
+2. Complete the ID-185 session recovery reconciliation sequence and test the
+   service generation/event contracts before advertising READY after restart.
+3. Re-run focused and cross-component validation, obtain adversarial review,
+   commit coherent slices, then recompute the dependency frontier.
+4. Ticket 02 still needs both authentic fixed-reference captures and a real
+   candidate screen/geometry probe; a generic exporter would not satisfy the
+   parity evidence contract.

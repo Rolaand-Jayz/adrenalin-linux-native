@@ -2,6 +2,8 @@
 #include "session_identity.h"
 
 #include "settings1_adaptor.h"
+#include "service1_adaptor.h"
+#include "service1_property_notifications.h"
 
 #include <QCoreApplication>
 #include <QDBusConnection>
@@ -25,7 +27,10 @@ int main(int argc, char *argv[])
     const QString databasePath = QDir(dataDirectory).filePath(QStringLiteral("session.sqlite3"));
     SessionService service(databasePath);
     auto *settings = new Settings1Adaptor(&service);
+    auto *readiness = new Service1Adaptor(&service);
+    installService1PropertyNotifications(&service);
     Q_UNUSED(settings);
+    Q_UNUSED(readiness);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (!bus.isConnected()) {

@@ -13,9 +13,14 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/operation_result.cpp
 )
 set(ADRENALIN_SETTINGS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Settings1.xml")
+set(ADRENALIN_SERVICE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Service1.xml")
 qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
     "${ADRENALIN_SETTINGS1_XML}"
     settings1_interface
+)
+qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
+    "${ADRENALIN_SERVICE1_XML}"
+    service1_interface
 )
 target_sources(adrenalin-session-contract PRIVATE ${ADRENALIN_SESSION_CONTRACT_SOURCES})
 target_include_directories(adrenalin-session-contract PUBLIC
@@ -44,8 +49,17 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         settings1_adaptor
         Settings1Adaptor
     )
+    qt_add_dbus_adaptor(ADRENALIN_SESSION_ADAPTOR_FILES
+        "${ADRENALIN_SERVICE1_XML}"
+        "sessiond/session_service.h"
+        ""
+        service1_adaptor
+        Service1Adaptor
+    )
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 0 ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP)
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 1 ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_HEADER)
+    list(GET ADRENALIN_SESSION_ADAPTOR_FILES 2 ADRENALIN_GENERATED_SERVICE1_ADAPTOR_CPP)
+    list(GET ADRENALIN_SESSION_ADAPTOR_FILES 3 ADRENALIN_GENERATED_SERVICE1_ADAPTOR_HEADER)
     set_source_files_properties("${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP}"
         PROPERTIES HEADER_FILE_ONLY TRUE
     )
@@ -54,9 +68,13 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         session_database.h
         session_service.cpp
         session_service.h
+        service1_property_notifications.cpp
+        service1_property_notifications.h
         settings1_adaptor_impl.cpp
         "${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP}"
         "${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_HEADER}"
+        "${ADRENALIN_GENERATED_SERVICE1_ADAPTOR_CPP}"
+        "${ADRENALIN_GENERATED_SERVICE1_ADAPTOR_HEADER}"
         "${CMAKE_CURRENT_BINARY_DIR}/moc_settings1_adaptor.cpp"
     )
     target_include_directories(adrenalin-session-core PUBLIC

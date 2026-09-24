@@ -11,36 +11,6 @@ Settings1Adaptor::Settings1Adaptor(QObject *parent)
 
 Settings1Adaptor::~Settings1Adaptor() = default;
 
-ushort Settings1Adaptor::apiMajor() const
-{
-    return qobject_cast<SessionService *>(parent())->apiMajor();
-}
-
-ushort Settings1Adaptor::apiMinor() const
-{
-    return qobject_cast<SessionService *>(parent())->apiMinor();
-}
-
-QString Settings1Adaptor::initializationState() const
-{
-    return qobject_cast<SessionService *>(parent())->initializationState();
-}
-
-QString Settings1Adaptor::lastInitializationError() const
-{
-    return qobject_cast<SessionService *>(parent())->lastInitializationError();
-}
-
-qulonglong Settings1Adaptor::serviceGeneration() const
-{
-    return qobject_cast<SessionService *>(parent())->serviceGeneration();
-}
-
-QString Settings1Adaptor::serviceInstanceUuid() const
-{
-    return qobject_cast<SessionService *>(parent())->serviceInstanceUuid();
-}
-
 QString Settings1Adaptor::GetProductTelemetryConsent(bool &enabled, qulonglong &revision)
 {
     auto *service = qobject_cast<SessionService *>(parent());

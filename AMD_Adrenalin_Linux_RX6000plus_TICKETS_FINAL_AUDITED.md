@@ -1,12 +1,29 @@
 # AMD Adrenalin Linux RX 6000+ — Agent-Ready Ticket Pack
 
-**Status:** ready-for-agent
+**Status:** in-progress
 **Source:** Final audited RX 6000+ engineering spec
 **Ticket model:** Matt Pocock tracer-bullet vertical slices
 
 ## Dependency frontier
 
-Ticket 01 can start immediately. Every other ticket declares its explicit blockers below.
+Ticket 01 bootstrap and the Ticket 03 preference tracer have implementation evidence
+for part of their acceptance criteria. Ticket 02 is blocked on authentic reference
+captures and candidate-render/geometry evidence. Ticket 03's tracer criteria pass,
+but its audited-spec interface topology and recovery obligations remain open. Continue
+the session-contract frontier while Ticket 02 capture evidence is unavailable.
+
+## Progress ledger
+
+- Ticket 01: **partial** — build/install contract evidence exists; clean-checkout CI
+  execution and target-platform shell certification remain open.
+- Ticket 02: **partial / blocked** — fixed baseline and failure-only harness are
+  implemented; no authentic capture corpus, production candidate render, runtime
+  geometry probe, reviewed annotations, or passing comparison exists.
+- Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
+  criteria below are covered. The v1 interface topology/operation families and
+  ID-185 recovery sequence are not complete, so this ticket is not closed.
+- Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
+  D-Bus names and object paths are protocol identities, not filesystem paths.
 
 ## Tickets
 
@@ -18,8 +35,8 @@ Ticket 01 can start immediately. Every other ticket declares its explicit blocke
 
 **Acceptance criteria
 
-- [ ] Project config enforces C++20, Qt 6.8+, CMake, Ninja, Catch2 v3 and Qt Test; the shipping app has no Python runtime dependency.
-- [ ] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
+- [x] Project config enforces C++20, Qt 6.8+, CMake, Ninja, Catch2 v3 and Qt Test; the shipping app has no Python runtime dependency.
+- [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
 - [ ] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
 
@@ -31,9 +48,9 @@ Ticket 01 can start immediately. Every other ticket declares its explicit blocke
 
 **Acceptance criteria
 
-- [ ] The reference baseline is AMD Software: Adrenalin Edition 26.9.1 Optional (2026-09-03).
+- [x] The reference baseline is AMD Software: Adrenalin Edition 26.9.1 Optional (2026-09-03).
 - [ ] Reference capture metadata covers required resolutions/window states and the default/hover/focus/open/changed/disabled/error/success states where applicable.
-- [ ] The visual-diff harness uses checked-in deterministic fixtures and masks only approved dynamic regions.
+- [x] The visual-diff harness uses checked-in deterministic fixtures and masks only approved dynamic regions.
 - [ ] At least one shell screen passes the configured geometry/SSIM/color parity gate and emits a diff artifact on failure.
 
 ### 03 — Session service and persisted preference tracer
@@ -44,10 +61,10 @@ Ticket 01 can start immediately. Every other ticket declares its explicit blocke
 
 **Acceptance criteria
 
-- [ ] `adrenalin-sessiond` owns the core SQLite database and schema migration; the GUI does not open the production DB directly.
-- [ ] Canonical D-Bus bindings expose service readiness and a typed Settings operation for the tracer preference.
-- [ ] The preference survives service and GUI restart and stale expected revisions fail explicitly.
-- [ ] Structured logs identify the service instance/generation and recovery completes before the service reports READY.
+- [x] `adrenalin-sessiond` owns the core SQLite database and schema migration; the GUI does not open the production DB directly.
+- [x] Canonical D-Bus bindings expose service readiness and a typed Settings operation for the tracer preference.
+- [x] The preference survives service and GUI restart and stale expected revisions fail explicitly.
+- [x] Structured logs identify the service instance/generation and recovery completes before the service reports READY.
 
 ### 04 — Adrenalin design system, accessibility, and localization shell
 
