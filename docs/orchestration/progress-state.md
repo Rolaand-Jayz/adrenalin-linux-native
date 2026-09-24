@@ -23,6 +23,14 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   tree. It is not complete: the implementation currently exposes only one of
   the required core interfaces and omits the other operation families fixed by
   spec IDs 105–110.
+- A follow-up closes the client-side reconnect event race: changes
+  arriving during reads are treated as hints and force another authoritative
+  read. An uncertain consent write keeps its operation ID and payload, retries
+  that same operation after reconnect, and uses bounded polling while the
+  service is not READY. A normal successful write's own change event does not
+  cause a duplicate operation; revision gaps also force a snapshot refresh.
+  Retry timers skip stale work after recovery and do not mark an in-flight
+  request for an unnecessary extra refresh.
 - README and CI distinguish the final logical install prefix from `DESTDIR`
   staging. D-Bus, systemd, and desktop Exec paths are derived from configured
   destinations; the systemd unit directory is discovered through pkg-config.
@@ -43,6 +51,13 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   socket here. CI provides the required session-bus test environment.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
+- The full project CTest configure is still unavailable locally because
+  Catch2 v3 is missing. The Qt session-contract test source was built and run
+  through a temporary out-of-tree harness on a private D-Bus session; all eight
+  test cases passed (10 QtTest totals including setup/cleanup).
+- The follow-up stale-retry-timer regression also passes in the private D-Bus
+  harness. Its reconnect read is held past the retry deadline to confirm that
+  no extra reconciliation read is queued.
 
 ## Decisions and constraints
 

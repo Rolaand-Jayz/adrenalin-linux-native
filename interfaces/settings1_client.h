@@ -31,6 +31,8 @@ signals:
 private:
     void setDisconnected();
     bool finishRequest();
+    void submitPendingConsent();
+    void scheduleRefreshRetry();
 
     OrgAdrenalinlinuxSession1Settings1Interface proxy_;
     QDBusServiceWatcher watcher_;
@@ -38,6 +40,12 @@ private:
     bool consent_ = false;
     qulonglong revision_ = 0;
     QString status_ = QStringLiteral("CONNECTING");
+    QString pendingOperationId_;
+    bool pendingConsent_ = false;
+    qulonglong pendingExpectedRevision_ = 0;
+    bool pendingOperationUncertain_ = false;
     bool requestInFlight_ = false;
     bool refreshPending_ = false;
+    bool refreshRetryScheduled_ = false;
+    int refreshRetryAttempt_ = 0;
 };

@@ -9,6 +9,8 @@
 #include <QDBusMessage>
 #include <QDBusVariant>
 #include <QDBusVirtualObject>
+#include <QHash>
+#include <QStringList>
 #include <QDir>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -64,6 +66,18 @@ public:
             "<arg direction='out' type='t'/></method></interface></node>");
     }
 
+    bool updateAndEmitConsentChanged(const QDBusConnection &connection, bool consent,
+                                     qulonglong revision)
+    {
+        consent_ = consent;
+        revision_ = revision;
+        QDBusMessage signal = QDBusMessage::createSignal(
+            QString::fromLatin1(kObjectPath), QString::fromLatin1(kSettingsInterface),
+            QStringLiteral("ProductTelemetryConsentChanged"));
+        signal << consent_ << revision_;
+        return connection.send(signal);
+    }
+
     bool handleMessage(const QDBusMessage &message,
                        const QDBusConnection &connection) override
     {
@@ -96,6 +110,8 @@ public:
             ++readCount_;
             if (delayReads_) {
                 pendingRead_ = message;
+                pendingConsent_ = consent_;
+                pendingRevision_ = revision_;
                 hasPendingRead_ = true;
                 return true;
             }
@@ -112,6 +128,7 @@ public:
 
     int readCount() const { return readCount_; }
     bool hasPendingRead() const { return hasPendingRead_; }
+    void setDelayReads(bool delay) { delayReads_ = delay; }
 
     bool releasePendingRead(const QDBusConnection &connection)
     {
@@ -120,16 +137,138 @@ public:
         }
         hasPendingRead_ = false;
         return connection.send(pendingRead_.createReply(
-            QVariantList{QStringLiteral("OK"), consent_, revision_}));
+            QVariantList{QStringLiteral("OK"), pendingConsent_, pendingRevision_}));
     }
 
 private:
     bool delayReads_ = false;
     bool consent_ = false;
     qulonglong revision_ = 0;
+    bool pendingConsent_ = false;
+    qulonglong pendingRevision_ = 0;
     qulonglong generation_ = 0;
     QString instanceUuid_;
     int readCount_ = 0;
+    bool hasPendingRead_ = false;
+    QDBusMessage pendingRead_;
+};
+
+struct ConsentMutationRecord {
+    bool enabled = false;
+    qulonglong expectedRevision = 0;
+    qulonglong resultRevision = 0;
+};
+
+struct ConsentMutationState {
+    bool enabled = false;
+    qulonglong revision = 0;
+    QHash<QString, ConsentMutationRecord> operations;
+    QStringList operationIds;
+};
+
+class RetrySettingsFixture final : public QDBusVirtualObject
+{
+public:
+    RetrySettingsFixture(ConsentMutationState *state, bool dropFirstWriteReply,
+                         QObject *parent = nullptr, bool emitChangeSignal = false)
+        : QDBusVirtualObject(parent), state_(state), dropFirstWriteReply_(dropFirstWriteReply),
+          emitChangeSignal_(emitChangeSignal)
+    {
+    }
+
+    QString introspect(const QString &) const override
+    {
+        return QStringLiteral(
+            "<node><interface name='org.adrenalinlinux.Session1.Settings1'>"
+            "<method name='GetProductTelemetryConsent'><arg direction='out' type='s'/>"
+            "<arg direction='out' type='b'/><arg direction='out' type='t'/></method>"
+            "<method name='SetProductTelemetryConsent'><arg direction='in' type='s'/>"
+            "<arg direction='in' type='b'/><arg direction='in' type='t'/>"
+            "<arg direction='out' type='s'/><arg direction='out' type='t'/></method>"
+            "</interface></node>");
+    }
+
+    bool handleMessage(const QDBusMessage &message, const QDBusConnection &connection) override
+    {
+        if (message.interface() != QString::fromLatin1(kSettingsInterface)) {
+            return false;
+        }
+        if (message.member() == QStringLiteral("GetProductTelemetryConsent")) {
+            ++readCount_;
+            if (holdNextRead_) {
+                holdNextRead_ = false;
+                pendingRead_ = message;
+                hasPendingRead_ = true;
+                return true;
+            }
+            return connection.send(message.createReply(
+                QVariantList{QStringLiteral("OK"), state_->enabled, state_->revision}));
+        }
+        if (message.member() != QStringLiteral("SetProductTelemetryConsent")
+            || message.arguments().size() != 3) {
+            return false;
+        }
+
+        const QString operationId = message.arguments().at(0).toString();
+        const bool enabled = message.arguments().at(1).toBool();
+        const qulonglong expectedRevision = message.arguments().at(2).toULongLong();
+        state_->operationIds.append(operationId);
+        QString resultCode = QStringLiteral("OK");
+        qulonglong resultRevision = state_->revision;
+        const auto existing = state_->operations.constFind(operationId);
+        if (existing != state_->operations.cend()) {
+            if (existing->enabled != enabled || existing->expectedRevision != expectedRevision) {
+                resultCode = QStringLiteral("OPERATION_CONFLICT");
+            } else {
+                resultRevision = existing->resultRevision;
+            }
+        } else if (expectedRevision != state_->revision) {
+            resultCode = QStringLiteral("STALE_REVISION");
+        } else {
+            state_->enabled = enabled;
+            ++state_->revision;
+            resultRevision = state_->revision;
+            state_->operations.insert(operationId,
+                ConsentMutationRecord{enabled, expectedRevision, resultRevision});
+            if (emitChangeSignal_) {
+                QDBusMessage signal = QDBusMessage::createSignal(
+                    QString::fromLatin1(kObjectPath), QString::fromLatin1(kSettingsInterface),
+                    QStringLiteral("ProductTelemetryConsentChanged"));
+                signal << state_->enabled << state_->revision;
+                if (!connection.send(signal)) {
+                    return false;
+                }
+            }
+        }
+
+        if (dropFirstWriteReply_) {
+            dropFirstWriteReply_ = false;
+            return connection.send(message.createErrorReply(
+                QStringLiteral("org.freedesktop.DBus.Error.NoReply"),
+                QStringLiteral("Simulated accepted write with lost reply")));
+        }
+        return connection.send(message.createReply(QVariantList{resultCode, resultRevision}));
+    }
+
+    int readCount() const { return readCount_; }
+    void holdNextRead() { holdNextRead_ = true; }
+    bool hasPendingRead() const { return hasPendingRead_; }
+    bool releasePendingRead(const QDBusConnection &connection)
+    {
+        if (!hasPendingRead_) {
+            return false;
+        }
+        hasPendingRead_ = false;
+        return connection.send(pendingRead_.createReply(
+            QVariantList{QStringLiteral("OK"), state_->enabled, state_->revision}));
+    }
+
+private:
+    ConsentMutationState *state_ = nullptr;
+    bool dropFirstWriteReply_ = false;
+    bool emitChangeSignal_ = false;
+    int readCount_ = 0;
+    bool holdNextRead_ = false;
     bool hasPendingRead_ = false;
     QDBusMessage pendingRead_;
 };
@@ -144,6 +283,9 @@ private slots:
     void unsupportedSchemaFailsBeforeReady();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
     void clientOwnerRecoveryWhileInitialReadIsOutstanding();
+    void clientRetriesUncertainMutationWithSameOperationId();
+    void clientConsumesOwnWriteSignalWithoutReplaying();
+    void clientRefreshesAfterRevisionGap();
     void qmlPreferenceRoundTripsAndSurvivesGuiRestart();
 };
 
@@ -391,11 +533,134 @@ void SessionContractTest::clientOwnerRecoveryWhileInitialReadIsOutstanding()
     QVERIFY(!client->productTelemetryConsent());
     QCOMPARE(client->revision(), qulonglong(0));
 
+    QVERIFY(newService->updateAndEmitConsentChanged(bus, false, 9));
+    QTest::qWait(50);
+    QVERIFY(!client->ready());
+    QCOMPARE(client->status(), QStringLiteral("RECONCILING"));
+    QVERIFY(!client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(0));
+
+    QVERIFY(newService->releasePendingRead(bus));
+    QTRY_COMPARE_WITH_TIMEOUT(newService->readCount(), 2, 2000);
+    QVERIFY(newService->hasPendingRead());
+    QVERIFY(!client->ready());
     QVERIFY(newService->releasePendingRead(bus));
     QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
     QCOMPARE(client->status(), QStringLiteral("READY"));
+    QVERIFY(!client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(9));
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
+void SessionContractTest::clientRetriesUncertainMutationWithSameOperationId()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    ConsentMutationState mutationState;
+    auto firstService = std::make_unique<RetrySettingsFixture>(&mutationState, true, this);
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), firstService.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-retry-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    client->setProductTelemetryConsent(true);
+    QTRY_COMPARE_WITH_TIMEOUT(client->status(), QStringLiteral("DISCONNECTED"), 2000);
+    QCOMPARE(mutationState.operationIds.size(), 1);
+    QCOMPARE(mutationState.revision, qulonglong(1));
+    QVERIFY(mutationState.enabled);
+
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    auto replacement = std::make_unique<RetrySettingsFixture>(&mutationState, false, this);
+    replacement->holdNextRead();
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), replacement.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    QTRY_VERIFY_WITH_TIMEOUT(replacement->hasPendingRead(), 2000);
+    QTest::qWait(150);
+    QCOMPARE(replacement->readCount(), 1);
+    QVERIFY(replacement->releasePendingRead(bus));
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 3000);
+    QCOMPARE(client->status(), QStringLiteral("READY"));
     QVERIFY(client->productTelemetryConsent());
-    QCOMPARE(client->revision(), qulonglong(8));
+    QCOMPARE(client->revision(), qulonglong(1));
+    QCOMPARE(mutationState.revision, qulonglong(1));
+    QCOMPARE(mutationState.operationIds.size(), 2);
+    QCOMPARE(mutationState.operationIds.at(0), mutationState.operationIds.at(1));
+    QCOMPARE(replacement->readCount(), 2);
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
+void SessionContractTest::clientConsumesOwnWriteSignalWithoutReplaying()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    ConsentMutationState mutationState;
+    auto service = std::make_unique<RetrySettingsFixture>(&mutationState, false, this, true);
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), service.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-own-signal-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    client->setProductTelemetryConsent(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    QVERIFY(client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(1));
+    QCOMPARE(mutationState.revision, qulonglong(1));
+    QCOMPARE(mutationState.operationIds.size(), 1);
+
+    client.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+    QDBusConnection::disconnectFromBus(clientConnectionName);
+}
+
+void SessionContractTest::clientRefreshesAfterRevisionGap()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+    auto service = std::make_unique<DelayedSettingsFixture>(false, false, 3, 1, this);
+    QVERIFY(bus.registerVirtualObject(QString::fromLatin1(kObjectPath), service.get()));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+
+    const QString clientConnectionName = QStringLiteral("settings1-client-gap-test");
+    QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    QVERIFY(clientBus.isConnected());
+    auto client = std::make_unique<Settings1Client>(clientBus);
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    QVERIFY(!client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(3));
+
+    service->setDelayReads(true);
+    QVERIFY(service->updateAndEmitConsentChanged(bus, true, 5));
+    QTRY_COMPARE_WITH_TIMEOUT(service->readCount(), 2, 2000);
+    QVERIFY(service->hasPendingRead());
+    QVERIFY(!client->ready());
+    QCOMPARE(client->status(), QStringLiteral("RECONCILING"));
+    QVERIFY(!client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(3));
+
+    QVERIFY(service->releasePendingRead(bus));
+    QTRY_VERIFY_WITH_TIMEOUT(client->ready(), 2000);
+    QVERIFY(client->productTelemetryConsent());
+    QCOMPARE(client->revision(), qulonglong(5));
 
     client.reset();
     QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
