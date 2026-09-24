@@ -15,7 +15,8 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 ## Progress ledger
 
 - Ticket 01: **partial** — build/install contract evidence exists; clean-checkout CI
-  execution and target-platform shell certification remain open.
+  execution remains open. The existing QML load/clean-exit smoke passed on the
+  CachyOS host.
 - Ticket 02: **partial / blocked** — fixed baseline and failure-only harness are
   implemented; no authentic capture corpus, production candidate render, runtime
   geometry probe, reviewed annotations, or passing comparison exists.
@@ -37,7 +38,7 @@ the session-contract frontier while Ticket 02 capture evidence is unavailable.
 
 - [x] Project config enforces C++20, Qt 6.8+, CMake, Ninja, Catch2 v3 and Qt Test; the shipping app has no Python runtime dependency.
 - [x] The installed desktop entry launches a native Qt/QML process; Electron, PWA, localhost-served UI and browser-hosted application shells are absent.
-- [ ] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
+- [x] The application opens to a deterministic shell on Arch/CachyOS and exits cleanly.
 - [ ] CI builds the shell and runs at least one smoke test from a clean checkout.
 
 ### 02 — Reference corpus and parity harness

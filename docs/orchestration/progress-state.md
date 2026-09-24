@@ -12,6 +12,10 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
 ## Completed evidence
 
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
+- The shell smoke test was built in a temporary out-of-tree harness and passed
+  on this CachyOS host: QML loaded, the process exited normally with status 0,
+  and stderr was empty. This covers the platform smoke criterion, not a
+  clean-checkout CI run.
 - Ticket 02's deterministic visual-diff harness is committed. Its required
   authentic reference corpus, candidate render, geometry export, reviewed
   annotations, and screen-level passing comparison are still outstanding.
@@ -62,9 +66,9 @@ Ticket 03 — canonical cross-process contract and persisted preference tracer.
   present, so Ticket 02 cannot pass its visual parity acceptance gate yet.
 - Local full CMake test configuration currently lacks Catch2 v3. CI installs
   Catch2, but the full CTest run has not been observed in this environment.
-- The private-bus test requires permissions for its temporary D-Bus socket; the
-  focused run succeeded with those permissions. An offscreen desktop shell run
-  has not been verified in this environment.
+- The private-bus tests require permissions for their temporary D-Bus socket;
+  the focused run succeeded with those permissions. The full clean-checkout
+  CMake/CTest workflow is still unverified locally because Catch2 v3 is absent.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 - The full project CTest configure is still unavailable locally because
