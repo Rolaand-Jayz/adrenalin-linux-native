@@ -217,6 +217,8 @@ remain incomplete until their own acceptance criteria and dependency gates pass.
 - [ ] Performance settings include sample interval, performance logging location, hide-overlay-during-logging behavior and the reference logging controls.
 - [ ] Baseline metric definitions explicitly cover FPS, frame time, 99th-percentile FPS, stutter rate, GPU utilization/clock, VRAM clock/utilization, board power, edge/current and junction/hotspot temperature, fan speed, GPU voltage, CPU utilization/frequency/temperature and system RAM utilization where available.
 
+Progress (fixture slice; 2026-09-24): This patch adds a versioned Telemetry1 D-Bus schema, typed open/definition records, a test-only ABI v1 shared-memory fixture, ABI/concurrent-reader tests, and a private-bus contract test. A clean GUI-disabled Release build completed all 88 service/test build steps, and CTest passed 6/6 in the disposable integration checkout; this run does not include the GUI shell-smoke test. This evidence does not mark any full Ticket 07 acceptance criterion complete: no sessiond telemetry producer, hardware source selection, production readiness/recovery wiring, or Performance Metrics UI is included.
+
 ### 08 — Global search and notification center
 
 **Blocked by:** 03, 04
