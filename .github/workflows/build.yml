@@ -1,0 +1,30 @@
+name: Native Linux shell
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          host: linux
+          target: desktop
+          arch: gcc_64
+      - name: Install build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build g++ libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 catch2
+      - name: Configure
+        run: |
+          build_dir="$(mktemp -d)"
+          echo "ADRENALIN_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
+          cmake -S . -B "$build_dir" -G Ninja
+      - name: Build
+        run: cmake --build "$ADRENALIN_BUILD_DIR" --parallel
+      - name: Test
+        run: ctest --test-dir "$ADRENALIN_BUILD_DIR" --output-on-failure

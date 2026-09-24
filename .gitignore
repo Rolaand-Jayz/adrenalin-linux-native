@@ -1,0 +1,14 @@
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+.kilo/
+CMakeFiles/
+CMakeCache.txt
+CMakeUserPresets.json
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+Testing/
+.ninja_deps
+.ninja_log
