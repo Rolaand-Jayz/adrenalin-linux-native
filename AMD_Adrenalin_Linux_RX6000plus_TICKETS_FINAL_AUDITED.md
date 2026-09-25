@@ -183,8 +183,12 @@ own acceptance criteria and dependency gates pass.
     Four focused CTest suites pass: GPU inventory, GPU subject identity, DRM
     display evidence, and CPU package evidence. Local test configuration used a
     temporary Catch2 package shim because Catch2 v3 is absent; only the four
-    named suites were built and run. Hosted CI and live hardware discovery remain
-    unverified.
+    named suites were built and run. A separate production-source probe resolved
+    one CPU package on this host; GPU and DRM display enumeration returned errors
+    because DRM device nodes were unavailable in this execution environment, while
+    sysfs topology entries existed. This verifies CPU live enumeration only and
+    confirms that missing DRM access is reported as failure rather than empty
+    inventory. Hosted CI and real GPU/display provider behavior remain unverified.
 
 **Additional audited-spec tracking (ID-185):**
 
