@@ -303,10 +303,16 @@ identities or derived install locations.
     operation replay/conflict behavior, and the versioned ID-093 event shape. A
     private-bus proxy/mock test covers wire serialization, reference-gated preset
     semantics, malformed values, stale revisions, idempotency, conflicts, and events.
-    Focused strict-warning build and CTest pass. This is an ID-104 contract artifact
-    only: persistence, inheritance/effective-state calculation, preset/Custom behavior,
-    UI, and Ticket 12 production acceptance remain blocked by Tickets 05 and 11 and
-    reference evidence.
+    ReadProfile now returns a service-incarnation cursor beside the profile; cursor
+    zero is allowed before the first event, while malformed/unavailable replies must
+    carry empty data and envelope. Fresh profile changes carry a typed event in the
+    local mock outcome, while replays, no-ops, and errors do not publish another
+    event; UpdateProfile retains the canonical mutation wire result. The regenerated
+    proxy/private-bus test checks output order and these snapshot/event cases. The
+    strict-warning build and focused CTest pass 1/1, and independent review found no
+    remaining issue. This is an ID-104 contract artifact only: production persistence,
+    inheritance/effective-state calculation, preset/Custom behavior, UI, and Ticket 12
+    production acceptance remain blocked by Tickets 05 and 11 and reference evidence.
   - [x] Hotkeys1 now has a versioned typed list/update schema, stable action
     records with separate configured/effective bindings, ID-093 event envelope,
     isolated mock, and private-bus contract coverage for round-trip, revision

@@ -1,10 +1,13 @@
 <node>
   <interface name="org.adrenalinlinux.Session1.Profiles1">
     <method name="ReadProfile">
-      <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="adrenalin::contracts::profiles1::Profile"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out4" value="adrenalin::contracts::profiles1::Profile"/>
       <arg name="subject_kind" type="s" direction="in"/>
       <arg name="subject_id" type="s" direction="in"/>
       <arg name="result_code" type="s" direction="out"/>
+      <arg name="service_instance_uuid" type="s" direction="out"/>
+      <arg name="service_generation" type="t" direction="out"/>
+      <arg name="event_sequence" type="t" direction="out"/>
       <arg name="profile" type="(sssssta{sv})" direction="out"/>
     </method>
     <method name="UpdateProfile">

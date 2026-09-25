@@ -32,6 +32,9 @@ ReadReply Mock::readProfile(const QString &subjectKind, const QString &subjectId
         reply.code = QStringLiteral("INVALID_ARGUMENT");
         return reply;
     }
+    reply.serviceInstanceUuid = serviceInstanceUuid_;
+    reply.serviceGeneration = serviceGeneration_;
+    reply.eventSequence = eventSequence_;
     const auto found = profiles_.constFind(keyFor(subjectKind, subjectId));
     if (found == profiles_.cend()) {
         reply.code = QStringLiteral("NOT_FOUND");
@@ -42,23 +45,34 @@ ReadReply Mock::readProfile(const QString &subjectKind, const QString &subjectId
     return reply;
 }
 
-UpdateReply Mock::updateProfile(const QString &subjectKind, const QString &subjectId,
-                                quint64 expectedRevision, const QString &operationId,
-                                const QVariantMap &settingsPatch)
+bool ProfileChangedEvent::isValid(QString *error) const
 {
-    UpdateReply reply;
-    reply.serviceInstanceUuid = serviceInstanceUuid_;
-    reply.serviceGeneration = serviceGeneration_;
-    reply.eventSequence = eventSequence_;
-    reply.mutation.operationId = operationId;
-    reply.mutation.provider = QStringLiteral("profiles-contract-mock");
-    reply.mutation.subjectId = isValidSubject(subjectKind, subjectId)
+    if (!isValidEventEnvelope(serviceInstanceUuid, serviceGeneration, eventSequence)) {
+        if (error != nullptr) *error = QStringLiteral("Profile change event requires a valid event envelope");
+        return false;
+    }
+    if (!isValidSubject(subjectKind, subjectId) || revision == 0) {
+        if (error != nullptr) *error = QStringLiteral("Profile change event identity or revision is invalid");
+        return false;
+    }
+    return true;
+}
+
+UpdateOutcome Mock::updateProfile(const QString &subjectKind, const QString &subjectId,
+                                  quint64 expectedRevision, const QString &operationId,
+                                  const QVariantMap &settingsPatch)
+{
+    UpdateOutcome outcome;
+    MutationResult &reply = outcome.mutation;
+    reply.operationId = operationId;
+    reply.provider = QStringLiteral("profiles-contract-mock");
+    reply.subjectId = isValidSubject(subjectKind, subjectId)
         ? (subjectKind + QLatin1Char(':') + subjectId) : QString();
     const auto setError = [&](OperationResultCode code, const QString &key, const QString &detail) {
-        reply.mutation.code = code;
-        reply.mutation.humanMessageKey = key;
-        reply.mutation.diagnosticMessage = detail;
-        return reply;
+        reply.code = code;
+        reply.humanMessageKey = key;
+        reply.diagnosticMessage = detail;
+        return outcome;
     };
     static const QRegularExpression opSyntax(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"));
     if (!opSyntax.match(operationId).hasMatch() || !isValidSubject(subjectKind, subjectId)
@@ -76,9 +90,8 @@ UpdateReply Mock::updateProfile(const QString &subjectKind, const QString &subje
                             QStringLiteral("profiles.operation.conflict"),
                             QStringLiteral("Operation ID was reused with different profile values"));
         }
-        UpdateReply replay = prior->reply;
-        replay.changed = false;
-        return replay;
+        outcome.mutation = prior->reply;
+        return outcome;
     }
 
     auto profile = profiles_.find(keyFor(subjectKind, subjectId));
@@ -86,7 +99,7 @@ UpdateReply Mock::updateProfile(const QString &subjectKind, const QString &subje
         return setError(OperationResultCode::NotFound, QStringLiteral("profiles.profile.not_found"),
                         QStringLiteral("Profile subject has no contract fixture"));
     }
-    reply.mutation.revision = profile->revision;
+    reply.revision = profile->revision;
     if (expectedRevision != profile->revision) {
         return setError(OperationResultCode::StaleRevision,
                         QStringLiteral("profiles.operation.stale_revision"),
@@ -112,16 +125,17 @@ UpdateReply Mock::updateProfile(const QString &subjectKind, const QString &subje
         ++profile->revision;
         ++eventSequence_;
     }
-    reply.eventSequence = eventSequence_;
-    reply.changed = changed;
-    reply.mutation.code = OperationResultCode::Ok;
-    reply.mutation.humanMessageKey = changed ? QStringLiteral("profiles.profile.updated")
+    reply.code = OperationResultCode::Ok;
+    reply.humanMessageKey = changed ? QStringLiteral("profiles.profile.updated")
                                               : QStringLiteral("profiles.profile.unchanged");
-    reply.mutation.revision = profile->revision;
-    UpdateReply cached = reply;
-    cached.changed = false;
-    operations_.insert(operationId, {subjectKind, subjectId, expectedRevision, settingsPatch, cached});
-    return reply;
+    reply.revision = profile->revision;
+    if (changed) {
+        ProfileChangedEvent event{serviceInstanceUuid_, serviceGeneration_, eventSequence_,
+                                  subjectKind, subjectId, profile->revision};
+        outcome.event = event;
+    }
+    operations_.insert(operationId, {subjectKind, subjectId, expectedRevision, settingsPatch, reply});
+    return outcome;
 }
 
 } // namespace adrenalin::contracts::profiles1

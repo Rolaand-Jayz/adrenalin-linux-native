@@ -45,26 +45,30 @@ public:
         if (message.member() == QLatin1String("ReadProfile")) {
             const ReadReply reply = mock_.readProfile(args.value(0).toString(), args.value(1).toString());
             return connection.send(message.createReply(QVariantList{
-                reply.code, QVariant::fromValue(reply.profile)}));
+                reply.code, reply.serviceInstanceUuid,
+                QVariant::fromValue<qulonglong>(reply.serviceGeneration),
+                QVariant::fromValue<qulonglong>(reply.eventSequence),
+                QVariant::fromValue(reply.profile)}));
         }
         if (message.member() == QLatin1String("UpdateProfile")) {
-            const UpdateReply reply = mock_.updateProfile(args.value(0).toString(), args.value(1).toString(),
+            const UpdateOutcome outcome = mock_.updateProfile(args.value(0).toString(), args.value(1).toString(),
                 args.value(2).toULongLong(), args.value(3).toString(),
                 qdbus_cast<QVariantMap>(args.value(4).value<QDBusArgument>()));
-            const MutationResult &mutation = reply.mutation;
+            const MutationResult &mutation = outcome.mutation;
             const bool sent = connection.send(message.createReply(QVariantList{
                 adrenalin::contracts::operationResultCodeName(mutation.code), mutation.operationId,
                 mutation.humanMessageKey, mutation.diagnosticMessage, mutation.retryable,
                 mutation.provider, mutation.subjectId, QVariant::fromValue<qulonglong>(mutation.revision)}));
-            if (sent && reply.changed) {
+            if (sent && outcome.event.has_value()) {
+                const ProfileChangedEvent &event = *outcome.event;
                 QDBusMessage signal = QDBusMessage::createSignal(
                     QString::fromLatin1(kObjectPath), QString::fromLatin1(kInterfaceName),
                     QStringLiteral("ProfileChanged"));
-                signal << reply.serviceInstanceUuid
-                       << QVariant::fromValue<qulonglong>(reply.serviceGeneration)
-                       << QVariant::fromValue<qulonglong>(reply.eventSequence)
-                       << args.value(0).toString() << args.value(1).toString()
-                       << QVariant::fromValue<qulonglong>(mutation.revision);
+                signal << event.serviceInstanceUuid
+                       << QVariant::fromValue<qulonglong>(event.serviceGeneration)
+                       << QVariant::fromValue<qulonglong>(event.eventSequence)
+                       << event.subjectKind << event.subjectId
+                       << QVariant::fromValue<qulonglong>(event.revision);
                 return connection.send(signal);
             }
             return sent;
@@ -120,6 +124,19 @@ private slots:
         QVERIFY(schema.contains(QStringLiteral("name=\"operation_id\" type=\"s\" direction=\"in\"")));
         QVERIFY(schema.contains(QStringLiteral("name=\"result_subject_id\" type=\"s\" direction=\"out\"")));
         QVERIFY(schema.contains(QStringLiteral("name=\"ProfileChanged\"")));
+        const QStringList readOutputs{
+            QStringLiteral("name=\"result_code\" type=\"s\" direction=\"out\""),
+            QStringLiteral("name=\"service_instance_uuid\" type=\"s\" direction=\"out\""),
+            QStringLiteral("name=\"service_generation\" type=\"t\" direction=\"out\""),
+            QStringLiteral("name=\"event_sequence\" type=\"t\" direction=\"out\""),
+            QStringLiteral("name=\"profile\" type=\"(sssssta{sv})\" direction=\"out\"")};
+        int readPosition = schema.indexOf(QStringLiteral("<method name=\"ReadProfile\">"));
+        QVERIFY(readPosition >= 0);
+        for (const QString &output : readOutputs) {
+            const int next = schema.indexOf(output, readPosition);
+            QVERIFY2(next >= readPosition, qPrintable(output));
+            readPosition = next + output.size();
+        }
 
         QVERIFY(isValidSubject(QStringLiteral("GLOBAL"), QStringLiteral("global")));
         QVERIFY(isValidSubject(QStringLiteral("GAME"), QString::fromLatin1(kGameId)));
@@ -140,6 +157,24 @@ private slots:
         fixture.settings.remove(QStringLiteral("UpperCaseKey"));
         fixture.presetId = QStringLiteral("CUSTOM");
         QVERIFY(!fixture.isValid());
+
+        ProfileChangedEvent validEvent{QStringLiteral("123e4567-e89b-12d3-a456-426614174001"),
+                                       1, 1, QStringLiteral("GAME"),
+                                       QString::fromLatin1(kGameId), 2};
+        QVERIFY(validEvent.isValid());
+        validEvent.eventSequence = 0;
+        QVERIFY(!validEvent.isValid());
+
+        ReadReply unavailable;
+        unavailable.code = QStringLiteral("BACKEND_UNAVAILABLE");
+        QVERIFY(unavailable.isValid());
+        ReadReply unboundSuccess;
+        unboundSuccess.code = QStringLiteral("OK");
+        unboundSuccess.profile = Profile{QStringLiteral("123e4567-e89b-42d3-a456-426614174011"),
+                                         QStringLiteral("GAME"), QString::fromLatin1(kGameId),
+                                         QString(), QStringLiteral("REFERENCE_GATED"), 1,
+                                         {{QStringLiteral("fixture_setting"), 1}}};
+        QVERIFY(!unboundSuccess.isValid());
     }
 
     void privateBusReadUpdateIdempotencyConflictAndStaleRevision()
@@ -151,7 +186,14 @@ private slots:
         globalRead.waitForFinished();
         QVERIFY2(!globalRead.isError(), qPrintable(globalRead.error().message()));
         QCOMPARE(globalRead.argumentAt<0>(), QStringLiteral("OK"));
-        const Profile global = globalRead.argumentAt<1>();
+        QCOMPARE(globalRead.argumentAt<1>(), QStringLiteral("123e4567-e89b-12d3-a456-426614174001"));
+        QCOMPARE(globalRead.argumentAt<2>(), qulonglong(1));
+        QCOMPARE(globalRead.argumentAt<3>(), qulonglong(0));
+        const ReadReply initialGlobalReply{globalRead.argumentAt<0>(), globalRead.argumentAt<1>(),
+                                            globalRead.argumentAt<2>(), globalRead.argumentAt<3>(),
+                                            globalRead.argumentAt<4>()};
+        QVERIFY(initialGlobalReply.isValidFor(QStringLiteral("GLOBAL"), QStringLiteral("global")));
+        const Profile global = globalRead.argumentAt<4>();
         QVERIFY(global.isValid());
         QCOMPARE(global.subjectKind, QStringLiteral("GLOBAL"));
         QCOMPARE(global.subjectId, QStringLiteral("global"));
@@ -161,7 +203,12 @@ private slots:
         gameRead.waitForFinished();
         QVERIFY2(!gameRead.isError(), qPrintable(gameRead.error().message()));
         QCOMPARE(gameRead.argumentAt<0>(), QStringLiteral("OK"));
-        QCOMPARE(gameRead.argumentAt<1>().subjectId, QString::fromLatin1(kGameId));
+        QCOMPARE(gameRead.argumentAt<4>().subjectId, QString::fromLatin1(kGameId));
+        const ReadReply gameReply{gameRead.argumentAt<0>(), gameRead.argumentAt<1>(),
+                                  gameRead.argumentAt<2>(), gameRead.argumentAt<3>(),
+                                  gameRead.argumentAt<4>()};
+        QVERIFY(gameReply.isValidFor(QStringLiteral("GAME"), QString::fromLatin1(kGameId)));
+        QVERIFY(!gameReply.isValidFor(QStringLiteral("GAME"), QStringLiteral("steam:app/98765")));
 
         QVariantMap patch{{QStringLiteral("fixture_setting"), 7}};
         auto update = proxy_->UpdateProfile(QStringLiteral("GAME"), QString::fromLatin1(kGameId),
@@ -175,8 +222,10 @@ private slots:
         QTRY_COMPARE(changed.count(), 1);
         QCOMPARE(changed.constFirst().at(0).toString(),
                  QStringLiteral("123e4567-e89b-12d3-a456-426614174001"));
-        QCOMPARE(changed.constFirst().at(2).toULongLong(), qulonglong(21));
+        QCOMPARE(changed.constFirst().at(2).toULongLong(), qulonglong(1));
         QCOMPARE(changed.constFirst().at(3).toString(), QStringLiteral("GAME"));
+        QCOMPARE(changed.constFirst().at(4).toString(), QString::fromLatin1(kGameId));
+        QCOMPARE(changed.constFirst().at(5).toULongLong(), update.argumentAt<7>());
 
         auto duplicate = proxy_->UpdateProfile(QStringLiteral("GAME"), QString::fromLatin1(kGameId),
                                                 qulonglong(1), QStringLiteral("profile-op-1"), patch);
@@ -200,22 +249,54 @@ private slots:
         QCOMPARE(stale.argumentAt<0>(), QStringLiteral("STALE_REVISION"));
         QCOMPARE(changed.count(), 1);
 
+        auto noOp = proxy_->UpdateProfile(QStringLiteral("GAME"), QString::fromLatin1(kGameId),
+                                           qulonglong(2), QStringLiteral("profile-op-noop"), patch);
+        noOp.waitForFinished();
+        QVERIFY2(!noOp.isError(), qPrintable(noOp.error().message()));
+        QCOMPARE(noOp.argumentAt<0>(), QStringLiteral("OK"));
+        QCOMPARE(noOp.argumentAt<7>(), qulonglong(2));
+        QCOMPARE(changed.count(), 1);
+
+        auto missing = proxy_->ReadProfile(QStringLiteral("GAME"), QStringLiteral("steam:app/98765"));
+        missing.waitForFinished();
+        QVERIFY2(!missing.isError(), qPrintable(missing.error().message()));
+        QCOMPARE(missing.argumentAt<0>(), QStringLiteral("NOT_FOUND"));
+        QCOMPARE(missing.argumentAt<1>(), QStringLiteral("123e4567-e89b-12d3-a456-426614174001"));
+        QCOMPARE(missing.argumentAt<2>(), qulonglong(1));
+        QCOMPARE(missing.argumentAt<3>(), qulonglong(1));
+        QVERIFY(missing.argumentAt<4>().profileId.isEmpty());
+        const ReadReply missingReply{missing.argumentAt<0>(), missing.argumentAt<1>(),
+                                     missing.argumentAt<2>(), missing.argumentAt<3>(),
+                                     missing.argumentAt<4>()};
+        QVERIFY(missingReply.isValidFor(QStringLiteral("GAME"), QStringLiteral("steam:app/98765")));
+
         auto badSubject = proxy_->ReadProfile(QStringLiteral("GAME"), QStringLiteral("localized title"));
         badSubject.waitForFinished();
         QVERIFY2(!badSubject.isError(), qPrintable(badSubject.error().message()));
         QCOMPARE(badSubject.argumentAt<0>(), QStringLiteral("INVALID_ARGUMENT"));
-        QVERIFY(badSubject.argumentAt<1>().profileId.isEmpty());
+        QCOMPARE(badSubject.argumentAt<1>(), QString());
+        QCOMPARE(badSubject.argumentAt<2>(), qulonglong(0));
+        QCOMPARE(badSubject.argumentAt<3>(), qulonglong(0));
+        QVERIFY(badSubject.argumentAt<4>().profileId.isEmpty());
+        const ReadReply invalidReply{badSubject.argumentAt<0>(), badSubject.argumentAt<1>(),
+                                     badSubject.argumentAt<2>(), badSubject.argumentAt<3>(),
+                                     badSubject.argumentAt<4>()};
+        QVERIFY(invalidReply.isValidFor(QStringLiteral("GAME"), QStringLiteral("localized title")));
+        QVERIFY(!invalidReply.isValidFor(QStringLiteral("GAME"), QString::fromLatin1(kGameId)));
 
         auto finalGameRead = proxy_->ReadProfile(QStringLiteral("GAME"), QString::fromLatin1(kGameId));
         finalGameRead.waitForFinished();
         QVERIFY2(!finalGameRead.isError(), qPrintable(finalGameRead.error().message()));
-        QCOMPARE(finalGameRead.argumentAt<1>().revision, qulonglong(2));
-        QCOMPARE(finalGameRead.argumentAt<1>().settings.value(QStringLiteral("fixture_setting")).toInt(), 7);
+        QCOMPARE(finalGameRead.argumentAt<1>(), QStringLiteral("123e4567-e89b-12d3-a456-426614174001"));
+        QCOMPARE(finalGameRead.argumentAt<2>(), qulonglong(1));
+        QCOMPARE(finalGameRead.argumentAt<3>(), qulonglong(1));
+        QCOMPARE(finalGameRead.argumentAt<4>().revision, qulonglong(2));
+        QCOMPARE(finalGameRead.argumentAt<4>().settings.value(QStringLiteral("fixture_setting")).toInt(), 7);
         auto finalGlobalRead = proxy_->ReadProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"));
         finalGlobalRead.waitForFinished();
         QVERIFY2(!finalGlobalRead.isError(), qPrintable(finalGlobalRead.error().message()));
-        QCOMPARE(finalGlobalRead.argumentAt<1>().revision, qulonglong(1));
-        QCOMPARE(finalGlobalRead.argumentAt<1>().settings.value(QStringLiteral("fixture_global_setting")).toBool(), true);
+        QCOMPARE(finalGlobalRead.argumentAt<4>().revision, qulonglong(1));
+        QCOMPARE(finalGlobalRead.argumentAt<4>().settings.value(QStringLiteral("fixture_global_setting")).toBool(), true);
         QCOMPARE(changed.count(), 1);
     }
 

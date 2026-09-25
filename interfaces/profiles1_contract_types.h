@@ -24,9 +24,14 @@ struct Profile final {
 
 struct ReadReply final {
     QString code;
+    QString serviceInstanceUuid;
+    quint64 serviceGeneration = 0;
+    quint64 eventSequence = 0;
     Profile profile;
 
     bool isValid(QString *error = nullptr) const;
+    bool isValidFor(const QString &subjectKind, const QString &subjectId,
+                    QString *error = nullptr) const;
 };
 
 bool isValidSubject(const QString &subjectKind, const QString &subjectId);

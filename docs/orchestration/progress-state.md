@@ -16,6 +16,16 @@ and ID-185 recovery sequence tracked against their owning production contracts.
 
 - Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. Independent review passed; focused ABI, private-bus, and cursor CTests passed 3/3. This adds no production telemetry provider or event client; Ticket 07 and production ID-093/ID-185 work remain open.
 
+- Profiles1 contract correction: `ReadProfile` carries service incarnation and
+  event-sequence cursor beside the profile; zero is valid before the first event,
+  while invalid/unavailable replies require an empty envelope. Fresh changes alone
+  produce a typed local event; replay, no-op, and error outcomes do not. The
+  generated proxy/private-bus test pins field order and snapshot/event behavior.
+  Independent review found no remaining issue; a root-run strict-warning target
+  build and focused CTest passed 1/1. This remains an ID-104 contract artifact only;
+  persistence, inheritance/effective-state behavior, presets, UI, and Ticket 12
+  production acceptance remain open behind Tickets 05 and 11 plus reference evidence.
+
 - The full checked-in workflow was exercised locally from a fresh `git archive` of baseline commit `b8dc833`:
   invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40
   manifest tests, staged install verification, systemd and desktop validation,

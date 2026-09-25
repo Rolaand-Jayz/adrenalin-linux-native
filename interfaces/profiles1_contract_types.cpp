@@ -1,4 +1,5 @@
 #include "profiles1_contract_types.h"
+#include "profiles1_contract.h"
 
 #include "operation_result.h"
 
@@ -45,6 +46,13 @@ bool isValidSubject(const QString &subjectKind, const QString &subjectId)
     return subjectKind == QLatin1String("GAME") && gameId.match(subjectId).hasMatch();
 }
 
+bool isValidServiceIdentity(const QString &serviceInstanceUuid, quint64 serviceGeneration)
+{
+    static const QRegularExpression uuid(
+        QStringLiteral("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"));
+    return uuid.match(serviceInstanceUuid).hasMatch() && serviceGeneration != 0;
+}
+
 bool isValidSettings(const QVariantMap &settings, QString *error)
 {
     static const QRegularExpression keySyntax(QStringLiteral("^[a-z][a-z0-9_.-]{0,127}$"));
@@ -86,13 +94,46 @@ bool ReadReply::isValid(QString *error) const
     if (!adrenalin::contracts::operationResultCodeFromName(code).has_value()) {
         return fail(error, QStringLiteral("Profile result code is outside the canonical result vocabulary"));
     }
+    const bool hasEnvelope = isValidServiceIdentity(serviceInstanceUuid, serviceGeneration);
     if (code == QLatin1String("OK")) {
-        return profile.isValid(error);
+        if (!hasEnvelope) {
+            return fail(error, QStringLiteral("Successful profile reads require a valid service event cursor"));
+        }
+        if (!profile.isValid(error)) {
+            return false;
+        }
+        return true;
+    }
+    if (code == QLatin1String("NOT_FOUND")) {
+        if (!hasEnvelope) {
+            return fail(error, QStringLiteral("Authoritative NOT_FOUND reads require a valid service event cursor"));
+        }
+    } else if (hasEnvelope || !serviceInstanceUuid.isEmpty() || serviceGeneration != 0 || eventSequence != 0) {
+        return fail(error, QStringLiteral("Unavailable or invalid profile reads must use an empty cursor envelope"));
     }
     if (!profile.profileId.isEmpty() || !profile.subjectKind.isEmpty() || !profile.subjectId.isEmpty()
         || !profile.presetId.isEmpty() || !profile.referenceState.isEmpty() || profile.revision != 0
         || !profile.settings.isEmpty()) {
         return fail(error, QStringLiteral("Failed profile reads must not carry partial profile state"));
+    }
+    return true;
+}
+
+bool ReadReply::isValidFor(const QString &subjectKind, const QString &subjectId, QString *error) const
+{
+    if (!isValid(error)) {
+        return false;
+    }
+    if (!isValidSubject(subjectKind, subjectId)) {
+        return code == QLatin1String("INVALID_ARGUMENT")
+            ? true : fail(error, QStringLiteral("Invalid requested profile identity requires INVALID_ARGUMENT"));
+    }
+    if (code == QLatin1String("INVALID_ARGUMENT")) {
+        return fail(error, QStringLiteral("Valid requested profile identity cannot return INVALID_ARGUMENT"));
+    }
+    if (code == QLatin1String("OK")
+        && (profile.subjectKind != subjectKind || profile.subjectId != subjectId)) {
+        return fail(error, QStringLiteral("Profile result identity does not match the requested subject"));
     }
     return true;
 }
