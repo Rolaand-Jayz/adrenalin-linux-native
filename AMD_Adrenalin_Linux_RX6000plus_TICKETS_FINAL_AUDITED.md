@@ -297,6 +297,16 @@ independent, checksum-bound review and parity evidence.
     only: persistence, inheritance/effective-state calculation, preset/Custom behavior,
     UI, and Ticket 12 production acceptance remain blocked by Tickets 05 and 11 and
     reference evidence.
+  - [x] Hotkeys1 now has a versioned typed list/update schema, stable action
+    records with separate configured/effective bindings, ID-093 event envelope,
+    isolated mock, and private-bus contract coverage for round-trip, revision
+    conflicts, idempotent replay, and malformed identities. The strict-warning
+    contract/mock/test target builds and its focused private-bus CTest passes 1/1;
+    production portal/X11 providers and effective binding read-back are not
+    implemented. This is an ID-104 prerequisite artifact only; Ticket 03 event
+    coverage and Ticket 09 remain open. The integrated daemon/shell targets build,
+    and the broader available CTest selection passes 16/16 (excluding the
+    environment's unbuildable Catch2 v3 identity target).
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device

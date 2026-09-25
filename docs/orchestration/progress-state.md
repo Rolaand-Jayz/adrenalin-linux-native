@@ -117,6 +117,15 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   evidence. The combined focused regression set for Profiles1, Notifications1, and
   the affected Hardware1 service passes 3/3. The separate test-only snapshot
   injection target is not used by the production daemon.
+- Hotkeys1 contract-only prerequisite now covers ListHotkeys/SetHotkey, stable
+  action IDs, configured/effective binding separation, parent-window context,
+  operation revisions/replay, and the ID-093 signal envelope. Its private-bus test
+  passes 1/1 after an independent review found and corrected duplicate event
+  publication on idempotent replay. The integrated session daemon and shell targets
+  build; the broader available CTest selection passes 16/16, excluding the
+  environment's unbuildable Catch2 v3 identity target. No portal/X11 provider,
+  startup rebind, or production action handler is implemented; Ticket 03, ID-093,
+  ID-185 and Ticket 09 remain open.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,

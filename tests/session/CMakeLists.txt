@@ -252,6 +252,37 @@ add_test(NAME adrenalin-profiles1-contract
 )
 set_tests_properties(adrenalin-profiles1-contract PROPERTIES TIMEOUT 30)
 
+qt_add_executable(adrenalin-hotkeys1-contract-test
+    hotkeys1_contract_test.cpp
+)
+set(ADRENALIN_HOTKEYS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Hotkeys1.xml")
+set_source_files_properties("${ADRENALIN_HOTKEYS1_XML}"
+    PROPERTIES QT_RESOURCE_ALIAS org.adrenalinlinux.Session1.Hotkeys1.xml
+)
+qt_add_resources(adrenalin-hotkeys1-contract-test hotkeys1_contract_schema
+    PREFIX "/hotkeys1"
+    FILES "${ADRENALIN_HOTKEYS1_XML}"
+)
+target_include_directories(adrenalin-hotkeys1-contract-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-hotkeys1-contract-test PRIVATE
+    adrenalin-session-contract
+    adrenalin-session-contract-mock
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-hotkeys1-contract-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-hotkeys1-contract
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-hotkeys1-contract-test>
+)
+set_tests_properties(adrenalin-hotkeys1-contract PROPERTIES TIMEOUT 30)
+
 # The inventory source uses real libdrm enumeration in production; this target
 # enables only its validation seam so malformed records can be tested without
 # relying on host GPU visibility.
