@@ -258,6 +258,13 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   and Ticket 12 remain open: the ID-185 recovery sequence, complete ID-093
   reconciliation, inherited/effective profile behavior, reference-backed
   Custom/preset semantics, and profile UI are still outstanding.
+- The Profiles1 production client now reads authoritative snapshots and reconciles
+  profile changes, event gaps, service-generation changes, and owner rebinding. A
+  review found and fixed a lost-refresh race when an event arrived during a failed
+  snapshot request; a private-bus regression test covers that path. The focused
+  client CTest passes 1/1 after the fix. This is a bounded client slice: Ticket 03's
+  remaining event families and ID-185 recovery gates, and Ticket 12's
+  inheritance/effective values, reference-backed presets, and UI remain open.
 - Ticket 02's deterministic visual-diff harness is committed. Candidate capture
   tooling now records the live Qt Quick render and named component rectangles,
   with a comparator-compatible rectangle shape and fail-closed bounded CLI.
@@ -397,9 +404,9 @@ and ID-185 recovery sequence tracked against their owning production contracts.
    dependency cycle before integrating its remaining recovery families. Keep
    Telemetry1 fixtures separate from production until ID-153 source precedence and
    recovery are met.
-3. Profiles1 remains contract-only: production profiles wait for Tickets 05 and 11,
-   while ID-097 configured/effective precedence and reason fields need a
-   reference-backed production contract. Continue the other ID-105/107 families only
+3. Profiles1 has production persistence and snapshot/event reconciliation slices;
+   full profile semantics remain open. ID-097 configured/effective precedence and
+   reason fields need a reference-backed production contract. Continue the other ID-105/107 families only
    after their shared schema, provider, portal, rollback, and migration prerequisites
    are met.
 4. Recompute the dependency frontier after each integration and continue through

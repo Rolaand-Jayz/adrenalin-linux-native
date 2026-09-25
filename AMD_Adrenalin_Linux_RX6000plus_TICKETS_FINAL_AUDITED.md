@@ -414,9 +414,19 @@ open.
     independent of Qt serialization. Production and strict-warning test targets build;
     focused Session contract, Profiles1 contract, persistence, and private-bus service
     CTests pass 4/4. Independent review found no remaining actionable issue. Profile
-    inheritance, predefined Custom semantics, effective-state calculation, UI and
-    authoritative production client reconciliation remain unimplemented; Tickets 03
-    and 12 remain open.
+    inheritance, predefined Custom semantics, effective-state calculation, and UI
+    remain unimplemented. The authoritative production client reconciliation slice
+    now reads snapshots and tracks service identity, generations, and event cursors;
+    it retries after event races and rejects stale replies. Ticket 03's full ID-093/
+    ID-185 acceptance and Ticket 12 remain open.
+  - [x] Profiles1 production client reconciliation slice (2026-09-25): the generated
+    D-Bus client reads authoritative snapshots, reconciles profile changes, event
+    gaps, service-generation changes, and owner rebinding, and fails closed on
+    malformed or unavailable replies. Focused private-bus tests cover initial-read
+    races, stale replies, duplicate events, owner changes, malformed envelopes, and
+    failed reads during event invalidation. This bounded slice does not close Ticket
+    03 or Ticket 12; remaining event families, ID-185 recovery participants,
+    inheritance/effective values, reference-backed presets, and UI remain open.
   - [x] Hotkeys1 now has a versioned typed list/update schema, stable action
     records with separate configured/effective bindings, ID-093 event envelope,
     isolated mock, and private-bus contract coverage for round-trip, revision

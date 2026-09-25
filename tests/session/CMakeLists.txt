@@ -372,6 +372,28 @@ add_test(NAME adrenalin-profiles1-contract
 )
 set_tests_properties(adrenalin-profiles1-contract PROPERTIES TIMEOUT 30)
 
+qt_add_executable(adrenalin-profiles1-client-test
+    profiles1_client_test.cpp
+)
+target_include_directories(adrenalin-profiles1-client-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-profiles1-client-test PRIVATE
+    adrenalin-session-contract
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-profiles1-client-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-profiles1-client
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-profiles1-client-test>
+)
+set_tests_properties(adrenalin-profiles1-client PROPERTIES TIMEOUT 30)
+
 qt_add_executable(adrenalin-hotkeys1-contract-test
     hotkeys1_contract_test.cpp
 )
