@@ -8,19 +8,20 @@ AMD, Radeon, and AMD Software: Adrenalin Edition are trademarks of [Advanced Mic
 
 ## Project status
 
-**Early development.** The repository contains a native application shell, a session service, and a persisted telemetry-consent preference. Hardware discovery and production GPU providers are not implemented, and no Adrenalin screen has passed the project’s visual-parity gate.
+**Early development.** The repository contains a native application shell, a per-user session service, persisted settings and profile data, and read-only Linux hardware inventory for GPUs, CPU packages, and displays. GPU control providers are not implemented, and no Adrenalin screen has passed the project’s visual-parity gate.
 
-This build is not a GPU control utility. Live hardware telemetry, tuning, display changes, recording, streaming, and other hardware-facing features are not available. It does not transmit product telemetry; the saved preference only stores the user’s consent choice. No release packages or certified GPU/distribution configurations are available.
+This build is not a GPU control utility. Live hardware telemetry, tuning, display changes, hotkey activation, recording, streaming, and other hardware-facing features are not available. It does not transmit product telemetry; the saved preference only stores the user’s consent choice. No release packages or certified GPU/distribution configurations are available.
 
 ## Current implementation
 
 - C++20 application shell built with Qt 6 and QML
-- Per-user D-Bus session service with SQLite-backed telemetry-consent preference
-- Versioned Settings1, Service1, and Hardware1 contract code with test fixtures
+- Per-user D-Bus session service with SQLite-backed settings, telemetry-consent, and profile records
+- Read-only Hardware1 inventory gathered through Linux providers, with capability states that do not claim unavailable controls
+- Versioned D-Bus service, settings, hardware, display, notification, profile, and hotkey contracts
 - Reference-capture manifest validation and visual-diff tooling
-- Candidate capture of the running QML window and its self-reported component geometry
+- Candidate capture of the running QML window with component geometry; candidate artifacts are not accepted parity evidence
 
-Hardware1 currently provides a contract and test mock, not live hardware data. Candidate geometry is application-reported and does not count as independent attestation. See the [audited ticket pack](AMD_Adrenalin_Linux_RX6000plus_TICKETS_FINAL_AUDITED.md) for acceptance status and remaining work.
+Hardware1 inventory is read-only and does not provide GPU tuning, telemetry, or display mutation. See the [audited ticket pack](AMD_Adrenalin_Linux_RX6000plus_TICKETS_FINAL_AUDITED.md) for the verified acceptance status, open requirements, and evidence limits.
 
 ## Build and test
 
