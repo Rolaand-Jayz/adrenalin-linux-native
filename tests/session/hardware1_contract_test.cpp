@@ -1,5 +1,6 @@
 #include "interfaces/hardware1_mock.h"
 #include "interfaces/hardware1_contract_types.h"
+#include "interfaces/hardware1_registry.h"
 
 #include <hardware1_interface.h>
 
@@ -350,6 +351,35 @@ private slots:
 
         capability.allowedValues = {QStringLiteral("quiet")};
         QVERIFY(!capability.isValid());
+    }
+
+    void versionedCapabilityRegistryHasUniqueExplicitScopes()
+    {
+        const auto &registry = capabilityRegistryV1();
+        QVERIFY(registry.size() >= 30);
+        QSet<QString> ids;
+        for (const auto &definition : registry) {
+            QVERIFY(!definition.id.isEmpty());
+            QVERIFY2(!ids.contains(definition.id), qPrintable(definition.id));
+            ids.insert(definition.id);
+            QVERIFY(!definition.subjectKinds.isEmpty());
+            QSet<QString> scopes;
+            for (const QString &kind : definition.subjectKinds) {
+                QVERIFY(isValidSubjectKind(kind));
+                QVERIFY(!scopes.contains(kind));
+                scopes.insert(kind);
+            }
+            QCOMPARE(findCapabilityV1(definition.id), &definition);
+        }
+        QCOMPARE(ids.size(), registry.size());
+        QVERIFY(capabilityAppliesToV1(QStringLiteral("gpu.metric.utilization"), QStringLiteral("GPU_PCI")));
+        QVERIFY(capabilityAppliesToV1(QStringLiteral("cpu.metric.temperature"), QStringLiteral("CPU_PACKAGE")));
+        QVERIFY(capabilityAppliesToV1(QStringLiteral("platform.metric.system_ram"), QStringLiteral("PLATFORM")));
+        QVERIFY(capabilityAppliesToV1(QStringLiteral("display.brightness"), QStringLiteral("DISPLAY")));
+        QVERIFY(!capabilityAppliesToV1(QStringLiteral("display.brightness"), QStringLiteral("GPU_PCI")));
+        QVERIFY(!capabilityAppliesToV1(QStringLiteral("game.metric.fps"), QStringLiteral("GPU_PCI")));
+        QVERIFY(!capabilityAppliesToV1(QStringLiteral("unknown.metric"), QStringLiteral("PLATFORM")));
+        QVERIFY(subjectKindsForCapabilityV1(QStringLiteral("unknown.metric")).isEmpty());
     }
 
 private:

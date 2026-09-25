@@ -189,8 +189,18 @@ own acceptance criteria and dependency gates pass.
     sysfs topology entries existed. This verifies CPU live enumeration only and
     confirms that missing DRM access is reported as failure rather than empty
     inventory. Hosted CI and real GPU/display provider behavior remain unverified.
-  - [ ] Production snapshot integration remains blocked on a versioned capability
-    registry/evidence catalog. The available GPU, CPU, and DRM display sources
+  - [x] Added the implementation-owned `hardware1` v1 capability ID catalog
+    for explicitly named GPU metrics, CPU-package metrics, platform RAM, and
+    per-display controls. Subject-kind scoping is validated and unknown IDs or
+    scope combinations are rejected by the catalog API; the focused Hardware1
+    contract test covers uniqueness, canonical subject kinds, valid mappings,
+    and fail-closed unknown mappings. This is vocabulary only: it creates no
+    provider, evidence claim, unit assignment, or supported capability state.
+  - [ ] Production snapshot integration remains open beyond the bounded ID/scope
+    catalog: provider/evidence vocabularies, source-qualified units and enum
+    domains, further parity-feature mappings (including game/runtime and tuning
+    controls), and provider-backed graph construction still require definition.
+    The available GPU, CPU, and DRM display sources
     yield discovery evidence but do not define the complete per-subject capability
     graph required before a valid Hardware1 snapshot or READY state. A read-only
     architecture review confirmed that treating missing DRM access as an empty

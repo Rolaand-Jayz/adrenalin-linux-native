@@ -13,8 +13,10 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/service_readiness_client.cpp
     ../interfaces/operation_result.cpp
     ../interfaces/hardware1_contract_types.cpp
+    ../interfaces/hardware1_registry.cpp
     ../interfaces/hardware1_contract.h
     ../interfaces/hardware1_contract_types.h
+    ../interfaces/hardware1_registry.h
     ../interfaces/service_readiness_client.h
     ../interfaces/service_readiness_contract.h
 )
