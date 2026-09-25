@@ -132,6 +132,12 @@ ready, but no further acceptance gate can be closed from the current candidate-o
 evidence. Ticket 02 remains open pending the fixed-build Windows capture corpus and
 independent, checksum-bound review and parity evidence.
 
+The separate-process AT-SPI utility is explicitly limited to checking accessible
+names, roles, and extents. It does not bind those extents to the exact candidate
+PNG crop and therefore cannot emit comparator geometry or satisfy independent
+attestation. The reference-tooling regression suite passes 43/43 after enforcing
+this boundary; no capture, attestation, annotation, or parity gate is closed.
+
 ### 03 — Session service and persisted preference tracer
 
 **Blocked by:** 01
@@ -305,8 +311,18 @@ independent, checksum-bound review and parity evidence.
     production portal/X11 providers and effective binding read-back are not
     implemented. This is an ID-104 prerequisite artifact only; Ticket 03 event
     coverage and Ticket 09 remain open. The integrated daemon/shell targets build,
-    and the broader available CTest selection passes 16/16 (excluding the
+    and the broader available CTest selection passes 17/17 (excluding the
     environment's unbuildable Catch2 v3 identity target).
+  - [x] Display1 now has its versioned list/state/validate/apply schema, typed
+    Hardware1 display records and generation envelope, isolated mock, and
+    private-bus coverage for stale generations, typed errors, idempotency,
+    verified-result invariants, pre-snapshot readiness, and the seven-field
+    DisplayChanged event followed by authoritative snapshot refresh. The strict
+    warning target builds; focused CTest passes 1/1 and the broader available
+    suite passes 17/17 (excluding the environment's unbuildable Catch2 v3 identity
+    target). This is an ID-104 contract prerequisite only: the route-intent field
+    is synthetic metadata, and DisplayGuard/LowLevelDisplay execution, production
+    providers, event-gap/reconnect reconciliation, and ID-185 recovery remain open.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device

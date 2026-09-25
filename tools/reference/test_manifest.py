@@ -714,6 +714,5 @@ class VisualMetricUnitTests(unittest.TestCase):
             with self.assertRaisesRegex(visual_diff.VisualDiffError, "build_identity"):
                 visual_diff._load_runtime_geometry(path, 16, 16, "synthetic-screen", "synthetic-capture")
 
-
 if __name__ == "__main__":
     unittest.main()

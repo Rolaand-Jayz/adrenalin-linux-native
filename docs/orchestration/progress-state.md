@@ -122,10 +122,18 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   operation revisions/replay, and the ID-093 signal envelope. Its private-bus test
   passes 1/1 after an independent review found and corrected duplicate event
   publication on idempotent replay. The integrated session daemon and shell targets
-  build; the broader available CTest selection passes 16/16, excluding the
+  build; the broader available CTest selection passes 17/17, excluding the
   environment's unbuildable Catch2 v3 identity target. No portal/X11 provider,
   startup rebind, or production action handler is implemented; Ticket 03, ID-093,
   ID-185 and Ticket 09 remain open.
+- Display1 now has a contract-only list/state/validate/apply schema, typed
+  Hardware1 identity/generation records, isolated mock, and private-bus test for
+  stale generations, malformed requests, readiness envelopes, verified apply
+  replies, idempotent replay, and DisplayChanged followed by authoritative state
+  refresh. Its strict-warning target builds; focused CTest passed 1/1 and the
+  broader available suite passed 17/17. The safety route field is synthetic intent
+  metadata only; there is no production guard/provider integration, event-gap or
+  reconnect reconciliation, or completed ID-185 recovery. Ticket 03 remains open.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,

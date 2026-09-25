@@ -98,6 +98,37 @@ add_test(NAME adrenalin-hardware1-contract
 )
 set_tests_properties(adrenalin-hardware1-contract PROPERTIES TIMEOUT 30)
 
+qt_add_executable(adrenalin-display1-contract-test
+    display1_contract_test.cpp
+)
+set(ADRENALIN_DISPLAY1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Display1.xml")
+set_source_files_properties("${ADRENALIN_DISPLAY1_XML}"
+    PROPERTIES QT_RESOURCE_ALIAS org.adrenalinlinux.Session1.Display1.xml
+)
+qt_add_resources(adrenalin-display1-contract-test display1_contract_schema
+    PREFIX "/display1"
+    FILES "${ADRENALIN_DISPLAY1_XML}"
+)
+target_include_directories(adrenalin-display1-contract-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-display1-contract-test PRIVATE
+    adrenalin-session-contract
+    adrenalin-session-contract-mock
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-display1-contract-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-display1-contract
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-display1-contract-test>
+)
+set_tests_properties(adrenalin-display1-contract PROPERTIES TIMEOUT 30)
+
 qt_add_executable(adrenalin-hardware1-session-service-test
     hardware1_session_service_test.cpp
 )

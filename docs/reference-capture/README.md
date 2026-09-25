@@ -14,6 +14,13 @@ candidate screenshot and application-reported geometry export are candidate
 artifacts only; they are not reference evidence or independent geometry
 attestation. No reference PNGs are supplied by these documents.
 
+`tools/reference/test_accessibility.py` independently checks accessible names,
+roles, and extents for a running candidate window. It does not capture the same
+window image bytes or establish the screenshot crop origin and decoration
+relationship, so its AT-SPI extents are not emitted as comparator geometry.
+Use a separately attested geometry artifact bound to the exact candidate image
+for comparison.
+
 Do not populate the worksheets from memory, public web images, product
 marketing screenshots, a different Adrenalin release, or generated/test
 fixtures. Unknown behavior stays `REFERENCE_REQUIRED`; it is not a pass. A
