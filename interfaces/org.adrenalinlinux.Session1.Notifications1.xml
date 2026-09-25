@@ -1,0 +1,34 @@
+<node>
+  <interface name="org.adrenalinlinux.Session1.Notifications1">
+    <method name="ListNotifications">
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out5" value="QList&lt;adrenalin::contracts::notifications1::Notification&gt;"/>
+      <arg name="result_code" type="s" direction="out"/>
+      <arg name="service_instance_uuid" type="s" direction="out"/>
+      <arg name="service_generation" type="t" direction="out"/>
+      <arg name="event_sequence" type="t" direction="out"/>
+      <arg name="revision" type="t" direction="out"/>
+      <arg name="notifications" type="a(sssssbbb)" direction="out"/>
+    </method>
+    <method name="MarkRead">
+      <arg name="notification_id" type="s" direction="in"/>
+      <arg name="operation_id" type="s" direction="in"/>
+      <arg name="expected_revision" type="t" direction="in"/>
+      <arg name="code" type="s" direction="out"/>
+      <arg name="operation_id" type="s" direction="out"/>
+      <arg name="human_message_key" type="s" direction="out"/>
+      <arg name="diagnostic_message" type="s" direction="out"/>
+      <arg name="retryable" type="b" direction="out"/>
+      <arg name="provider" type="s" direction="out"/>
+      <arg name="subject_id" type="s" direction="out"/>
+      <arg name="revision" type="t" direction="out"/>
+    </method>
+    <signal name="NotificationsChanged">
+      <arg name="service_instance_uuid" type="s"/>
+      <arg name="service_generation" type="t"/>
+      <arg name="event_sequence" type="t"/>
+      <arg name="subject_kind" type="s"/>
+      <arg name="subject_id" type="s"/>
+      <arg name="revision" type="t"/>
+    </signal>
+  </interface>
+</node>

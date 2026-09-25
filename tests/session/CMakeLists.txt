@@ -361,3 +361,33 @@ endif()
 add_test(NAME adrenalin-linux-hardware1-inventory-provider
     COMMAND $<TARGET_FILE:adrenalin-linux-hardware1-inventory-provider-test>
 )
+
+qt_add_executable(adrenalin-notifications1-contract-test
+    notifications1_contract_test.cpp
+)
+set_source_files_properties("${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Notifications1.xml"
+    PROPERTIES QT_RESOURCE_ALIAS org.adrenalinlinux.Session1.Notifications1.xml
+)
+qt_add_resources(adrenalin-notifications1-contract-test notifications1_contract_schema
+    PREFIX "/notifications1"
+    FILES "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Notifications1.xml"
+)
+target_include_directories(adrenalin-notifications1-contract-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-notifications1-contract-test PRIVATE
+    adrenalin-session-contract
+    adrenalin-session-contract-mock
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-notifications1-contract-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-notifications1-contract
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-notifications1-contract-test>
+)
+set_tests_properties(adrenalin-notifications1-contract PROPERTIES TIMEOUT 30)

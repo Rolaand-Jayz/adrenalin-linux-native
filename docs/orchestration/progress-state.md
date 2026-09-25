@@ -68,8 +68,17 @@ remains the active implementation frontier.
   reads when observation is unavailable. The daemon retries udev observation with
   capped backoff and requests a full refresh on receive loss. Live physical hotplug,
   event-gap client reconciliation, ID-107's remaining operation families, and full
-  ID-185 startup recovery remain open. The separate test-only snapshot injection
-  target is not used by the production daemon.
+  ID-185 startup recovery remain open. A contract-only Notifications1 schema,
+  typed record vocabulary, in-memory test mock, and private-bus list/mark-read
+  test now cover ID-104 and the ID-188 notification classes; this does not add
+  production persistence, toast delivery, shared event reconciliation, or UI
+  behavior. Its failed list shape now requires empty records and a fully cleared
+  cursor; stale cursor metadata is rejected. The contract test, session daemon, and
+  affected Hardware1 service test targets build under strict warnings, and focused
+  CTest passes 2/2. Independent review rechecked the failure shape. The test
+  configuration used a temporary Catch2 package shim because Catch2 v3 is absent;
+  this is not hosted CI or a full project test run. The separate test-only snapshot
+  injection target is not used by the production daemon.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,

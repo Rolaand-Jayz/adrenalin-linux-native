@@ -30,12 +30,12 @@ own acceptance criteria and dependency gates pass.
   independent geometry attestation, reviewed annotations, physical-pixel mapping,
   and a passing comparison remain open.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
-  criteria below are covered. The production Session1 root now exports a
-  provider-backed Hardware1 initial snapshot and capability graph, with typed
-  failure envelopes and private-bus integration coverage. Failed discovery now
-  remains FAILED and Hardware1 reads fail closed. The v1 interface
-  topology/operation families and ID-185 recovery sequence are not complete, so
-  this ticket is not closed.
+  criteria below are covered. Production Session1 exports provider-backed Hardware1
+  snapshots with runtime DRM change observation, removal tombstones, and fail-closed
+  reads when provider or observer state is unavailable. A contract-only Notifications1
+  schema/mock/private-bus test now pins list/mark-read wire behavior and audited class
+  tokens; production persistence, shared event reconciliation, and toast delivery are
+  still absent. Other ID-107 families and ID-185 recovery remain open.
 - ID-093 event contract: the consent tracer now uses the required event envelope;
   applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
@@ -206,6 +206,19 @@ required for Ticket 02 acceptance.
     service build and CTest pass. Live physical
     hotplug behavior and hosted CI remain unverified. ID-185 readiness recovery is
     still open.
+  - [x] Notifications1 now defines typed list/mark-read records, the audited closed
+    notification category vocabulary, a test-only in-memory mock, and a generated
+    proxy/private-bus contract test for snapshot validation, idempotent mark-read,
+    conflicts, stale revisions, and the ID-093 event envelope. This is the ID-104
+    contract artifact only; production persistence, shared event allocation/client
+    reconciliation, toast preference behavior, UI integration, and end-to-end ID-107
+    notification behavior remain open. The Notifications1 contract test and the
+    affected session daemon/Hardware1 service test targets build with strict warnings;
+    focused CTest passes 2/2. Failed list replies must carry no records and an empty
+    cursor; the test rejects stale cursor metadata. Independent review found and
+    rechecked that failure-shape issue. Test configuration used the temporary Catch2
+    package shim because Catch2 v3 is not installed; this is focused local evidence,
+    not hosted CI or a full project test run.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device
