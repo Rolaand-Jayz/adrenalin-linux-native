@@ -21,6 +21,10 @@
       <arg name="provider" type="s" direction="out"/>
       <arg name="subject_id" type="s" direction="out"/>
       <arg name="revision" type="t" direction="out"/>
+      <arg name="changed" type="b" direction="out"/>
+      <arg name="service_instance_uuid" type="s" direction="out"/>
+      <arg name="service_generation" type="t" direction="out"/>
+      <arg name="event_sequence" type="t" direction="out"/>
     </method>
     <signal name="NotificationsChanged">
       <arg name="service_instance_uuid" type="s"/>

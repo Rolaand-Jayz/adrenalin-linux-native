@@ -4,6 +4,7 @@
 
 #include "settings1_adaptor.h"
 #include "hardware1_adaptor.h"
+#include "notifications1_adaptor.h"
 #include "service1_property_notifications.h"
 
 #include <QCoreApplication>
@@ -30,13 +31,16 @@ int main(int argc, char *argv[])
     auto *settings = new Settings1Adaptor(&service);
     auto *readiness = new SessionServiceRootAdaptor(&service);
     auto *hardware = new Hardware1Adaptor(&service);
+    auto *notifications = new Notifications1Adaptor(&service);
     adrenalin::contracts::hardware1::registerMetaTypes();
+    adrenalin::contracts::notifications1::registerMetaTypes();
     installService1PropertyNotifications(&service);
     QObject::connect(&service, &SessionService::eventSequenceExhausted,
                      &app, &QCoreApplication::quit);
     Q_UNUSED(settings);
     Q_UNUSED(readiness);
     Q_UNUSED(hardware);
+    Q_UNUSED(notifications);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (!bus.isConnected()) {

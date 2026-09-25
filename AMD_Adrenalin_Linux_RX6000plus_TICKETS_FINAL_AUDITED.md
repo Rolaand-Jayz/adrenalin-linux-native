@@ -34,7 +34,8 @@ own acceptance criteria and dependency gates pass.
   snapshots with runtime DRM change observation, removal tombstones, and fail-closed
   reads when provider or observer state is unavailable. Contract-only Notifications1
   and Profiles1 schemas, mocks, and private-bus tests now pin their bounded wire
-  surfaces. Production notification persistence/event reconciliation and toast
+  surfaces. Production Notifications1 persistence and a real consent-change producer
+  now exist with shared event sequencing; notification client reconciliation and toast
   delivery, production profiles/inheritance semantics, other ID-107 families, and
   ID-185 recovery remain open.
 - ID-093 event contract: the consent tracer now uses the required event envelope;
@@ -210,16 +211,38 @@ required for Ticket 02 acceptance.
   - [x] Notifications1 now defines typed list/mark-read records, the audited closed
     notification category vocabulary, a test-only in-memory mock, and a generated
     proxy/private-bus contract test for snapshot validation, idempotent mark-read,
-    conflicts, stale revisions, and the ID-093 event envelope. This is the ID-104
-    contract artifact only; production persistence, shared event allocation/client
-    reconciliation, toast preference behavior, UI integration, and end-to-end ID-107
-    notification behavior remain open. The Notifications1 contract test and the
+    conflicts, stale revisions, and the ID-093 event envelope. The contract test
+    pins the ID-104 boundary; production persistence and shared producer sequencing
+    are recorded in the following completed sub-scope. Client reconciliation, toast
+    preference behavior, UI integration, and end-to-end ID-107 notification behavior
+    remain open. The Notifications1 contract test and the
     affected session daemon/Hardware1 service test targets build with strict warnings;
     focused CTest passes 2/2. Failed list replies must carry no records and an empty
     cursor; the test rejects stale cursor metadata. Independent review found and
     rechecked that failure-shape issue. Test configuration used the temporary Catch2
     package shim because Catch2 v3 is not installed; this is focused local evidence,
     not hosted CI or a full project test run.
+  - [x] Notifications1 production persistence slice: transactional v1-to-v2 migration
+    preserves consent and settings-operation replay rows; consent updates atomically
+    store one localized-key notification with the preference/operation, and replay
+    does not duplicate it. ListNotifications returns transactionally consistent
+    persistent snapshots; MarkRead persists read state and method-scoped operation
+    replay/conflict/stale behavior across restart. The session daemon exports the
+    generated Notifications1 adaptor. Consent preflights two shared ID-093 event
+    slots; MarkRead emits only on a fresh state change and fails closed if its event
+    cursor is exhausted. Revision metadata is validated during startup and each
+    increment requires exactly one persisted row. Strict-warning production/test
+    targets build; focused CTest passes 4/4 for session, Notifications1, Profiles1,
+    and Hardware1 service suites. Tests cover v1 migration preservation, missing
+    revision metadata, atomic producer/no-duplicate replay, restart persistence,
+    MarkRead conflicts/stale/not-found/replay, D-Bus output cursor, and event
+    exhaustion. Independent review findings were resolved and rechecked. MarkRead
+    classifies persisted revision-counter exhaustion as an internal failure; the
+    strict-warning rebuild and focused 4/4 CTest rerun passed, and an independent
+    review confirmed the mapping. This completes only the persistence/producer
+    sub-scope: no notification client/UI,
+    toast preference/delivery, critical recovery producer, bounded history/query
+    policy, or Ticket 08 acceptance is claimed; Ticket 03 remains open.
   - [x] Profiles1 now defines typed global/game profile reads and updates, stable
     subject validation, bounded scalar setting patches, expected-revision checks,
     operation replay/conflict behavior, and the versioned ID-093 event shape. A

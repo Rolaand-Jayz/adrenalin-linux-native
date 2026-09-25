@@ -68,16 +68,27 @@ remains the active implementation frontier.
   reads when observation is unavailable. The daemon retries udev observation with
   capped backoff and requests a full refresh on receive loss. Live physical hotplug,
   event-gap client reconciliation, ID-107's remaining operation families, and full
-  ID-185 startup recovery remain open. A contract-only Notifications1 schema,
-  typed record vocabulary, in-memory test mock, and private-bus list/mark-read
-  test now cover ID-104 and the ID-188 notification classes; this does not add
-  production persistence, toast delivery, shared event reconciliation, or UI
-  behavior. Its failed list shape now requires empty records and a fully cleared
-  cursor; stale cursor metadata is rejected. The contract test, session daemon, and
-  affected Hardware1 service test targets build under strict warnings, and focused
-  CTest passes 2/2. Independent review rechecked the failure shape. The test
-  configuration used a temporary Catch2 package shim because Catch2 v3 is absent;
-  this is not hosted CI or a full project test run. A contract-only Profiles1 schema,
+  ID-185 startup recovery remain open. Notifications1 has a versioned schema, typed
+  record vocabulary, in-memory test mock, and private-bus list/mark-read contract
+  test for ID-104/ID-188. Production
+  persistence now migrates schema v1 to v2 transactionally, atomically stores
+  consent changes with one localized-key notification, serves consistent persistent
+  snapshots, and persists MarkRead state plus operation replay/conflict semantics.
+  The daemon exports the generated Notifications1 adaptor. Consent preflights two
+  shared ID-093 event values; MarkRead publishes only on a fresh transition and
+  refuses mutation when its event cursor is exhausted. Startup validates notification
+  revision metadata, and each increment requires exactly one changed row. V1
+  migration, restart replay/read persistence, stale/conflict/not-found, D-Bus cursor,
+  corruption, and sequence exhaustion have regression coverage. Strict-warning
+  production and test targets build; focused CTest passes 4/4 for session,
+  Notifications1, Profiles1, and Hardware1 service. Independent review findings
+  were fixed and rechecked. Toast preference/delivery, notification UI/client event
+  reconciliation, critical recovery notices, and bounded history-query policy remain
+  open; Ticket 08 is not complete. Test configuration uses a temporary Catch2
+  package shim because Catch2 v3 is absent; this is focused local evidence, not
+  hosted CI or a full project test run. MarkRead reports persisted revision-counter
+  exhaustion as an internal failure; the strict-warning rebuild and focused 4/4 CTest
+  rerun passed, and independent review confirmed the mapping. A contract-only Profiles1 schema,
   typed global/game record, reference-gated mock, and private-bus read/update test
   cover the bounded ID-104/105/107 artifact. The focused strict-warning build and
   test pass; production persistence, inheritance/effective-state behavior, presets,
@@ -245,14 +256,15 @@ remains the active implementation frontier.
 1. Ticket 02 local harness and operator workflow are ready; keep its authentic
    reference capture, independent geometry attestation, reviewed annotation, and
    passing parity gates open until external evidence arrives.
-2. Ticket 03 now has Notifications1 and Profiles1 contract artifacts, but still
-   needs production operations and remaining ID-107 families. The next serialized
-   seam is Notifications1 persistence and a real notification producer in
-   SessionDatabase/SessionService, with schema migration, restart/idempotency tests,
-   and shared ID-093 sequencing/reconciliation. Keep the session database, producer,
-   and event allocator changes centralized; resolve the ID-185 readiness dependency
-   cycle before integrating the remaining recovery families. Keep Telemetry1 fixtures
-   separate from production until ID-153 source precedence and recovery are met.
+2. Ticket 03 now has persistent Notifications1 list/read operations and a consent-
+   change producer, but still needs UI/client event reconciliation, toast behavior,
+   critical recovery notices, and the other ID-107 families. History remains an
+   unbounded snapshot because the spec defines no pagination or retention policy;
+   silent pruning is not implemented. Keep the session database and shared event
+   allocator centralized for future producers; resolve the ID-185 readiness
+   dependency cycle before integrating its remaining recovery families. Keep
+   Telemetry1 fixtures separate from production until ID-153 source precedence and
+   recovery are met.
 3. Profiles1 remains contract-only: production profiles wait for Tickets 05 and 11,
    while ID-097 configured/effective precedence and reason fields need a
    reference-backed production contract. Continue the other ID-105/107 families only

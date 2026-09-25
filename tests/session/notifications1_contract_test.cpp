@@ -58,7 +58,9 @@ public:
                 adrenalin::contracts::operationResultCodeName(mutation.code),
                 mutation.operationId, mutation.humanMessageKey, mutation.diagnosticMessage,
                 mutation.retryable, mutation.provider, mutation.subjectId,
-                QVariant::fromValue<qulonglong>(mutation.revision)}));
+                QVariant::fromValue<qulonglong>(mutation.revision), reply.changed,
+                reply.serviceInstanceUuid, QVariant::fromValue<qulonglong>(reply.serviceGeneration),
+                QVariant::fromValue<qulonglong>(reply.eventSequence)}));
             if (sent && reply.changed) {
                 QDBusMessage signal = QDBusMessage::createSignal(
                     QString::fromLatin1(kObjectPath), QString::fromLatin1(kInterfaceName),
@@ -173,6 +175,10 @@ private slots:
         QCOMPARE(markPending.argumentAt<1>(), QStringLiteral("mark-read-op-1"));
         QCOMPARE(markPending.argumentAt<6>(), QStringLiteral("platform"));
         QCOMPARE(markPending.argumentAt<7>(), qulonglong(2));
+        QVERIFY(markPending.argumentAt<8>());
+        QCOMPARE(markPending.argumentAt<9>(), QStringLiteral("123e4567-e89b-12d3-a456-426614174000"));
+        QCOMPARE(markPending.argumentAt<10>(), qulonglong(1));
+        QCOMPARE(markPending.argumentAt<11>(), qulonglong(11));
         QTRY_COMPARE(changed.count(), 1);
         QCOMPARE(changed.constFirst().at(0).toString(),
                  QStringLiteral("123e4567-e89b-12d3-a456-426614174000"));
@@ -188,6 +194,7 @@ private slots:
         QVERIFY2(!duplicatePending.isError(), qPrintable(duplicatePending.error().message()));
         QCOMPARE(duplicatePending.argumentAt<0>(), QStringLiteral("OK"));
         QCOMPARE(duplicatePending.argumentAt<7>(), qulonglong(2));
+        QVERIFY(!duplicatePending.argumentAt<8>());
         QCOMPARE(changed.count(), 1);
 
         auto conflictPending = proxy_->MarkRead(QStringLiteral("notification-contract-2"),

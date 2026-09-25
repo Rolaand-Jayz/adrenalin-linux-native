@@ -2,6 +2,7 @@
 
 #include "session_database.h"
 #include "interfaces/settings1_contract.h"
+#include "interfaces/notifications1_contract.h"
 #include "interfaces/linux_hardware1_inventory_provider.h"
 
 #include <QObject>
@@ -12,7 +13,7 @@
 
 #include <memory>
 
-class SessionService final : public QObject, public Settings1Contract
+class SessionService final : public QObject, public Settings1Contract, public adrenalin::contracts::notifications1::Contract
 {
     friend class SessionContractTest;
 
@@ -61,6 +62,9 @@ public:
     Settings1ReadResult getProductTelemetryConsent() override;
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId, bool enabled,
                                                     quint64 expectedRevision) override;
+    adrenalin::contracts::notifications1::ListReply listNotifications() const override;
+    adrenalin::contracts::notifications1::MarkReadReply markRead(
+        const QString &notificationId, const QString &operationId, quint64 expectedRevision) override;
 #ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
     void setHardware1SnapshotForTesting(
         const adrenalin::hardware::Hardware1Snapshot &snapshot);
@@ -95,6 +99,9 @@ signals:
                                 qulonglong event_sequence, const QString &subject_kind,
                                 const QString &subject_id, qulonglong inventory_generation,
                                 qulonglong capability_generation);
+    void NotificationsChanged(const QString &service_instance_uuid, qulonglong service_generation,
+                              qulonglong event_sequence, const QString &subject_kind,
+                              const QString &subject_id, qulonglong revision);
 
 private:
     qulonglong nextEventSequence(const QString &subjectKind, const QString &subjectId);

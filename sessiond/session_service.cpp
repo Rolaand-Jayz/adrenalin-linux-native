@@ -602,6 +602,110 @@ bool SessionService::getProductTelemetryConsent(bool *enabled, quint64 *revision
     return true;
 }
 
+adrenalin::contracts::notifications1::ListReply SessionService::listNotifications() const
+{
+    using namespace adrenalin::contracts::notifications1;
+    ListReply reply;
+    if (state_ != State::Ready) {
+        reply.code = QStringLiteral("BACKEND_UNAVAILABLE");
+        return reply;
+    }
+    QString error;
+    quint64 revision = 0;
+    const auto notifications = database_->readNotifications(&revision, &error);
+    if (!notifications.has_value()) {
+        Q_UNUSED(error);
+        reply.code = QStringLiteral("IO_ERROR");
+        return reply;
+    }
+    reply.code = QStringLiteral("OK");
+    reply.serviceInstanceUuid = serviceInstanceUuid();
+    reply.serviceGeneration = serviceGeneration();
+    reply.eventSequence = eventSequence_;
+    reply.revision = revision;
+    reply.notifications = *notifications;
+    return reply;
+}
+
+adrenalin::contracts::notifications1::MarkReadReply SessionService::markRead(
+    const QString &notificationId, const QString &operationId, quint64 expectedRevision)
+{
+    using namespace adrenalin::contracts;
+    using namespace adrenalin::contracts::notifications1;
+    MarkReadReply reply;
+    reply.mutation.operationId = operationId;
+    reply.mutation.provider = QStringLiteral("session-notifications");
+    reply.mutation.subjectId = QStringLiteral("platform");
+    reply.mutation.revision = expectedRevision;
+    if (state_ != State::Ready) {
+        reply.mutation.code = OperationResultCode::BackendUnavailable;
+        reply.mutation.humanMessageKey = QStringLiteral("service.recovering");
+        reply.mutation.diagnosticMessage = QStringLiteral("Session service is not READY");
+        reply.mutation.retryable = true;
+        return reply;
+    }
+    reply.serviceInstanceUuid = serviceInstanceUuid();
+    reply.serviceGeneration = serviceGeneration();
+    reply.eventSequence = eventSequence_;
+    bool stale = false;
+    bool conflict = false;
+    bool notFound = false;
+    bool replayed = false;
+    bool changed = false;
+    quint64 revision = expectedRevision;
+    QString error;
+    if (!database_->markNotificationRead(notificationId, operationId, expectedRevision,
+                                          eventSequence_ != std::numeric_limits<quint64>::max(), &revision,
+                                          &changed, &stale, &conflict, &notFound, &replayed, &error)) {
+        reply.mutation.revision = revision;
+        if (error == QStringLiteral("Event sequence is exhausted")) {
+            failEventSequenceExhausted();
+            reply.mutation.code = OperationResultCode::InternalError;
+            reply.mutation.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+            reply.mutation.diagnosticMessage = error;
+            return reply;
+        }
+        if (stale) {
+            reply.mutation.code = OperationResultCode::StaleRevision;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.operation.stale_revision");
+        } else if (conflict) {
+            reply.mutation.code = OperationResultCode::Conflict;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.operation.conflict");
+        } else if (notFound) {
+            reply.mutation.code = OperationResultCode::NotFound;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.item.not_found");
+        } else if (error.startsWith(QStringLiteral("Notification revision is exhausted"))) {
+            reply.mutation.code = OperationResultCode::InternalError;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.counter.exhausted");
+        } else if (error.startsWith(QStringLiteral("Notification ID"))
+                   || error.startsWith(QStringLiteral("Notification revision"))) {
+            reply.mutation.code = OperationResultCode::InvalidArgument;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.operation.invalid_argument");
+        } else {
+            reply.mutation.code = OperationResultCode::IoError;
+            reply.mutation.humanMessageKey = QStringLiteral("notifications.operation.storage_failed");
+        }
+        reply.mutation.diagnosticMessage = error;
+        return reply;
+    }
+    if (changed && !replayed) {
+        nextEventSequence(QStringLiteral("NOTIFICATION"), QStringLiteral("platform"));
+        emit NotificationsChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                  eventSubjectKind_, eventSubjectId_, revision);
+        emit eventPublished();
+    }
+    reply.mutation.code = OperationResultCode::Ok;
+    reply.mutation.humanMessageKey = changed
+        ? QStringLiteral("notifications.item.marked_read")
+        : QStringLiteral("notifications.item.already_read");
+    reply.mutation.revision = revision;
+    reply.changed = changed && !replayed;
+    reply.serviceInstanceUuid = serviceInstanceUuid();
+    reply.serviceGeneration = serviceGeneration();
+    reply.eventSequence = eventSequence_;
+    return reply;
+}
+
 Settings1ReadResult SessionService::getProductTelemetryConsent()
 {
     Settings1ReadResult result;
@@ -633,21 +737,32 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
         result.retryable = true;
         return writeResult;
     }
-    if (eventSequence_ == std::numeric_limits<quint64>::max()) {
+    if (eventSequence_ > std::numeric_limits<quint64>::max() - 2) {
         failEventSequenceExhausted();
         result.code = OperationResultCode::InternalError;
         result.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
-        result.diagnosticMessage = QStringLiteral("No further sequenced events can be published");
+        result.diagnosticMessage = QStringLiteral("Two sequenced events are required for an atomic consent update");
         result.retryable = false;
         return writeResult;
     }
+    adrenalin::contracts::notifications1::Notification notification;
+    notification.notificationId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    notification.category = QStringLiteral("SETTING_APPLIED");
+    notification.createdAtUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+    notification.titleMessageKey = QStringLiteral("settings.telemetry_consent.applied");
+    notification.bodyMessageKey = enabled
+        ? QStringLiteral("settings.telemetry_consent.enabled")
+        : QStringLiteral("settings.telemetry_consent.disabled");
+    notification.toastEligible = false;
+    quint64 notificationRevision = 0;
+    bool notificationInserted = false;
     bool stale = false;
     bool conflict = false;
     bool operationReplayed = false;
     QString error;
-    if (!database_->updateProductTelemetryConsent(operationId, enabled, expectedRevision,
-                                                   &result.revision, &stale, &conflict,
-                                                   &operationReplayed, &error)) {
+    if (!database_->updateProductTelemetryConsent(operationId, enabled, expectedRevision, notification,
+                                                   &result.revision, &notificationRevision, &stale, &conflict,
+                                                   &operationReplayed, &notificationInserted, &error)) {
         result.diagnosticMessage = error;
         if (stale) {
             result.code = OperationResultCode::StaleRevision;
@@ -670,6 +785,12 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
                                             eventSequence_, eventSubjectKind_, result.subjectId,
                                             enabled, result.revision);
         emit eventPublished();
+        if (notificationInserted) {
+            nextEventSequence(QStringLiteral("NOTIFICATION"), QStringLiteral("platform"));
+            emit NotificationsChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                      eventSubjectKind_, eventSubjectId_, notificationRevision);
+            emit eventPublished();
+        }
     }
     result.code = OperationResultCode::Ok;
     result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");

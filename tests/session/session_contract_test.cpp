@@ -1,4 +1,7 @@
 #include <settings1_adaptor.h>
+#include <notifications1_adaptor.h>
+#include <notifications1_interface.h>
+#include <notifications1_interface.h>
 #include <settings1_interface.h>
 #include <service1_interface.h>
 #include "interfaces/settings1_mock.h"
@@ -28,6 +31,7 @@
 #include <QtTest>
 #include <QUuid>
 
+#include <algorithm>
 #include <memory>
 #include <limits>
 
@@ -37,6 +41,12 @@ constexpr auto kObjectPath = adrenalin::session1::objectPath;
 constexpr auto kSettingsInterface = adrenalin::session1::settingsInterface;
 using SettingsWriteReply = QDBusPendingReply<QString, QString, QString, QString, bool, QString,
                                              QString, qulonglong>;
+using Notification = adrenalin::contracts::notifications1::Notification;
+using NotificationsListReply = QDBusPendingReply<QString, QString, qulonglong, qulonglong,
+                                                 qulonglong, QList<Notification>>;
+using NotificationsMarkReadReply = QDBusPendingReply<QString, QString, QString, QString, bool,
+                                                     QString, QString, qulonglong, bool, QString,
+                                                     qulonglong, qulonglong>;
 
 class DelayedSettingsFixture final : public QDBusVirtualObject
 {
@@ -495,8 +505,12 @@ private slots:
     void operationResultVocabularyIsStable();
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
+    void schemaUpgradePreservesSettingsOperations();
+    void missingNotificationRevisionMetadataFailsBeforeReady();
     void preInitializationGenerationSupportsBusyHardwareReplies();
     void eventSequenceExhaustionFailsClosedBeforeMutation();
+    void notificationPersistenceAndMarkReadSurviveRestart();
+    void notificationMarkReadFailsClosedWhenEventSequenceExhausted();
     void initializationStopsWhenReadinessSequenceIsExhausted();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
     void clientWaitsForServiceReadinessBeforeSettingsCalls();
@@ -662,6 +676,84 @@ void SessionContractTest::unsupportedSchemaFailsBeforeReady()
     QVERIFY(!service.lastInitializationError().isEmpty());
 }
 
+void SessionContractTest::schemaUpgradePreservesSettingsOperations()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("schema-v1.sqlite3"));
+    const QString connectionName = QStringLiteral("session-schema-v1-fixture");
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        database.setDatabaseName(databasePath);
+        QVERIFY(database.open());
+        {
+            QSqlQuery query(database);
+            QVERIFY(query.exec(QStringLiteral("CREATE TABLE service_metadata (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")));
+            QVERIFY(query.exec(QStringLiteral("CREATE TABLE preferences (key TEXT PRIMARY KEY NOT NULL, value INTEGER NOT NULL, revision INTEGER NOT NULL CHECK(revision >= 0))")));
+            QVERIFY(query.exec(QStringLiteral("CREATE TABLE settings_operations (method TEXT NOT NULL, operation_id TEXT NOT NULL, enabled INTEGER NOT NULL, expected_revision INTEGER NOT NULL, result_revision INTEGER NOT NULL, PRIMARY KEY(method, operation_id))")));
+            QVERIFY(query.exec(QStringLiteral("INSERT INTO service_metadata VALUES ('schema_version', '1')")));
+            QVERIFY(query.exec(QStringLiteral("INSERT INTO service_metadata VALUES ('service_generation', '7')")));
+            QVERIFY(query.exec(QStringLiteral("INSERT INTO preferences VALUES ('product_telemetry_consent', 1, 7)")));
+            QVERIFY(query.exec(QStringLiteral("INSERT INTO settings_operations VALUES ('SetProductTelemetryConsent', 'old-operation', 1, 6, 7)")));
+        }
+        database.close();
+        database = {};
+        QSqlDatabase::removeDatabase(connectionName);
+    }
+    SessionService service(databasePath);
+    QVERIFY(service.initialize());
+    const auto consent = service.getProductTelemetryConsent();
+    QCOMPARE(consent.resultCode, QStringLiteral("OK"));
+    QVERIFY(consent.enabled);
+    QCOMPARE(consent.revision, quint64(7));
+    const auto replay = service.setProductTelemetryConsent(QStringLiteral("old-operation"), true, 6);
+    QCOMPARE(replay.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QCOMPARE(replay.result.revision, quint64(7));
+    const auto notifications = service.listNotifications();
+    QCOMPARE(notifications.code, QStringLiteral("OK"));
+    QVERIFY(notifications.notifications.isEmpty());
+    QCOMPARE(notifications.revision, quint64(1));
+    QSqlDatabase verify = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), QStringLiteral("session-schema-v2-verify"));
+    verify.setDatabaseName(databasePath);
+    QVERIFY(verify.open());
+    QSqlQuery schema(verify);
+    QVERIFY(schema.exec(QStringLiteral("SELECT value FROM service_metadata WHERE key='schema_version'")));
+    QVERIFY(schema.next());
+    QCOMPARE(schema.value(0).toString(), QStringLiteral("2"));
+    verify.close();
+    verify = {};
+    QSqlDatabase::removeDatabase(QStringLiteral("session-schema-v2-verify"));
+}
+
+void SessionContractTest::missingNotificationRevisionMetadataFailsBeforeReady()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    {
+        SessionService service(databasePath);
+        QVERIFY(service.initialize());
+    }
+    const QString connectionName = QStringLiteral("session-notification-metadata-corruption");
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        database.setDatabaseName(databasePath);
+        QVERIFY(database.open());
+        {
+            QSqlQuery query(database);
+            QVERIFY(query.exec(QStringLiteral("DELETE FROM notification_metadata WHERE key='revision'")));
+            QCOMPARE(query.numRowsAffected(), 1);
+        }
+        database.close();
+        database = {};
+        QSqlDatabase::removeDatabase(connectionName);
+    }
+    SessionService damaged(databasePath);
+    QVERIFY(!damaged.initialize());
+    QCOMPARE(damaged.initializationState(), QStringLiteral("FAILED"));
+    QVERIFY(damaged.lastInitializationError().contains(QStringLiteral("Notification revision metadata")));
+}
+
 void SessionContractTest::eventSequenceExhaustionFailsClosedBeforeMutation()
 {
     QTemporaryDir dataDirectory;
@@ -676,15 +768,18 @@ void SessionContractTest::eventSequenceExhaustionFailsClosedBeforeMutation()
         QVERIFY(exhausted.isValid());
         QVERIFY(published.isValid());
         QVERIFY(consentPublished.isValid());
-        service.eventSequence_ = std::numeric_limits<quint64>::max() - 1;
+        QSignalSpy notificationsPublished(&service, &SessionService::NotificationsChanged);
+        QVERIFY(notificationsPublished.isValid());
+        service.eventSequence_ = std::numeric_limits<quint64>::max() - 2;
 
         const auto finalValidWrite = service.setProductTelemetryConsent(
             QStringLiteral("last-sequence-write"), true, 0);
         QCOMPARE(finalValidWrite.result.code, adrenalin::contracts::OperationResultCode::Ok);
         QCOMPARE(service.eventSequence(), std::numeric_limits<quint64>::max());
         QCOMPARE(exhausted.count(), 0);
-        QCOMPARE(published.count(), 1);
+        QCOMPARE(published.count(), 2);
         QCOMPARE(consentPublished.count(), 1);
+        QCOMPARE(notificationsPublished.count(), 1);
 
         const auto overflowWrite = service.setProductTelemetryConsent(
             QStringLiteral("overflow-write"), false, 1);
@@ -695,8 +790,9 @@ void SessionContractTest::eventSequenceExhaustionFailsClosedBeforeMutation()
         QCOMPARE(service.initializationState(), QStringLiteral("FAILED"));
         QCOMPARE(service.eventSequence(), std::numeric_limits<quint64>::max());
         QCOMPARE(exhausted.count(), 1);
-        QCOMPARE(published.count(), 1);
+        QCOMPARE(published.count(), 2);
         QCOMPARE(consentPublished.count(), 1);
+        QCOMPARE(notificationsPublished.count(), 1);
     }
 
     SessionService recovered(databasePath);
@@ -736,8 +832,110 @@ void SessionContractTest::initializationStopsWhenReadinessSequenceIsExhausted()
     QVERIFY(!QFileInfo::exists(databasePath));
 }
 
+void SessionContractTest::notificationPersistenceAndMarkReadSurviveRestart()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    QString notificationId;
+    quint64 notificationRevision = 0;
+    quint64 postReadRevision = 0;
+    {
+        SessionService service(databasePath);
+        QVERIFY(service.initialize());
+        const auto write = service.setProductTelemetryConsent(QStringLiteral("notification-source-1"), true, 0);
+        QCOMPARE(write.result.code, adrenalin::contracts::OperationResultCode::Ok);
+        const auto snapshot = service.listNotifications();
+        QCOMPARE(snapshot.code, QStringLiteral("OK"));
+        QCOMPARE(snapshot.notifications.size(), 1);
+        QVERIFY(snapshot.isValid());
+        notificationId = snapshot.notifications.constFirst().notificationId;
+        notificationRevision = snapshot.revision;
+        QVERIFY(!snapshot.notifications.constFirst().isRead);
+        QCOMPARE(snapshot.notifications.constFirst().category, QStringLiteral("SETTING_APPLIED"));
+
+        QSignalSpy notificationsPublished(&service, &SessionService::NotificationsChanged);
+        QVERIFY(notificationsPublished.isValid());
+        const auto marked = service.markRead(notificationId, QStringLiteral("mark-read-1"), notificationRevision);
+        QCOMPARE(marked.mutation.code, adrenalin::contracts::OperationResultCode::Ok);
+        QVERIFY(marked.changed);
+        postReadRevision = marked.mutation.revision;
+        QCOMPARE(postReadRevision, notificationRevision + 1);
+        QCOMPARE(notificationsPublished.count(), 1);
+        const auto replay = service.markRead(notificationId, QStringLiteral("mark-read-1"), notificationRevision);
+        QCOMPARE(replay.mutation.code, adrenalin::contracts::OperationResultCode::Ok);
+        QVERIFY(!replay.changed);
+        QCOMPARE(replay.mutation.revision, postReadRevision);
+        QCOMPARE(notificationsPublished.count(), 1);
+        const auto conflict = service.markRead(notificationId, QStringLiteral("mark-read-1"), postReadRevision);
+        QCOMPARE(conflict.mutation.code, adrenalin::contracts::OperationResultCode::Conflict);
+        QCOMPARE(conflict.mutation.revision, postReadRevision);
+        const auto missing = service.markRead(QStringLiteral("missing-notification"),
+                                              QStringLiteral("mark-read-missing"), postReadRevision);
+        QCOMPARE(missing.mutation.code, adrenalin::contracts::OperationResultCode::NotFound);
+        QCOMPARE(missing.mutation.revision, postReadRevision);
+        const auto stale = service.markRead(notificationId, QStringLiteral("mark-read-stale"),
+                                            notificationRevision);
+        QCOMPARE(stale.mutation.code, adrenalin::contracts::OperationResultCode::StaleRevision);
+        QCOMPARE(stale.mutation.revision, postReadRevision);
+    }
+    {
+        SessionService service(databasePath);
+        QVERIFY(service.initialize());
+        const auto snapshot = service.listNotifications();
+        QCOMPARE(snapshot.code, QStringLiteral("OK"));
+        QCOMPARE(snapshot.revision, postReadRevision);
+        QCOMPARE(snapshot.notifications.size(), 1);
+        QCOMPARE(snapshot.notifications.constFirst().notificationId, notificationId);
+        QVERIFY(snapshot.notifications.constFirst().isRead);
+        const auto replay = service.markRead(notificationId, QStringLiteral("mark-read-1"), notificationRevision);
+        QCOMPARE(replay.mutation.code, adrenalin::contracts::OperationResultCode::Ok);
+        QVERIFY(!replay.changed);
+        QCOMPARE(replay.mutation.revision, postReadRevision);
+    }
+}
+
+void SessionContractTest::notificationMarkReadFailsClosedWhenEventSequenceExhausted()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    QString notificationId;
+    quint64 notificationRevision = 0;
+    {
+        SessionService service(databasePath);
+        QVERIFY(service.initialize());
+        const auto write = service.setProductTelemetryConsent(QStringLiteral("notification-source-2"), true, 0);
+        QCOMPARE(write.result.code, adrenalin::contracts::OperationResultCode::Ok);
+        const auto snapshot = service.listNotifications();
+        QCOMPARE(snapshot.notifications.size(), 1);
+        notificationId = snapshot.notifications.constFirst().notificationId;
+        notificationRevision = snapshot.revision;
+        service.eventSequence_ = std::numeric_limits<quint64>::max();
+        QSignalSpy exhausted(&service, &SessionService::eventSequenceExhausted);
+        QVERIFY(exhausted.isValid());
+        const auto marked = service.markRead(notificationId, QStringLiteral("mark-read-at-exhaustion"),
+                                             notificationRevision);
+        QCOMPARE(marked.mutation.code, adrenalin::contracts::OperationResultCode::InternalError);
+        QCOMPARE(marked.mutation.humanMessageKey, QStringLiteral("service.event_sequence_exhausted"));
+        QCOMPARE(service.initializationState(), QStringLiteral("FAILED"));
+        QCOMPARE(exhausted.count(), 1);
+    }
+    SessionService recovered(databasePath);
+    QVERIFY(recovered.initialize());
+    const auto snapshot = recovered.listNotifications();
+    QCOMPARE(snapshot.code, QStringLiteral("OK"));
+    QCOMPARE(snapshot.revision, notificationRevision);
+    QCOMPARE(snapshot.notifications.size(), 1);
+    QCOMPARE(snapshot.notifications.constFirst().notificationId, notificationId);
+    QVERIFY(!snapshot.notifications.constFirst().isRead);
+}
+
 void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites()
 {
+    serviceChangedProperties_.clear();
+    serviceInvalidatedProperties_.clear();
+    serviceChangedInterface_.clear();
     QTemporaryDir dataDirectory;
     QVERIFY(dataDirectory.isValid());
     const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
@@ -747,9 +945,11 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     auto startService = [&](bool initializeNow = true) {
         auto *service = new SessionService(databasePath, this);
         auto *adaptor = new Settings1Adaptor(service);
+        auto *notificationsAdaptor = new Notifications1Adaptor(service);
         auto *readinessAdaptor = new SessionServiceRootAdaptor(service);
         installService1PropertyNotifications(service);
         Q_UNUSED(adaptor);
+        Q_UNUSED(notificationsAdaptor);
         Q_UNUSED(readinessAdaptor);
         if (!bus.registerObject(QString::fromLatin1(kObjectPath), service,
                                 QDBusConnection::ExportAdaptors)) {
@@ -836,21 +1036,20 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
                  firstGeneration);
     }
     QCOMPARE(serviceChangedProperties_.value(QStringLiteral("EventSequence")).toULongLong(),
-             qulonglong(service->hardware1Snapshot_.success ? 4 : 2));
+             service->eventSequence());
     QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("ServiceInstanceUuid")));
     QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("EventSubjectId")));
-    const int expectedServiceEvents = service->hardware1Snapshot_.success ? 4 : 2;
+    const int expectedServiceEvents = static_cast<int>(startupEventSequence);
     QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), expectedServiceEvents, 2000);
     QCOMPARE(serviceEvents.at(1).at(0).toString(), firstUuid);
     QCOMPARE(serviceEvents.at(1).at(1).toULongLong(), firstGeneration);
     QCOMPARE(serviceEvents.at(1).at(2).toULongLong(), qulonglong(2));
     QCOMPARE(serviceEvents.at(1).at(3).toString(), QStringLiteral("SERVICE"));
     QCOMPARE(serviceEvents.at(1).at(4).toString(), QStringLiteral("service.readiness"));
-    if (service->hardware1Snapshot_.success) {
-        QCOMPARE(serviceEvents.at(2).at(2).toULongLong(), qulonglong(3));
-        QCOMPARE(serviceEvents.at(3).at(2).toULongLong(), qulonglong(4));
-        QCOMPARE(serviceEvents.at(2).at(3).toString(), QStringLiteral("PLATFORM"));
-        QCOMPARE(serviceEvents.at(3).at(3).toString(), QStringLiteral("PLATFORM"));
+    for (int index = 0; index < serviceEvents.count(); ++index) {
+        QCOMPARE(serviceEvents.at(index).at(2).toULongLong(), qulonglong(index + 1));
+        QCOMPARE(serviceEvents.at(index).at(0).toString(), firstUuid);
+        QCOMPARE(serviceEvents.at(index).at(1).toULongLong(), firstGeneration);
     }
     QVERIFY(serviceChangedProperties_.contains(QStringLiteral("InitializationState")));
 
@@ -882,12 +1081,15 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(write.argumentAt<6>(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(write.argumentAt<7>(), qulonglong(1));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 1, 2000);
-    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 1, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 2, 2000);
     QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
     QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
-    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 1);
-    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("PREFERENCE"));
-    QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("product.telemetry_consent"));
+    QCOMPARE(serviceEvents.at(serviceEvents.count() - 2).at(2).toULongLong(), startupEventSequence + 1);
+    QCOMPARE(serviceEvents.at(serviceEvents.count() - 2).at(3).toString(), QStringLiteral("PREFERENCE"));
+    QCOMPARE(serviceEvents.at(serviceEvents.count() - 2).at(4).toString(), QStringLiteral("product.telemetry_consent"));
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 2);
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("NOTIFICATION"));
+    QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("platform"));
     QCOMPARE(changed.at(0).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(0).at(1).toULongLong(), firstGeneration);
     QCOMPARE(changed.at(0).at(2).toULongLong(), startupEventSequence + 1);
@@ -918,15 +1120,50 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(nextWrite.argumentAt<0>(), QStringLiteral("OK"));
     QCOMPARE(nextWrite.argumentAt<7>(), qulonglong(2));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 2, 2000);
-    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 2, 2000);
-    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 2);
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 4, 2000);
+    QCOMPARE(serviceEvents.at(serviceEvents.count() - 2).at(2).toULongLong(), startupEventSequence + 3);
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 4);
+    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("NOTIFICATION"));
     QCOMPARE(changed.at(1).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(1).at(1).toULongLong(), firstGeneration);
-    QCOMPARE(changed.at(1).at(2).toULongLong(), startupEventSequence + 2);
+    QCOMPARE(changed.at(1).at(2).toULongLong(), startupEventSequence + 3);
     QCOMPARE(changed.at(1).at(3).toString(), QStringLiteral("PREFERENCE"));
     QCOMPARE(changed.at(1).at(4).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(1).at(5).toBool(), false);
     QCOMPARE(changed.at(1).at(6).toULongLong(), qulonglong(2));
+
+    adrenalin::contracts::notifications1::registerMetaTypes();
+    OrgAdrenalinlinuxSession1Notifications1Interface notificationsProxy(
+        QString::fromLatin1(kServiceName), QString::fromLatin1(kObjectPath), bus);
+    QVERIFY(notificationsProxy.isValid());
+    QSignalSpy notificationChanged(
+        &notificationsProxy, &OrgAdrenalinlinuxSession1Notifications1Interface::NotificationsChanged);
+    QVERIFY(notificationChanged.isValid());
+    auto notificationListPending = notificationsProxy.ListNotifications();
+    QTRY_VERIFY_WITH_TIMEOUT(notificationListPending.isFinished(), 2000);
+    const NotificationsListReply notificationList = notificationListPending;
+    QVERIFY(!notificationList.isError());
+    QCOMPARE(notificationList.argumentAt<0>(), QStringLiteral("OK"));
+    const QList<Notification> currentNotifications = notificationList.argumentAt<5>();
+    QCOMPARE(currentNotifications.size(), 2);
+    const QString markedNotificationId = currentNotifications.constLast().notificationId;
+    const qulonglong beforeMarkRevision = notificationList.argumentAt<4>();
+    auto markReadPending = notificationsProxy.MarkRead(markedNotificationId,
+                                                       QStringLiteral("dbus-mark-read-1"),
+                                                       beforeMarkRevision);
+    QTRY_VERIFY_WITH_TIMEOUT(markReadPending.isFinished(), 2000);
+    const NotificationsMarkReadReply markRead = markReadPending;
+    QVERIFY(!markRead.isError());
+    QCOMPARE(markRead.argumentAt<0>(), QStringLiteral("OK"));
+    QCOMPARE(markRead.argumentAt<1>(), QStringLiteral("dbus-mark-read-1"));
+    QCOMPARE(markRead.argumentAt<7>(), beforeMarkRevision + 1);
+    QVERIFY(markRead.argumentAt<8>());
+    QCOMPARE(markRead.argumentAt<9>(), firstUuid);
+    QCOMPARE(markRead.argumentAt<10>(), firstGeneration);
+    QCOMPARE(markRead.argumentAt<11>(), startupEventSequence + 5);
+    QTRY_COMPARE_WITH_TIMEOUT(notificationChanged.count(), 1, 2000);
+    QCOMPARE(notificationChanged.constFirst().at(3).toString(), QStringLiteral("NOTIFICATION"));
+    QCOMPARE(notificationChanged.constFirst().at(4).toString(), QStringLiteral("platform"));
 
     auto stalePending = proxy.SetProductTelemetryConsent(QStringLiteral("settings-write-3"), true, 0);
     QTRY_VERIFY_WITH_TIMEOUT(stalePending.isFinished(), 2000);
@@ -949,7 +1186,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
         currentPending;
     QCOMPARE(current.argumentAt<0>(), QStringLiteral("OK"));
     QVERIFY(!current.argumentAt<4>());
-    QCOMPARE(current.argumentAt<3>(), startupEventSequence + 2);
+    QCOMPARE(current.argumentAt<3>(), startupEventSequence + 5);
     QCOMPARE(current.argumentAt<5>(), qulonglong(2));
 
     stopService(service);
@@ -967,6 +1204,30 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(retriedAfterRestart.argumentAt<7>(), qulonglong(1));
     QTest::qWait(50);
     QCOMPARE(changed.count(), 2);
+
+    auto notificationsAfterRestartPending = notificationsProxy.ListNotifications();
+    QTRY_VERIFY_WITH_TIMEOUT(notificationsAfterRestartPending.isFinished(), 2000);
+    const NotificationsListReply notificationsAfterRestart = notificationsAfterRestartPending;
+    QCOMPARE(notificationsAfterRestart.argumentAt<0>(), QStringLiteral("OK"));
+    const QList<Notification> persistedNotifications = notificationsAfterRestart.argumentAt<5>();
+    QCOMPARE(persistedNotifications.size(), 2);
+    const auto markedPersisted = std::find_if(persistedNotifications.cbegin(), persistedNotifications.cend(),
+        [&](const Notification &item) { return item.notificationId == markedNotificationId; });
+    QVERIFY(markedPersisted != persistedNotifications.cend());
+    QVERIFY(markedPersisted->isRead);
+    auto markReplayPending = notificationsProxy.MarkRead(markedNotificationId,
+                                                         QStringLiteral("dbus-mark-read-1"),
+                                                         beforeMarkRevision);
+    QTRY_VERIFY_WITH_TIMEOUT(markReplayPending.isFinished(), 2000);
+    const NotificationsMarkReadReply markReplay = markReplayPending;
+    QCOMPARE(markReplay.argumentAt<0>(), QStringLiteral("OK"));
+    QCOMPARE(markReplay.argumentAt<7>(), beforeMarkRevision + 1);
+    QVERIFY(!markReplay.argumentAt<8>());
+    QCOMPARE(markReplay.argumentAt<9>(), service->serviceInstanceUuid());
+    QCOMPARE(markReplay.argumentAt<10>(), service->serviceGeneration());
+    QCOMPARE(markReplay.argumentAt<11>(), service->eventSequence());
+    QTest::qWait(50);
+    QCOMPARE(notificationChanged.count(), 1);
 
     auto afterRestartPending = proxy.GetProductTelemetryConsent();
     QTRY_VERIFY_WITH_TIMEOUT(afterRestartPending.isFinished(), 2000);
