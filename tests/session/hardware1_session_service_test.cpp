@@ -1,12 +1,15 @@
 #include "interfaces/hardware1_contract_types.h"
 #include "interfaces/display1_contract_types.h"
+#include "interfaces/profiles1_contract_types.h"
 #include "display1_adaptor.h"
 #include "hardware1_adaptor.h"
+#include "profiles1_adaptor.h"
 #include "sessiond/session_service.h"
 #include "session_identity.h"
 
 #include <hardware1_interface.h>
 #include <display1_interface.h>
+#include <profiles1_interface.h>
 
 #include <QDBusConnection>
 #include <QDir>
@@ -58,6 +61,7 @@ private slots:
     {
         registerMetaTypes();
         adrenalin::contracts::display1::registerMetaTypes();
+        adrenalin::contracts::profiles1::registerMetaTypes();
         bus_ = QDBusConnection::sessionBus();
         QVERIFY(bus_.isConnected());
     }
@@ -523,6 +527,89 @@ private slots:
         QCOMPARE(unavailableReply.inventoryGeneration, quint64(0));
         QCOMPARE(unavailableReply.capabilityGeneration, quint64(0));
         QVERIFY(unavailable.argumentAt<1>().isEmpty());
+    }
+
+    void exportsPersistentProfilesWithSharedEventEnvelope()
+    {
+        QTemporaryDir dataDirectory;
+        QVERIFY(dataDirectory.isValid());
+        const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("profiles.sqlite3"));
+        SessionService service(databasePath);
+        service.setHardware1SnapshotForTesting(validSnapshot());
+        Profiles1Adaptor adaptor(&service);
+        QVERIFY(bus_.registerObject(QString::fromLatin1(adrenalin::session1::objectPath), &service,
+                                    QDBusConnection::ExportAdaptors));
+        QVERIFY(bus_.registerService(QString::fromLatin1(adrenalin::session1::serviceName)));
+        const auto cleanup = qScopeGuard([this] {
+            bus_.unregisterService(QString::fromLatin1(adrenalin::session1::serviceName));
+            bus_.unregisterObject(QString::fromLatin1(adrenalin::session1::objectPath));
+        });
+        OrgAdrenalinlinuxSession1Profiles1Interface proxy(
+            QString::fromLatin1(adrenalin::session1::serviceName),
+            QString::fromLatin1(adrenalin::session1::objectPath), bus_);
+        QVERIFY(proxy.isValid());
+        QSignalSpy profileEvents(&proxy,
+            &OrgAdrenalinlinuxSession1Profiles1Interface::ProfileChanged);
+        QVERIFY(profileEvents.isValid());
+        QVERIFY(service.initializeAsync());
+        QTRY_COMPARE_WITH_TIMEOUT(service.initializationState(), QStringLiteral("READY"), 2000);
+
+        auto missingPending = proxy.ReadProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"));
+        QTRY_VERIFY_WITH_TIMEOUT(missingPending.isFinished(), 2000);
+        const QDBusPendingReply<QString, QString, qulonglong, qulonglong,
+                                 adrenalin::contracts::profiles1::Profile> missing = missingPending;
+        QVERIFY2(!missing.isError(), qPrintable(missing.error().message()));
+        QCOMPARE(missing.argumentAt<0>(), QStringLiteral("NOT_FOUND"));
+        QVERIFY(!missing.argumentAt<1>().isEmpty());
+        QVERIFY(missing.argumentAt<2>() > 0);
+
+        const QString operationId = QStringLiteral("profiles-create-integration-1");
+        const QVariantMap patch{{QStringLiteral("graphics.ris"), true},
+                                {QStringLiteral("graphics.sharpening"), 70}};
+        auto updatePending = proxy.UpdateProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"),
+            0, operationId, patch);
+        QTRY_VERIFY_WITH_TIMEOUT(updatePending.isFinished(), 2000);
+        const QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString,
+                                 qulonglong> update = updatePending;
+        QVERIFY2(!update.isError(), qPrintable(update.error().message()));
+        QCOMPARE(update.argumentAt<0>(), QStringLiteral("OK"));
+        QCOMPARE(update.argumentAt<1>(), operationId);
+        QCOMPARE(update.argumentAt<7>(), qulonglong(1));
+        QTRY_COMPARE_WITH_TIMEOUT(profileEvents.count(), 1, 2000);
+        QCOMPARE(profileEvents.constFirst().at(2).toULongLong(),
+                 missing.argumentAt<3>() + 1);
+
+        auto replayPending = proxy.UpdateProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"),
+            0, operationId, patch);
+        QTRY_VERIFY_WITH_TIMEOUT(replayPending.isFinished(), 2000);
+        const QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString,
+                                 qulonglong> replay = replayPending;
+        QVERIFY2(!replay.isError(), qPrintable(replay.error().message()));
+        QCOMPARE(replay.argumentAt<0>(), QStringLiteral("OK"));
+        QCOMPARE(profileEvents.count(), 1);
+
+        auto stalePending = proxy.UpdateProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"),
+            0, QStringLiteral("profiles-stale-integration-1"),
+            QVariantMap{{QStringLiteral("graphics.ris"), false}});
+        QTRY_VERIFY_WITH_TIMEOUT(stalePending.isFinished(), 2000);
+        const QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString,
+                                 qulonglong> stale = stalePending;
+        QVERIFY2(!stale.isError(), qPrintable(stale.error().message()));
+        QCOMPARE(stale.argumentAt<0>(), QStringLiteral("STALE_REVISION"));
+
+        auto readPending = proxy.ReadProfile(QStringLiteral("GLOBAL"), QStringLiteral("global"));
+        QTRY_VERIFY_WITH_TIMEOUT(readPending.isFinished(), 2000);
+        const QDBusPendingReply<QString, QString, qulonglong, qulonglong,
+                                 adrenalin::contracts::profiles1::Profile> read = readPending;
+        QVERIFY2(!read.isError(), qPrintable(read.error().message()));
+        QCOMPARE(read.argumentAt<0>(), QStringLiteral("OK"));
+        const auto profile = read.argumentAt<4>();
+        QVERIFY(profile.isValid());
+        QCOMPARE(profile.revision, quint64(1));
+        QCOMPARE(profile.settings.value(QStringLiteral("graphics.ris")).toBool(), true);
+        QCOMPARE(profile.settings.value(QStringLiteral("graphics.sharpening")).toInt(), 70);
+        QCOMPARE(read.argumentAt<3>(), profileEvents.constFirst().at(2).toULongLong());
+        QCOMPARE(profileEvents.count(), 1);
     }
 
 private:

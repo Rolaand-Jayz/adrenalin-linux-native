@@ -719,7 +719,13 @@ void SessionContractTest::schemaUpgradePreservesSettingsOperations()
     QSqlQuery schema(verify);
     QVERIFY(schema.exec(QStringLiteral("SELECT value FROM service_metadata WHERE key='schema_version'")));
     QVERIFY(schema.next());
-    QCOMPARE(schema.value(0).toString(), QStringLiteral("2"));
+    QCOMPARE(schema.value(0).toString(), QStringLiteral("3"));
+    QSqlQuery profileTable(verify);
+    profileTable.prepare(QStringLiteral("SELECT COUNT(*) FROM sqlite_master "
+                                         "WHERE type='table' AND name='profiles'"));
+    QVERIFY(profileTable.exec());
+    QVERIFY(profileTable.next());
+    QCOMPARE(profileTable.value(0).toInt(), 1);
     verify.close();
     verify = {};
     QSqlDatabase::removeDatabase(QStringLiteral("session-schema-v2-verify"));

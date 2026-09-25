@@ -195,6 +195,27 @@ add_test(NAME adrenalin-hardware1-session-service
 )
 set_tests_properties(adrenalin-hardware1-session-service PROPERTIES TIMEOUT 30)
 
+qt_add_executable(adrenalin-profile-persistence-test
+    profile_persistence_test.cpp
+)
+target_include_directories(adrenalin-profile-persistence-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+    "${ADRENALIN_SOURCE_ROOT}/sessiond"
+)
+target_link_libraries(adrenalin-profile-persistence-test PRIVATE
+    adrenalin-session-core-testable
+    Qt6::Core Qt6::Sql Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-profile-persistence-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-profile-persistence
+    COMMAND $<TARGET_FILE:adrenalin-profile-persistence-test>
+)
+set_tests_properties(adrenalin-profile-persistence PROPERTIES TIMEOUT 30)
+
 # Fixture-only Telemetry1 ABI and private-bus contract checks. These sources
 # are intentionally excluded from the production session contract/provider.
 qt_add_executable(adrenalin-telemetry1-abi-test

@@ -7,6 +7,7 @@
 #include <QStandardPaths>
 #include <QMetaObject>
 #include <QTimer>
+#include <QRegularExpression>
 
 #include "interfaces/operation_result.h"
 
@@ -857,6 +858,125 @@ adrenalin::contracts::notifications1::MarkReadReply SessionService::markRead(
     reply.serviceGeneration = serviceGeneration();
     reply.eventSequence = eventSequence_;
     return reply;
+}
+
+adrenalin::contracts::profiles1::ReadReply SessionService::readProfile(
+    const QString &subjectKind, const QString &subjectId) const
+{
+    using namespace adrenalin::contracts::profiles1;
+    ReadReply reply;
+    if (state_ != State::Ready) {
+        reply.code = QStringLiteral("BACKEND_UNAVAILABLE");
+        return reply;
+    }
+    if (!isValidSubject(subjectKind, subjectId)) {
+        reply.code = QStringLiteral("INVALID_ARGUMENT");
+        return reply;
+    }
+    bool notFound = false;
+    QString error;
+    const auto profile = database_->readProfile(subjectKind, subjectId, &notFound, &error);
+    if (!profile.has_value()) {
+        Q_UNUSED(error);
+        reply.code = notFound ? QStringLiteral("NOT_FOUND") : QStringLiteral("IO_ERROR");
+        if (notFound) {
+            reply.serviceInstanceUuid = serviceInstanceUuid();
+            reply.serviceGeneration = serviceGeneration();
+            reply.eventSequence = eventSequence_;
+        }
+        return reply;
+    }
+    reply.code = QStringLiteral("OK");
+    reply.serviceInstanceUuid = serviceInstanceUuid();
+    reply.serviceGeneration = serviceGeneration();
+    reply.eventSequence = eventSequence_;
+    reply.profile = *profile;
+    return reply;
+}
+
+adrenalin::contracts::profiles1::UpdateOutcome SessionService::updateProfile(
+    const QString &subjectKind, const QString &subjectId, quint64 expectedRevision,
+    const QString &operationId, const QVariantMap &settingsPatch)
+{
+    using namespace adrenalin::contracts;
+    using namespace adrenalin::contracts::profiles1;
+    UpdateOutcome outcome;
+    MutationResult &mutation = outcome.mutation;
+    mutation.operationId = operationId;
+    mutation.provider = QStringLiteral("session-profiles");
+    mutation.subjectId = subjectId;
+    mutation.revision = expectedRevision;
+    if (state_ != State::Ready) {
+        mutation.code = OperationResultCode::BackendUnavailable;
+        mutation.humanMessageKey = QStringLiteral("service.recovering");
+        mutation.diagnosticMessage = QStringLiteral("Session service is not READY");
+        mutation.retryable = true;
+        return outcome;
+    }
+    static const QRegularExpression operationSyntax(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"));
+    QString settingsError;
+    if (!isValidSubject(subjectKind, subjectId) || !operationSyntax.match(operationId).hasMatch()
+        || !isValidSettings(settingsPatch, &settingsError)
+        || expectedRevision >= static_cast<quint64>(std::numeric_limits<qlonglong>::max())) {
+        mutation.code = OperationResultCode::InvalidArgument;
+        mutation.humanMessageKey = QStringLiteral("profiles.operation.invalid_argument");
+        mutation.diagnosticMessage = settingsError.isEmpty()
+            ? QStringLiteral("Profile subject, operation ID, or expected revision is invalid")
+            : settingsError;
+        return outcome;
+    }
+
+    bool changed = false;
+    bool stale = false;
+    bool conflict = false;
+    bool notFound = false;
+    bool replayed = false;
+    QString error;
+    const bool stored = database_->updateProfile(
+        subjectKind, subjectId, expectedRevision, operationId, settingsPatch,
+        eventSequence_ != std::numeric_limits<quint64>::max(), &mutation, &changed,
+        &stale, &conflict, &notFound, &replayed, &error);
+    if (!stored) {
+        if (error == QStringLiteral("Event sequence is exhausted")) {
+            failEventSequenceExhausted();
+            mutation.code = OperationResultCode::InternalError;
+            mutation.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+        } else if (stale) {
+            mutation.code = OperationResultCode::StaleRevision;
+            mutation.humanMessageKey = QStringLiteral("profiles.operation.stale_revision");
+        } else if (conflict) {
+            mutation.code = OperationResultCode::Conflict;
+            mutation.humanMessageKey = QStringLiteral("profiles.operation.conflict");
+        } else if (notFound) {
+            mutation.code = OperationResultCode::NotFound;
+            mutation.humanMessageKey = QStringLiteral("profiles.profile.not_found");
+        } else {
+            mutation.code = OperationResultCode::IoError;
+            mutation.humanMessageKey = QStringLiteral("profiles.operation.storage_failed");
+        }
+        mutation.diagnosticMessage = error;
+        return outcome;
+    }
+    if (mutation.code != OperationResultCode::Ok) {
+        return outcome;
+    }
+    if (changed && !replayed) {
+        if (nextEventSequence(subjectKind, subjectId) == 0) {
+            failEventSequenceExhausted();
+            mutation.code = OperationResultCode::InternalError;
+            mutation.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+            mutation.diagnosticMessage = QStringLiteral("Event sequence is exhausted");
+            return outcome;
+        }
+        emit ProfileChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                            subjectKind, subjectId, mutation.revision);
+        emit eventPublished();
+        outcome.event = ProfileChangedEvent{serviceInstanceUuid(), serviceGeneration(),
+                                            eventSequence_, subjectKind, subjectId,
+                                            mutation.revision};
+    }
+    return outcome;
 }
 
 Settings1ReadResult SessionService::getProductTelemetryConsent()

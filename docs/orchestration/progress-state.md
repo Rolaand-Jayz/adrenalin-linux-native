@@ -238,6 +238,15 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   on this CachyOS host: QML loaded, the process exited normally with status 0,
   and stderr was empty. This covers the platform smoke criterion, not a
   clean-checkout CI run.
+- Profiles1 production persistence and Session1 integration are implemented as
+  a bounded Ticket 03 slice. The transactional schema v3 migration stores
+  global and source-qualified game profiles, typed scalar patches, revisions,
+  and replayable operation results; changed writes publish once on the shared
+  event sequence. Production/session test targets build, focused CTest passes
+  4/4, and independent review reports no remaining actionable issue. Ticket 03
+  and Ticket 12 remain open: the ID-185 recovery sequence, complete ID-093
+  reconciliation, inherited/effective profile behavior, reference-backed
+  Custom/preset semantics, and profile UI are still outstanding.
 - Ticket 02's deterministic visual-diff harness is committed. Candidate capture
   tooling now records the live Qt Quick render and named component rectangles,
   with a comparator-compatible rectangle shape and fail-closed bounded CLI.

@@ -32,15 +32,17 @@ own acceptance criteria and dependency gates pass.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
   criteria below are covered. Production Session1 exports provider-backed Hardware1
   snapshots with runtime DRM change observation, removal tombstones, and fail-closed
-  reads when provider or observer state is unavailable. Contract-only Notifications1
-  and Profiles1 schemas, mocks, and private-bus tests now pin their bounded wire
-  surfaces. Production Notifications1 persistence and a real consent-change producer
-  now exist with shared event sequencing; persistent notification history now has
+  reads when provider or observer state is unavailable. Notifications1 and Profiles1
+  schemas, mocks, and private-bus tests pin their bounded wire surfaces. Production
+  notification and profile persistence now exist with shared event sequencing;
+  persistent notification history now has
   a client model and shell panel with unread state and read actions. Toast delivery,
   production profiles/inheritance semantics, other ID-107 families, and
   ID-185 recovery remain open.
-- ID-093 event contract: the consent tracer now uses the required event envelope;
-  applying it to the remaining v1 services is still open.
+- ID-093 event contract: Settings, Notifications, Hardware, Display, and Profiles
+  now publish their implemented production events on the shared session sequence;
+  applying the event/snapshot-reconciliation contract to the remaining v1 services
+  is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
   D-Bus names and object paths are protocol identities, not filesystem paths.
 - [x] Project workspace folder is a real `adrenalin-linux-native` directory; the
@@ -373,9 +375,25 @@ identities or derived install locations.
     event; UpdateProfile retains the canonical mutation wire result. The regenerated
     proxy/private-bus test checks output order and these snapshot/event cases. The
     strict-warning build and focused CTest pass 1/1, and independent review found no
-    remaining issue. This is an ID-104 contract artifact only: production persistence,
+    remaining issue. At that point this was an ID-104 contract artifact only; the
+    following production persistence slice adds durable service operations while
     inheritance/effective-state calculation, preset/Custom behavior, UI, and Ticket 12
     production acceptance remain blocked by Tickets 05 and 11 and reference evidence.
+  - [x] Profiles1 production persistence and service integration (2026-09-25):
+    Session1 now exports production `ReadProfile` and `UpdateProfile` backed by a
+    transactional v2-to-v3 SQLite migration. First successful nonempty updates create
+    a stable profile UUID; typed scalar settings, revisions, and method-scoped
+    operation results persist. Retries replay unchanged results, including valid
+    NOT_FOUND and STALE_REVISION outcomes after later state changes; payload reuse
+    conflicts are explicit. Fresh changed operations publish one ProfileChanged event
+    on the shared session sequence, while no-ops and replays emit none. The v1 scalar
+    storage format uses explicit version/type tags and a canonical map encoding,
+    independent of Qt serialization. Production and strict-warning test targets build;
+    focused Session contract, Profiles1 contract, persistence, and private-bus service
+    CTests pass 4/4. Independent review found no remaining actionable issue. Profile
+    inheritance, predefined Custom semantics, effective-state calculation, UI and
+    authoritative production client reconciliation remain unimplemented; Tickets 03
+    and 12 remain open.
   - [x] Hotkeys1 now has a versioned typed list/update schema, stable action
     records with separate configured/effective bindings, ID-093 event envelope,
     isolated mock, and private-bus contract coverage for round-trip, revision
@@ -617,6 +635,12 @@ Progress (contract cursor slice; 2026-09-25): `OpenStream` now returns the share
 - [ ] Changing a constituent setting of a predefined profile creates the reference-equivalent Custom state without mutating global values.
 - [ ] Mutable records use expected revisions so stale edits do not overwrite newer profile state.
 - [ ] Profile state persists and the UI distinguishes configured, inherited and effective values.
+
+Progress (persistence foundation, 2026-09-25): Ticket 03 now supplies durable global
+and source-qualified game profile records, scalar patch updates, expected revisions,
+and idempotent operation replay. Ticket 12 remains open: global-to-game inheritance,
+reference-backed predefined/Custom behavior, effective-state calculation, and the
+profile UI have not been implemented.
 
 ### 13 — Runtime provider arbitration and per-game activation
 

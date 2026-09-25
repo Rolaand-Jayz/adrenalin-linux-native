@@ -3,6 +3,7 @@
 #include "session_database.h"
 #include "interfaces/settings1_contract.h"
 #include "interfaces/notifications1_contract.h"
+#include "interfaces/profiles1_contract.h"
 #include "interfaces/display1_contract.h"
 #include "interfaces/linux_hardware1_inventory_provider.h"
 
@@ -16,6 +17,7 @@
 
 class SessionService final : public QObject, public Settings1Contract,
                              public adrenalin::contracts::notifications1::Contract,
+                             public adrenalin::contracts::profiles1::Contract,
                              public adrenalin::contracts::display1::Contract
 {
     friend class SessionContractTest;
@@ -68,6 +70,11 @@ public:
     adrenalin::contracts::notifications1::ListReply listNotifications() const override;
     adrenalin::contracts::notifications1::MarkReadReply markRead(
         const QString &notificationId, const QString &operationId, quint64 expectedRevision) override;
+    adrenalin::contracts::profiles1::ReadReply readProfile(
+        const QString &subjectKind, const QString &subjectId) const override;
+    adrenalin::contracts::profiles1::UpdateOutcome updateProfile(
+        const QString &subjectKind, const QString &subjectId, quint64 expectedRevision,
+        const QString &operationId, const QVariantMap &settingsPatch) override;
     adrenalin::contracts::display1::ListReply listDisplays() const override;
     adrenalin::contracts::display1::StateReply getDisplayState(
         const QString &subjectId) const override;
@@ -120,6 +127,9 @@ signals:
     void NotificationsChanged(const QString &service_instance_uuid, qulonglong service_generation,
                               qulonglong event_sequence, const QString &subject_kind,
                               const QString &subject_id, qulonglong revision);
+    void ProfileChanged(const QString &service_instance_uuid, qulonglong service_generation,
+                        qulonglong event_sequence, const QString &subject_kind,
+                        const QString &subject_id, qulonglong revision);
 
 private:
     qulonglong nextEventSequence(const QString &subjectKind, const QString &subjectId);

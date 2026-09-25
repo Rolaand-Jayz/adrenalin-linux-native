@@ -1,6 +1,8 @@
 #pragma once
 
 #include "interfaces/notifications1_contract_types.h"
+#include "interfaces/profiles1_contract_types.h"
+#include "interfaces/operation_result.h"
 
 #include <QSqlDatabase>
 #include <QString>
@@ -35,6 +37,13 @@ public:
                               quint64 expectedRevision, bool eventSequenceAvailable, quint64 *newRevision,
                               bool *changed, bool *stale, bool *conflict, bool *notFound,
                               bool *replayed, QString *error);
+    std::optional<adrenalin::contracts::profiles1::Profile> readProfile(
+        const QString &subjectKind, const QString &subjectId, bool *notFound, QString *error);
+    bool updateProfile(const QString &subjectKind, const QString &subjectId, quint64 expectedRevision,
+                       const QString &operationId, const QVariantMap &settingsPatch,
+                       bool eventSequenceAvailable,
+                       adrenalin::contracts::MutationResult *mutation, bool *changed,
+                       bool *stale, bool *conflict, bool *notFound, bool *replayed, QString *error);
     quint64 generation() const;
 
 private:

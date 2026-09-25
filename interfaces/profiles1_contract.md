@@ -1,10 +1,11 @@
-# Profiles1 contract artifact
+# Profiles1 session contract and persistence
 
-Profiles1 is a versioned, contract-only interface. It describes profile
-identity, bounded scalar settings, optimistic revision checks, canonical
-mutation results, and event envelope shape. It does not claim persistence,
-profile inheritance, preset behavior, a profile UI, or production event
-reconciliation.
+Profiles1 is a versioned Session1 interface for profile identity, bounded
+scalar settings, optimistic revision checks, canonical mutation results, and
+event envelopes. Session1 backs `ReadProfile` and `UpdateProfile` with durable
+session-database records and operation replay. This implementation does not
+claim profile inheritance, preset behavior, a profile UI, or production client
+event reconciliation.
 
 ## Read snapshots and cursor
 
@@ -33,6 +34,7 @@ service identity therefore do not appear as ambiguous snapshot cursor fields on
 the mutation result.
 
 The event identifies the service incarnation, sequence, stable subject, and
-resulting profile revision. Consumers still require the production shared
-allocator and authoritative snapshot reconciliation before this contract can
-be treated as production event delivery.
+resulting profile revision. Production Session1 emits changed-profile events on
+the shared per-service event sequence after the database transaction commits.
+Consumers still need an authoritative production snapshot client that
+reconciles after owner changes and event gaps.
