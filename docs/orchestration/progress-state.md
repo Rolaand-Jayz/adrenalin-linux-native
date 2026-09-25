@@ -153,7 +153,7 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   evidence. The combined focused regression set for Profiles1, Notifications1, and
   the affected Hardware1 service passes 3/3. The separate test-only snapshot
   injection target is not used by the production daemon.
-- Hotkeys1 contract-only prerequisite now covers ListHotkeys/SetHotkey, stable
+- Hotkeys1 contract prerequisite now covers ListHotkeys/SetHotkey, stable
   action IDs, configured/effective binding separation, parent-window context,
   operation revisions/replay, and the ID-093 signal envelope. Its private-bus test
   passes 1/1 after an independent review found and corrected duplicate event
@@ -162,6 +162,15 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   environment's unbuildable Catch2 v3 identity target. No portal/X11 provider,
   startup rebind, or production action handler is implemented; Ticket 03, ID-093,
   ID-185 and Ticket 09 remain open.
+- The Hotkeys1 read-only production client gates ListHotkeys on service readiness
+  and reconciles common and family-specific event streams. It validates identity,
+  generation, subject envelope, and cursor progression; refreshes on action changes
+  and gaps; fences stale replies across event and owner changes; and retries when a
+  held ListHotkeys call fails after an event. The revision-zero event path is also
+  cursor-fenced after independent review. Strict-warning client and daemon targets
+  build; focused private-D-Bus CTest passes 1/1 (nine QtTest cases). No SetHotkey
+  action, portal/X11 provider, or provider restart rebind is implemented; Ticket 03,
+  ID-093, ID-185, and Ticket 09 remain open.
 - Display1 now has a contract-only list/state/validate/apply schema, typed
   Hardware1 identity/generation records, isolated mock, and private-bus test for
   stale generations, malformed requests, readiness envelopes, verified apply

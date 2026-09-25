@@ -437,6 +437,17 @@ open.
     coverage and Ticket 09 remain open. The integrated daemon/shell targets build,
     and the broader available CTest selection passes 17/17 (excluding the
     environment's unbuildable Catch2 v3 identity target).
+  - [x] Hotkeys1 production snapshot/event reconciliation client (2026-09-25): a
+    read-only Qt client gates ListHotkeys on Service1 readiness and reconciles the
+    common and family-specific event streams using service identity, generation,
+    revision, and the shared cursor. It refreshes on action changes, gaps, malformed
+    envelopes, generation changes, and owner rebinding; stale in-flight replies are
+    fenced, including invalid-revision signals and transport failure after an event.
+    The strict-warning client and daemon targets build, and focused private-D-Bus
+    CTest passes 1/1 (nine QtTest cases). Independent review found and resolved a
+    stale-snapshot race for revision-zero signals. This client does not implement
+    SetHotkey, portal/X11 activation, or provider startup rebind; Ticket 03, ID-093,
+    ID-185, and Ticket 09 remain open.
   - [x] Display1 now has its versioned list/state/validate/apply schema, typed
     Hardware1 display records and generation envelope, isolated mock, and
     private-bus coverage for stale generations, typed errors, idempotency,
