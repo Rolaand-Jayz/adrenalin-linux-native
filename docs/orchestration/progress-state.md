@@ -441,7 +441,8 @@ and ID-185 recovery sequence tracked against their owning production contracts.
    passing parity gates open until external evidence arrives.
 2. Ticket 03 now has persistent Notifications1 list/read operations, a consent-
    change producer, and a tested client/history UI with unread state and read actions.
-   Toast behavior, critical recovery notices, and the other ID-107 families remain.
+   Toast preference UI/delivery and its reference-backed default, critical recovery
+   notices, and the other ID-107 families remain.
    History remains an
    unbounded snapshot because the spec defines no pagination or retention policy;
    silent pruning is not implemented. Keep the session database and shared event
