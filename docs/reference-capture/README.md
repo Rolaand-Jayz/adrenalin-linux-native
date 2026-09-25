@@ -16,10 +16,22 @@ attestation. No reference PNGs are supplied by these documents.
 
 `tools/reference/test_accessibility.py` independently checks accessible names,
 roles, and extents for a running candidate window. It does not capture the same
-window image bytes or establish the screenshot crop origin and decoration
-relationship, so its AT-SPI extents are not emitted as comparator geometry.
-Use a separately attested geometry artifact bound to the exact candidate image
-for comparison.
+window image bytes or bind its observation to a captured window, so its AT-SPI
+extents are not emitted as comparator geometry.
+`tools/reference/capture_attested_geometry.py` provides the same-run X11 path:
+it launches the candidate, observes its live frame and required components via
+AT-SPI, resolves the process-owned X11 window, checks that it is mapped and not
+covered by a higher stacked root window, and captures that window's pixels with
+an external screenshot utility. It requires exact equality between screenshot
+dimensions and AT-SPI frame extents, and verifies that the frame and component
+geometry did not move during capture. It hashes the executable of the observed
+process and emits the comparator schema. It fails closed when it cannot bind
+the screenshot to the observed frame. This is candidate evidence only; supplied
+fixture, screen, and capture identities are operator labels, not independently
+authenticated facts. The utility requires Python with PyGObject/AT-SPI,
+python-xlib and Pillow, an X11 display, an ImageMagick `import` executable (or a
+compatible `--screenshot-tool`), and the AT-SPI registry executable. It does
+not work for native Wayland capture.
 
 Do not populate the worksheets from memory, public web images, product
 marketing screenshots, a different Adrenalin release, or generated/test
@@ -227,6 +239,31 @@ components, and be externally attested. The current comparator checks the
 schema, source label, identities, rectangles, and SHA-256-shaped build identity;
 it does not authenticate the attestor or independently observe the rendering.
 Application self-reported geometry is not independent attestation.
+
+For a candidate-only X11 probe, run the utility against the built shell and the
+AT-SPI registry discovered on the host. Use identities matching the candidate
+fixture and manifest row; the utility writes an external screenshot crop and
+schema-v1 geometry file, and prints both file hashes:
+
+```sh
+python3 tools/reference/capture_attested_geometry.py \
+  --shell <built-adrenalin-shell> \
+  --registry "$(command -v at-spi2-registryd)" \
+  --candidate <candidate.png> \
+  --geometry <candidate-geometry.json> \
+  --screen-id <manifest-screen-id> \
+  --capture-id <manifest-capture-row-id> \
+  --fixture-id <candidate-fixture-id>
+```
+
+The tool holds one candidate process live while AT-SPI observes it and an
+external X11 screenshot is captured. It is limited to the default launched
+view; other candidate states require a corresponding capture workflow. A
+successful probe establishes an externally observed candidate geometry export
+for those exact output bytes. It does not establish that operator-supplied
+identities are authentic, perform independent human review, or supply Windows
+reference evidence. Outputs are not replaced by default; use `--overwrite` only
+when intentionally regenerating both candidate artifacts.
 
 If dynamic masks are required, use the mask worksheet schema. The mask file
 binds itself to screen ID, capture ID, and reference capture SHA-256. Its exact

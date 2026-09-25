@@ -238,6 +238,17 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   on this CachyOS host: QML loaded, the process exited normally with status 0,
   and stderr was empty. This covers the platform smoke criterion, not a
   clean-checkout CI run.
+- Ticket 02 candidate geometry now has an external same-run X11 capture probe.
+  It observes the launched shell by PID through AT-SPI, captures the
+  PID-owned window with an external screenshot process, verifies it is mapped
+  and not overlapped by a higher stacked root window, and checks exact screenshot
+  dimensions against AT-SPI frame extents. It also verifies frame/component
+  geometry stayed fixed. An isolated Xvfb/D-Bus run
+  emitted a 1280x800 PNG and eight-component schema-v1 export; the comparator's
+  geometry loader accepted the export against those image bounds. This proves
+  only candidate runtime geometry for that run. Ticket 02 still needs authentic
+  reference captures, independently reviewed annotations, and a passing
+  comparison.
 - Profiles1 production persistence and Session1 integration are implemented as
   a bounded Ticket 03 slice. The transactional schema v3 migration stores
   global and source-qualified game profiles, typed scalar patches, revisions,

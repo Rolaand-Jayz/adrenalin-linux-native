@@ -127,22 +127,45 @@ window-manager and Wayland mapping remain unproven. This does not provide the
 independent geometry attestation or authenticated Windows reference captures
 required for Ticket 02 acceptance.
 
-**Progress audit (2026-09-25):** A read-only repository audit found no authentic
+**Progress audit (2026-09-25, before the external probe):** A read-only repository audit found no authentic
 reference PNGs, completed capture manifests, comparison checks, independent geometry
 attestations, or reviewer records. The local capture workflow and worksheets are
 ready, but no further acceptance gate can be closed from the current candidate-only
 evidence. Ticket 02 remains open pending the fixed-build Windows capture corpus and
 independent, checksum-bound review and parity evidence.
 
-The separate-process AT-SPI utility is explicitly limited to checking accessible
+`tools/reference/test_accessibility.py` remains limited to checking accessible
 names, roles, and extents. It does not bind those extents to the exact candidate
 PNG crop and therefore cannot emit comparator geometry or satisfy independent
 attestation. The reference-tooling regression suite passes 43/43 after enforcing
-this boundary; no capture, attestation, annotation, or parity gate is closed.
+this boundary; at that point no capture, attestation, annotation, or parity gate
+was closed.
 The no-hardcoded-filesystem-path audit found one fixed interpreter launcher in
 the non-executable AT-SPI helper; its shebang was removed so it is invoked through
 the selected `python3` command. Remaining absolute-path matches are D-Bus protocol
 identities or derived install locations.
+
+**Progress (2026-09-25):** Added
+`tools/reference/capture_attested_geometry.py`, which launches one candidate,
+observes its live frame and required component extents through AT-SPI, resolves
+the process-owned X11 window, rejects a non-viewable window or an overlapping
+higher-stacked root window, and externally captures that window's pixels. It
+requires screenshot dimensions to equal AT-SPI frame extents, rejects geometry
+movement, hashes the running executable through Linux procfs, and emits the
+comparator's schema-v1 source and fields. An isolated Xvfb/D-Bus run produced a
+1280x800 candidate PNG with eight measured components;
+`visual_diff._load_runtime_geometry` accepted the emitted artifact for those
+image dimensions and supplied capture identities. The final isolated run bound
+PNG SHA-256 `5bf60fea327055f69d7b33805ee7f9172ba321de640d70d4a6527263428cadd5`
+to geometry SHA-256
+`365453de39768092c8890a520f15f7d6b6fa82beb4c63dfae97e6ecff1bb9ee4`. Outputs
+refuse to overwrite existing files unless explicitly requested and may not
+alias the executable. Independent engineering review found no remaining issue
+in screenshot binding or output safety. This establishes only a candidate
+geometry export for that run. The operator identities remain unauthenticated;
+authentic Windows captures, independent visual/annotation review, complete
+annotations, and a passing comparison are still absent, so Ticket 02 remains
+open.
 
 ### 03 — Session service and persisted preference tracer
 
