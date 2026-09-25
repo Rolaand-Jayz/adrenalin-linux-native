@@ -207,6 +207,30 @@ add_test(NAME adrenalin-telemetry1-contract
 )
 set_tests_properties(adrenalin-telemetry1-contract PROPERTIES TIMEOUT 30)
 
+# Isolated ID-093/ID-110 Telemetry1 cursor decisions. This is a contract model,
+# not a production event allocator or session client.
+qt_add_executable(adrenalin-telemetry1-event-cursor-test
+    telemetry1_event_cursor_test.cpp
+    ../../interfaces/telemetry1_event_cursor.cpp
+)
+target_include_directories(adrenalin-telemetry1-event-cursor-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-telemetry1-event-cursor-test PRIVATE
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-telemetry1-event-cursor-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-telemetry1-event-cursor
+    COMMAND adrenalin-telemetry1-event-cursor-test
+)
+set_tests_properties(adrenalin-telemetry1-event-cursor PROPERTIES TIMEOUT 30)
+
 # Profiles1 is a contract-only fixture until reference captures resolve preset,
 # Custom-state, and effective-value behavior.
 set(ADRENALIN_PROFILES1_XML

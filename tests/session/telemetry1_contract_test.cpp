@@ -117,6 +117,7 @@ private slots:
         QCOMPARE(result.code, QStringLiteral("OK"));
         QCOMPARE(result.abiMajor, kMajor);
         QCOMPARE(result.mappedSize, quint64(kMappedSize));
+        QCOMPARE(result.eventSequenceCursor, quint64(26));
         QVERIFY(result.serviceGeneration > 0 && result.producerGeneration > 0);
         QVERIFY(result.metricDefinitionGeneration > 0 && result.subjectDefinitionGeneration > 0);
         const auto handles = qdbus_cast<QList<QDBusUnixFileDescriptor>>(reply.arguments().at(1));

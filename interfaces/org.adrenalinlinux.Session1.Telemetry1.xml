@@ -2,7 +2,7 @@
   <interface name="org.adrenalinlinux.Session1.Telemetry1">
     <method name="OpenStream">
       <arg name="requested_abi_major" type="q" direction="in"/>
-      <arg name="result" type="(sssttttqt)" direction="out"/>
+      <arg name="result" type="(ssstttttqt)" direction="out"/>
       <arg name="read_only_stream_handles" type="ah" direction="out"/>
       <arg name="metric_definitions" type="a(ssss)" direction="out"/>
       <arg name="subject_definitions" type="a(ssss)" direction="out"/>

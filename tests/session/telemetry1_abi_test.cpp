@@ -74,7 +74,7 @@ void testTypesAndReadOnlyFixture() {
     CHECK(kMajor == 1 && kMappedSize == 160);
     registerMetaTypes();
     CHECK(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<OpenResult>()))
-           == QByteArray("(sssttttqt)"));
+           == QByteArray("(ssstttttqt)"));
     CHECK(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<QList<QDBusUnixFileDescriptor>>()))
            == QByteArray("ah"));
     CHECK(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<QList<MetricDefinition>>()))

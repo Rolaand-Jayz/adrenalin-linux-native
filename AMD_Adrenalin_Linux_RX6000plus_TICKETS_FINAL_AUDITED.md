@@ -477,6 +477,8 @@ this boundary; no capture, attestation, annotation, or parity gate is closed.
 
 Progress (fixture slice; 2026-09-24): This patch adds a versioned Telemetry1 D-Bus schema, typed open/definition records, a test-only ABI v1 shared-memory fixture, ABI/concurrent-reader tests, and a private-bus contract test. A clean GUI-disabled Release build completed all 88 service/test build steps, and CTest passed 6/6 in the disposable integration checkout; this run does not include the GUI shell-smoke test. This evidence does not mark any full Ticket 07 acceptance criterion complete: no sessiond telemetry producer, hardware source selection, production readiness/recovery wiring, or Performance Metrics UI is included.
 
+Progress (contract cursor slice; 2026-09-25): `OpenStream` now returns the shared ID-093 event cursor with its authoritative telemetry snapshot. A test-only cursor model advances across common events from other service families and requests an authoritative reopen for true gaps, owner/service-generation changes, or changed telemetry definition generations, including when the specific signal follows its common envelope at the same sequence. Independent review found no remaining actionable findings. The three focused ABI, private-bus, and event-cursor CTests pass 3/3; `git diff --check` passes. This remains contract/test evidence only: the production shared allocator, Telemetry1 producer/client, readiness/recovery, and Performance Metrics UI are not implemented, and Ticket 07 remains open.
+
 ### 08 — Global search and notification center
 
 **Blocked by:** 03, 04

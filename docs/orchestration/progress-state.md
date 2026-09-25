@@ -14,6 +14,8 @@ and ID-185 recovery sequence tracked against their owning production contracts.
 
 ## Completed evidence
 
+- Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. Independent review passed; focused ABI, private-bus, and cursor CTests passed 3/3. This adds no production telemetry provider or event client; Ticket 07 and production ID-093/ID-185 work remain open.
+
 - The full checked-in workflow was exercised locally from a fresh `git archive` of baseline commit `b8dc833`:
   invalid activation-path rejection, 90/90 build steps, 4/4 CTest suites, 40/40
   manifest tests, staged install verification, systemd and desktop validation,

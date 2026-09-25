@@ -4,6 +4,7 @@ namespace adrenalin::contracts::telemetry1 {
 QDBusArgument &operator<<(QDBusArgument &a, const OpenResult &v) {
     a.beginStructure();
     a << v.code << v.diagnostic << v.serviceInstanceUuid << v.serviceGeneration
+      << v.eventSequenceCursor
       << v.producerGeneration << v.metricDefinitionGeneration
       << v.subjectDefinitionGeneration << v.abiMajor << v.mappedSize;
     a.endStructure();
@@ -12,6 +13,7 @@ QDBusArgument &operator<<(QDBusArgument &a, const OpenResult &v) {
 const QDBusArgument &operator>>(const QDBusArgument &a, OpenResult &v) {
     a.beginStructure();
     a >> v.code >> v.diagnostic >> v.serviceInstanceUuid >> v.serviceGeneration
+      >> v.eventSequenceCursor
       >> v.producerGeneration >> v.metricDefinitionGeneration
       >> v.subjectDefinitionGeneration >> v.abiMajor >> v.mappedSize;
     a.endStructure();

@@ -12,6 +12,7 @@ struct OpenResult final {
     QString diagnostic;
     QString serviceInstanceUuid;
     quint64 serviceGeneration = 0;
+    quint64 eventSequenceCursor = 0;
     quint64 producerGeneration = 0;
     quint64 metricDefinitionGeneration = 0;
     quint64 subjectDefinitionGeneration = 0;

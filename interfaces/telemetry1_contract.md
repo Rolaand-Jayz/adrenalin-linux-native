@@ -10,9 +10,15 @@ publishing fails closed when either would exhaust its remaining range.
 
 `OpenStream(requested_abi_major)` returns a typed result, a Unix descriptor
 handle array, metric records, and subject records. The result tuple is
-`(code, diagnostic, service-instance UUID, service generation, producer
-generation, metric-definition generation, subject-definition generation, ABI
-major, mapped byte length)`, signature `(sssttttqt)`. The handle is intended
+`(code, diagnostic, service-instance UUID, service generation, shared event
+sequence cursor, producer generation, metric-definition generation,
+subject-definition generation, ABI major, mapped byte length)`, signature
+`(ssstttttqt)`. The cursor comes from the shared ID-093 allocator and anchors
+event reconciliation to this authoritative stream snapshot. The consumer tracks
+the common per-service cursor across all observed ID-093 event families; it must
+advance over sequential events from other families. A true skipped sequence or
+owner/generation mismatch requests authoritative `OpenStream` reconciliation.
+The handle is intended
 for read-only mapping; no path or caller-selected shared-memory name crosses
 D-Bus. Each metric record is `(stable metric ID, value kind, unit, state
 semantics)` and each subject record is `(subject kind, opaque stable subject
@@ -28,6 +34,9 @@ arrays. Clients reject any other cardinality and never map a handle from an erro
 reply.
 
 Definition-generation, producer-generation, ABI-major, and mapped-size changes invalidate the negotiated view and require a complete stream reopen. `DefinitionsChanged` carries the event subject (`PLATFORM` / `platform` for a whole-stream change) and the common ID-093 event prefix. The telemetry-specific generation payload follows that prefix. Its event sequence comes from the shared service allocator and is separate from both slot guard and sample sequence; the isolated fixture uses a fixed sequence only in its test signal.
+If a generic common event already advanced the cursor through a sequence later
+seen on `DefinitionsChanged`, the definition generations are still validated
+before treating the signal as a duplicate; changed generations force a reopen.
 
 No high-rate sample travels through D-Bus. ABI v1 fixture values use explicit
 `VALID`, `UNAVAILABLE`, or `STALE` state; an unavailable/stale value is ignored
@@ -60,6 +69,7 @@ independent review and broader malformed-mapping/fuzz coverage.
 
 - A single production service event allocator shared with Hardware1 and other
   Session1 interfaces (ID-093); this artifact does not allocate event numbers.
+  The fixture cursor is test data only.
 - Real sessiond-owned producer, per-field AMDGPU/HWMON/libdrm/sysfs source
   selection and diagnostics (ID-031, ID-153).
 - `Session1` production root export and fixed v1 topology registration (ID-105,

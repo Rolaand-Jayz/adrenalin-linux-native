@@ -57,7 +57,7 @@ FixtureMock::~FixtureMock() {
     if (m_producerFd >= 0) ::close(m_producerFd);
 }
 OpenResult FixtureMock::openResult() const {
-    return {QStringLiteral("OK"), {}, m_instance, 1, 1, 1, 1, kMajor, kMappedSize};
+    return {QStringLiteral("OK"), {}, m_instance, 1, 26, 1, 1, 1, kMajor, kMappedSize};
 }
 QDBusUnixFileDescriptor FixtureMock::readOnlyHandle() const {
     const int transferred = ::fcntl(m_readerFd, F_DUPFD_CLOEXEC, 0);
