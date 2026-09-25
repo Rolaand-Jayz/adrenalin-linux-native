@@ -189,6 +189,13 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   display recovery, capability rebuild after runtime changes, telemetry recreation,
   hotkey rebind, gamewatch/capture republish, and client snapshot reconciliation
   remain open.
+- Current checkout validation (2026-09-25, `9d4a6c1`): the strict-warning full
+  build completed for all available targets except `adrenalin-identity-test`, whose
+  Catch2 v3 header is unavailable in this environment. The 19-test CTest set excluding
+  that target passed 19/19 under private D-Bus/Xvfb-capable execution. Focused
+  Display1 contract and production-session coverage passed 2/2. A live remote-ref
+  query could not resolve GitHub in this session; the latest local refs show both
+  remote-tracking branches at `9d4a6c1`.
 - The service now exposes a nonzero provisional generation during STARTING,
   allowing valid Hardware1 BUSY invalid-snapshot envelopes before SQLite recovery
   has loaded the persisted service generation. Recovery keeps that value or
