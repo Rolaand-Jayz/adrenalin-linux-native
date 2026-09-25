@@ -186,13 +186,26 @@ required for Ticket 02 acceptance.
     target injects snapshots only in private-bus tests. Failed inventory keeps the
     service FAILED and returns typed BACKEND_UNAVAILABLE replies without payload.
     Focused production build and private-bus test passed. This is initial-snapshot
-    coverage only: service-level refresh/removal observation, DEVICE_DISCONNECTED
-    behavior, and ID-185 readiness integration remain open.
+    coverage now includes service-level successful-snapshot reconciliation and
+    typed removal replies. Runtime discovery remains dependent on the daemon DRM
+    udev monitor; complete ID-107 families and ID-185 recovery remain open.
   - [x] Provider-level successful GPU-plus-dependent-display and display-only
     removal regressions verify reduced device/info/capability snapshots, retained
-    unaffected subjects, and content-based generation advancement/stability. This
-    validates the provider snapshot seam only; runtime hotplug/event publication
-    and removal-aware service replies remain open.
+    unaffected subjects, and content-based generation advancement/stability.
+  - [x] SessionService reconciles successful inventory snapshots atomically after
+    preflighting event capacity, keeps service-incarnation removal tombstones,
+    returns DEVICE_DISCONNECTED without stale payload for observed removals, keeps
+    never-seen subjects at NOT_FOUND, preserves the last snapshot on refresh failure,
+    and clears tombstones on same-ID reappearance. Private-bus coverage verifies
+    removal signals name the resolved subject and carry increasing event sequence
+    numbers, reduced reads, failure behavior, and reappearance. The daemon now
+    subscribes to filtered DRM libudev add/remove/change hints before initial
+    discovery, serializes debounced full provider refreshes, retries observer
+    setup/receive failures with capped backoff, and fails Hardware1 reads closed
+    while observation is unavailable; hint paths/nodes are not identities. Focused
+    service build and CTest pass. Live physical
+    hotplug behavior and hosted CI remain unverified. ID-185 readiness recovery is
+    still open.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device
@@ -268,15 +281,15 @@ required for Ticket 02 acceptance.
     connector/digest/subject-ID rejection. Validation also passed the adjacent
     DRM inventory, display, CPU package, session-contract, and Hardware1-contract
     CTest suites (5/5); session contract tests were run with private D-Bus access.
-    The initial snapshot is now exported through the production Session1 Hardware1
-    object and covered by a private-bus integration test. Provider runtime refresh,
-    hotplug event publication, removal-aware service replies, provider-backed
-    feature state, and ID-185 recovery remain open.
+    The initial snapshot and runtime refresh/removal path are exported through the
+    production Session1 Hardware1 object and covered by a private-bus integration
+    test. Provider-backed feature state, full ID-107 operations, event-gap client
+    reconciliation, physical hotplug validation, and ID-185 recovery remain open.
   - [ ] Production snapshot integration remains partial beyond the bounded ID/scope
     catalog: initial inventory and the registry-complete UNKNOWN graph are exported
     through Hardware1, but supported hardware state, further parity-feature
-    mappings (including game/runtime and tuning controls), runtime refresh/removal
-    publication, and reference-backed semantics remain open. A failed source does
+    mappings (including game/runtime and tuning controls), event-gap client
+    reconciliation, and reference-backed semantics remain open. A failed source does
     not become an empty successful inventory, and test snapshot injection is
     isolated from the shipping daemon. ID-107's remaining operation families still
     depend on shared schemas/providers or prerequisite tickets. Ticket 03 and ID-185

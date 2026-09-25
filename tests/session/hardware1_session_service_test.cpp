@@ -156,6 +156,100 @@ private slots:
 
         QCOMPARE(inventoryChanged.constFirst().at(2).toULongLong(), quint64(3));
         QCOMPARE(graphChanged.constFirst().at(2).toULongLong(), quint64(4));
+
+        QCOMPARE(inventoryChanged.constFirst().at(3).toString(), QString::fromLatin1(kCpuKind));
+        QCOMPARE(inventoryChanged.constFirst().at(4).toString(), QString::fromLatin1(kCpuId));
+        QCOMPARE(graphChanged.constFirst().at(3).toString(), QString::fromLatin1(kCpuKind));
+        QCOMPARE(graphChanged.constFirst().at(4).toString(), QString::fromLatin1(kCpuId));
+
+        auto removedSnapshot = validSnapshot();
+        removedSnapshot.inventoryGeneration = 2;
+        removedSnapshot.capabilityGeneration = 2;
+        removedSnapshot.devices.clear();
+        removedSnapshot.deviceInfo.clear();
+        removedSnapshot.capabilities.clear();
+        QVERIFY(service.reconcileHardwareSnapshotForTesting(removedSnapshot));
+        QTRY_COMPARE_WITH_TIMEOUT(inventoryChanged.count(), 2, 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(graphChanged.count(), 2, 2000);
+        QCOMPARE(inventoryChanged.last().at(3).toString(), QString::fromLatin1(kCpuKind));
+        QCOMPARE(inventoryChanged.last().at(4).toString(), QString::fromLatin1(kCpuId));
+        QCOMPARE(inventoryChanged.last().at(2).toULongLong(), quint64(5));
+
+        auto removedListPending = proxy.ListDevices();
+        QTRY_VERIFY_WITH_TIMEOUT(removedListPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, QList<Device>> removedList = removedListPending;
+        QVERIFY2(!removedList.isError(), qPrintable(removedList.error().message()));
+        QCOMPARE(removedList.argumentAt<0>().code, QStringLiteral("OK"));
+        QVERIFY(removedList.argumentAt<1>().isEmpty());
+
+        auto disconnectedInfoPending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind),
+                                                            QString::fromLatin1(kCpuId));
+        QTRY_VERIFY_WITH_TIMEOUT(disconnectedInfoPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, DeviceInfo> disconnectedInfo = disconnectedInfoPending;
+        QVERIFY2(!disconnectedInfo.isError(), qPrintable(disconnectedInfo.error().message()));
+        QCOMPARE(disconnectedInfo.argumentAt<0>().code, QStringLiteral("DEVICE_DISCONNECTED"));
+        QVERIFY(disconnectedInfo.argumentAt<0>().snapshotValid);
+        QCOMPARE(disconnectedInfo.argumentAt<0>().inventoryGeneration, quint64(2));
+        QCOMPARE(disconnectedInfo.argumentAt<1>().subjectId, QString());
+
+        auto disconnectedGraphPending = proxy.GetCapabilityGraph(QString::fromLatin1(kCpuKind),
+                                                                  QString::fromLatin1(kCpuId));
+        QTRY_VERIFY_WITH_TIMEOUT(disconnectedGraphPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, QList<Capability>> disconnectedGraph = disconnectedGraphPending;
+        QVERIFY2(!disconnectedGraph.isError(), qPrintable(disconnectedGraph.error().message()));
+        QCOMPARE(disconnectedGraph.argumentAt<0>().code, QStringLiteral("DEVICE_DISCONNECTED"));
+        QVERIFY(disconnectedGraph.argumentAt<1>().isEmpty());
+
+        auto stillUnknownPending = proxy.GetDeviceInfo(QStringLiteral("GPU_PCI"),
+                                                        QStringLiteral("never-observed-gpu"));
+        QTRY_VERIFY_WITH_TIMEOUT(stillUnknownPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, DeviceInfo> stillUnknown = stillUnknownPending;
+        QVERIFY2(!stillUnknown.isError(), qPrintable(stillUnknown.error().message()));
+        QCOMPARE(stillUnknown.argumentAt<0>().code, QStringLiteral("NOT_FOUND"));
+
+        adrenalin::hardware::Hardware1Snapshot unavailable;
+        unavailable.error = QStringLiteral("temporary refresh failure");
+        QVERIFY(!service.reconcileHardwareSnapshotForTesting(unavailable));
+        QTRY_COMPARE_WITH_TIMEOUT(inventoryChanged.count(), 3, 2000);
+        QCOMPARE(inventoryChanged.last().at(3).toString(), QStringLiteral("PLATFORM"));
+        QCOMPARE(inventoryChanged.last().at(4).toString(), QStringLiteral("platform"));
+        QCOMPARE(inventoryChanged.last().at(2).toULongLong(), quint64(7));
+        auto failedRefreshPending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind),
+                                                         QString::fromLatin1(kCpuId));
+        QTRY_VERIFY_WITH_TIMEOUT(failedRefreshPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, DeviceInfo> failedRefresh = failedRefreshPending;
+        QVERIFY2(!failedRefresh.isError(), qPrintable(failedRefresh.error().message()));
+        QCOMPARE(failedRefresh.argumentAt<0>().code, QStringLiteral("BACKEND_UNAVAILABLE"));
+        QVERIFY(!failedRefresh.argumentAt<0>().snapshotValid);
+        QCOMPARE(failedRefresh.argumentAt<1>().subjectId, QString());
+
+        auto reappearedSnapshot = validSnapshot();
+        reappearedSnapshot.inventoryGeneration = 3;
+        reappearedSnapshot.capabilityGeneration = 3;
+        QVERIFY(service.reconcileHardwareSnapshotForTesting(reappearedSnapshot));
+        QTRY_COMPARE_WITH_TIMEOUT(inventoryChanged.count(), 4, 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(graphChanged.count(), 3, 2000);
+        QCOMPARE(inventoryChanged.last().at(2).toULongLong(), quint64(8));
+        QCOMPARE(graphChanged.last().at(2).toULongLong(), quint64(9));
+        auto reappearedPending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind),
+                                                      QString::fromLatin1(kCpuId));
+        QTRY_VERIFY_WITH_TIMEOUT(reappearedPending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, DeviceInfo> reappeared = reappearedPending;
+        QVERIFY2(!reappeared.isError(), qPrintable(reappeared.error().message()));
+        QCOMPARE(reappeared.argumentAt<0>().code, QStringLiteral("OK"));
+        QCOMPARE(reappeared.argumentAt<1>().displayName, QStringLiteral("Integration CPU"));
+
+        service.setHardwareObserverUnavailable();
+        QTRY_COMPARE_WITH_TIMEOUT(inventoryChanged.count(), 5, 2000);
+        QCOMPARE(inventoryChanged.last().at(3).toString(), QStringLiteral("PLATFORM"));
+        QCOMPARE(inventoryChanged.last().at(2).toULongLong(), quint64(10));
+        auto observerUnavailablePending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind),
+                                                               QString::fromLatin1(kCpuId));
+        QTRY_VERIFY_WITH_TIMEOUT(observerUnavailablePending.isFinished(), 2000);
+        const QDBusPendingReply<Reply, DeviceInfo> observerUnavailable = observerUnavailablePending;
+        QVERIFY2(!observerUnavailable.isError(), qPrintable(observerUnavailable.error().message()));
+        QCOMPARE(observerUnavailable.argumentAt<0>().code, QStringLiteral("BACKEND_UNAVAILABLE"));
+        QVERIFY(observerUnavailable.argumentAt<1>().subjectId.isEmpty());
     }
 
     void invalidProviderSnapshotReturnsTypedNoPayloadEnvelope()

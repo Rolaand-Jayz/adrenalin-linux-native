@@ -8,6 +8,7 @@
 #include <QSqlDatabase>
 #include <QString>
 #include <QThread>
+#include <QSet>
 
 #include <memory>
 
@@ -40,6 +41,9 @@ public:
 
     bool initialize();
     bool initializeAsync();
+    void requestHardwareInventoryRefresh();
+    void setHardwareObserverUnavailable();
+    void requestHardwareObserverRecovery();
     QString initializationState() const override;
     QString serviceInstanceUuid() const override;
     qulonglong serviceGeneration() const override;
@@ -49,6 +53,9 @@ public:
     ushort apiMajor() const override;
     ushort apiMinor() const override;
     QString lastInitializationError() const override;
+    bool hardwareRefreshAvailable() const;
+    bool hardwareObserverAvailable() const;
+    bool hardwareSubjectDisconnected(const QString &kind, const QString &id) const;
 
     bool getProductTelemetryConsent(bool *enabled, quint64 *revision, QString *error);
     Settings1ReadResult getProductTelemetryConsent() override;
@@ -56,6 +63,8 @@ public:
                                                     quint64 expectedRevision) override;
 #ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
     void setHardware1SnapshotForTesting(
+        const adrenalin::hardware::Hardware1Snapshot &snapshot);
+    bool reconcileHardwareSnapshotForTesting(
         const adrenalin::hardware::Hardware1Snapshot &snapshot);
 #endif
     adrenalin::contracts::hardware1::Reply listHardwareDevices(
@@ -95,6 +104,8 @@ private:
                   const QString &detail = {}) const;
     bool prepareDatabaseRecovery();
     bool publishHardwareInitialization(adrenalin::hardware::Hardware1Snapshot snapshot);
+    void startHardwareInventoryRefresh();
+    static QString hardwareSubjectKey(const QString &kind, const QString &id);
 
     State state_ = State::Starting;
     QString serviceInstanceUuid_;
@@ -106,6 +117,12 @@ private:
     adrenalin::hardware::LinuxHardware1InventoryProvider hardware1Provider_;
     adrenalin::hardware::Hardware1Snapshot hardware1Snapshot_;
     QThread *hardwareInventoryThread_ = nullptr;
+    bool hardwareInitializationComplete_ = false;
+    bool hardwareRefreshPending_ = false;
+    bool hardwareRefreshAvailable_ = true;
+    bool hardwareObserverAvailable_ = true;
+    bool hardwareObserverRecoveryPending_ = false;
+    QSet<QString> disconnectedHardwareSubjects_;
 #ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
     bool hardware1SnapshotInjectedForTesting_ = false;
 #endif

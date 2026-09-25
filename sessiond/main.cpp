@@ -1,4 +1,5 @@
 #include "session_service.h"
+#include "drm_udev_monitor.h"
 #include "session_identity.h"
 
 #include "settings1_adaptor.h"
@@ -51,6 +52,21 @@ int main(int argc, char *argv[])
         qCritical("Could not acquire the session service name on the session bus");
         return 2;
     }
+    DrmUdevMonitor drmMonitor(&app);
+    QString monitorError;
+    if (!drmMonitor.start(&monitorError)) {
+        qWarning("DRM hotplug observation is unavailable: %s", qPrintable(monitorError));
+        service.setHardwareObserverUnavailable();
+    }
+    QObject::connect(&drmMonitor, &DrmUdevMonitor::inventoryDirty,
+                     &service, &SessionService::requestHardwareInventoryRefresh);
+    QObject::connect(&drmMonitor, &DrmUdevMonitor::monitorFailed, &app,
+                     [&service](const QString &message) {
+                         qWarning("DRM hotplug observation stopped: %s", qPrintable(message));
+                         service.setHardwareObserverUnavailable();
+                     });
+    QObject::connect(&drmMonitor, &DrmUdevMonitor::monitorRestored,
+                     &service, &SessionService::requestHardwareObserverRecovery);
     QTimer::singleShot(0, &service, [&service] {
         service.initializeAsync();
     });

@@ -58,15 +58,18 @@ remains the active implementation frontier.
   work consumes the GPU, CPU-package, and display sources in the production
   Hardware1 inventory provider; this host's current provider-backed result is
   covered by the focused integration tests.
-- The production Session1 service now exports initial Hardware1 reads from the
-  real inventory provider; focused private-bus integration covers the generated
-  adaptor. Failed inventory leaves the service FAILED with empty typed failure
-  replies. Refresh/removal reconciliation, ID-107's remaining operation families,
-  event gap reconciliation, and full ID-185 startup recovery remain open. New
-  provider-level successful GPU/display removal tests verify reduced authoritative
-  snapshots and content-based generation changes; they do not establish runtime
-  hotplug observation or DEVICE_DISCONNECTED service replies. The separate test-only
-  snapshot injection target is not used by the production daemon.
+- The production Session1 service now exports provider-backed Hardware1 reads,
+  reconciles successful refreshes atomically, tracks removal tombstones, publishes
+  resolved-subject events, and returns DEVICE_DISCONNECTED versus NOT_FOUND with
+  no stale payload. Failed refresh preserves the last authoritative snapshot but
+  fails Hardware1 reads closed until recovery. The daemon uses a debounced filtered
+  libudev DRM monitor to trigger serialized full provider refreshes. Focused private-
+  bus tests cover removal, failure, reappearance, event envelopes, and closed
+  reads when observation is unavailable. The daemon retries udev observation with
+  capped backoff and requests a full refresh on receive loss. Live physical hotplug,
+  event-gap client reconciliation, ID-107's remaining operation families, and full
+  ID-185 startup recovery remain open. The separate test-only snapshot injection
+  target is not used by the production daemon.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,

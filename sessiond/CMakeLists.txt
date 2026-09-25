@@ -61,6 +61,7 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
     pkg_check_modules(HWLOC REQUIRED IMPORTED_TARGET hwloc)
+    pkg_check_modules(LIBUDEV REQUIRED IMPORTED_TARGET libudev)
     set(ADRENALIN_HARDWARE_INVENTORY_SOURCES
         ../interfaces/linux_drm_inventory_source.cpp
         ../interfaces/linux_drm_inventory_source.h
@@ -174,9 +175,13 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         )
     endif()
 
-    qt_add_executable(adrenalin-sessiond main.cpp)
+    qt_add_executable(adrenalin-sessiond
+        main.cpp
+        drm_udev_monitor.cpp
+        drm_udev_monitor.h
+    )
     target_include_directories(adrenalin-sessiond PRIVATE "${ADRENALIN_SOURCE_ROOT}")
-    target_link_libraries(adrenalin-sessiond PRIVATE adrenalin-session-core)
+    target_link_libraries(adrenalin-sessiond PRIVATE adrenalin-session-core PkgConfig::LIBUDEV)
     adrenalin_session_enable_strict_warnings(adrenalin-sessiond)
 
     include(GNUInstallDirs)

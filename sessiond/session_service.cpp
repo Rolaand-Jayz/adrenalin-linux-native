@@ -100,6 +100,70 @@ bool SessionService::initializeAsync()
     return true;
 }
 
+QString SessionService::hardwareSubjectKey(const QString &kind, const QString &id)
+{
+    return kind + QChar(u'\0') + id;
+}
+
+void SessionService::requestHardwareInventoryRefresh()
+{
+    if (state_ == State::Starting || state_ == State::Recovering) {
+        hardwareRefreshPending_ = true;
+        return;
+    }
+    if (hardwareInventoryThread_ != nullptr) {
+        hardwareRefreshPending_ = true;
+        return;
+    }
+    startHardwareInventoryRefresh();
+}
+
+void SessionService::setHardwareObserverUnavailable()
+{
+    if (!hardwareObserverAvailable_) {
+        return;
+    }
+    if (state_ == State::Ready && hardware1Snapshot_.success
+        && eventSequence_ == std::numeric_limits<quint64>::max()) {
+        failEventSequenceExhausted();
+        return;
+    }
+    hardwareObserverAvailable_ = false;
+    hardwareObserverRecoveryPending_ = false;
+    if (state_ == State::Ready && hardware1Snapshot_.success) {
+        if (nextEventSequence(QStringLiteral("PLATFORM"), QStringLiteral("platform")) == 0) {
+            failEventSequenceExhausted();
+            return;
+        }
+        emit InventoryChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                              QStringLiteral("PLATFORM"), QStringLiteral("platform"),
+                              hardware1Snapshot_.inventoryGeneration,
+                              hardware1Snapshot_.capabilityGeneration);
+        emit eventPublished();
+    }
+}
+
+void SessionService::requestHardwareObserverRecovery()
+{
+    hardwareObserverRecoveryPending_ = true;
+    requestHardwareInventoryRefresh();
+}
+
+void SessionService::startHardwareInventoryRefresh()
+{
+    if (hardwareInventoryThread_ != nullptr) {
+        hardwareRefreshPending_ = true;
+        return;
+    }
+    hardwareInventoryThread_ = QThread::create([this] {
+        const auto snapshot = hardware1Provider_.refresh();
+        QMetaObject::invokeMethod(this, [this, snapshot] {
+            publishHardwareInitialization(snapshot);
+        }, Qt::QueuedConnection);
+    });
+    hardwareInventoryThread_->start();
+}
+
 bool SessionService::publishHardwareInitialization(
     adrenalin::hardware::Hardware1Snapshot currentHardware)
 {
@@ -108,53 +172,150 @@ bool SessionService::publishHardwareInitialization(
         delete hardwareInventoryThread_;
         hardwareInventoryThread_ = nullptr;
     }
+    if (!currentHardware.success) {
+        if (!hardwareInitializationComplete_) {
+            hardware1Snapshot_ = std::move(currentHardware);
+            hardwareRefreshAvailable_ = false;
+            setState(State::Failed, QStringLiteral("Hardware inventory evidence is unavailable"));
+            logEvent(QStringLiteral("hardware_initialization_failed"), QStringLiteral("error"));
+        } else {
+            const bool wasAvailable = hardwareRefreshAvailable_;
+            if (wasAvailable && eventSequence_ == std::numeric_limits<quint64>::max()) {
+                failEventSequenceExhausted();
+                return false;
+            }
+            hardwareRefreshAvailable_ = false;
+            lastInitializationError_ = currentHardware.error.isEmpty()
+                ? QStringLiteral("Hardware inventory evidence is unavailable") : currentHardware.error;
+            emit initializationStateChanged();
+            if (wasAvailable) {
+                if (nextEventSequence(QStringLiteral("PLATFORM"), QStringLiteral("platform")) == 0) {
+                    failEventSequenceExhausted();
+                    return false;
+                }
+                emit InventoryChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                      QStringLiteral("PLATFORM"), QStringLiteral("platform"),
+                                      hardware1Snapshot_.inventoryGeneration,
+                                      hardware1Snapshot_.capabilityGeneration);
+                emit eventPublished();
+            }
+            logEvent(QStringLiteral("hardware_refresh_failed"), QStringLiteral("error"),
+                     lastInitializationError_);
+        }
+        if (hardwareRefreshPending_) {
+            hardwareRefreshPending_ = false;
+            startHardwareInventoryRefresh();
+        }
+        return false;
+    }
+
+    using Subject = QPair<QString, QString>;
+    QList<Subject> inventorySubjects;
+    QList<Subject> capabilitySubjects;
+    auto appendUnique = [](QList<Subject> &subjects, const Subject &candidate) {
+        if (!subjects.contains(candidate)) {
+            subjects.append(candidate);
+        }
+    };
     const auto previousHardware = hardware1Snapshot_;
-    hardware1Snapshot_ = std::move(currentHardware);
-    const auto &snapshot = hardware1Snapshot_;
-    const bool inventoryChanged = snapshot.success
-        && (!previousHardware.success
-            || previousHardware.inventoryGeneration != snapshot.inventoryGeneration);
-    const bool capabilitiesChanged = snapshot.success
-        && (!previousHardware.success
-            || previousHardware.capabilityGeneration != snapshot.capabilityGeneration);
-    const quint64 initialHardwareEvents = static_cast<quint64>(inventoryChanged)
-        + static_cast<quint64>(capabilitiesChanged);
-    if (eventSequence_ > std::numeric_limits<quint64>::max() - 1 - initialHardwareEvents) {
+    const bool wasRefreshAvailable = hardwareRefreshAvailable_;
+    const bool observerRecoveryPending = hardwareObserverRecoveryPending_;
+    const bool inventoryChanged = !previousHardware.success || !wasRefreshAvailable
+        || observerRecoveryPending
+        || previousHardware.inventoryGeneration != currentHardware.inventoryGeneration;
+    const bool capabilitiesChanged = !previousHardware.success || !wasRefreshAvailable
+        || observerRecoveryPending
+        || previousHardware.capabilityGeneration != currentHardware.capabilityGeneration;
+    auto collectDevices = [&](const auto &devices) {
+        for (const auto &device : devices) {
+            appendUnique(inventorySubjects, {device.subjectKind, device.subjectId});
+        }
+    };
+    auto collectCapabilities = [&](const auto &capabilities) {
+        for (const auto &capability : capabilities) {
+            appendUnique(capabilitySubjects, {capability.subjectKind, capability.subjectId});
+        }
+    };
+    if (inventoryChanged) {
+        collectDevices(previousHardware.devices);
+        collectDevices(currentHardware.devices);
+        if (inventorySubjects.isEmpty()) {
+            inventorySubjects.append({QStringLiteral("PLATFORM"), QStringLiteral("platform")});
+        }
+    }
+    if (capabilitiesChanged) {
+        collectCapabilities(previousHardware.capabilities);
+        collectCapabilities(currentHardware.capabilities);
+        if (capabilitySubjects.isEmpty()) {
+            capabilitySubjects.append({QStringLiteral("PLATFORM"), QStringLiteral("platform")});
+        }
+    }
+    const quint64 hardwareEvents = static_cast<quint64>(inventorySubjects.size())
+        + static_cast<quint64>(capabilitySubjects.size());
+    const quint64 readinessEvents = state_ == State::Ready ? 0 : 1;
+    if (hardwareEvents > std::numeric_limits<quint64>::max() - readinessEvents
+        || eventSequence_ > std::numeric_limits<quint64>::max() - hardwareEvents - readinessEvents) {
         failEventSequenceExhausted();
         return false;
     }
-    if (!snapshot.success) {
-        setState(State::Failed, QStringLiteral("Hardware inventory evidence is unavailable"));
-        logEvent(QStringLiteral("hardware_initialization_failed"), QStringLiteral("error"));
-        return false;
-    }
-    if (!setState(State::Ready)) {
-        return false;
-    }
-    if (snapshot.success) {
-        if (inventoryChanged) {
-            if (nextEventSequence(QStringLiteral("PLATFORM"), QStringLiteral("platform")) == 0) {
-                failEventSequenceExhausted();
-                return false;
-            }
-            emit InventoryChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
-                                  QStringLiteral("PLATFORM"), QStringLiteral("platform"),
-                                  snapshot.inventoryGeneration, snapshot.capabilityGeneration);
-            emit eventPublished();
+
+    for (const auto &device : previousHardware.devices) {
+        const Subject subject{device.subjectKind, device.subjectId};
+        const bool remains = std::any_of(currentHardware.devices.cbegin(),
+                                         currentHardware.devices.cend(),
+            [&](const auto &current) {
+                return current.subjectKind == subject.first && current.subjectId == subject.second;
+            });
+        if (!remains) {
+            disconnectedHardwareSubjects_.insert(hardwareSubjectKey(subject.first, subject.second));
         }
-        if (capabilitiesChanged) {
-            if (nextEventSequence(QStringLiteral("PLATFORM"), QStringLiteral("platform")) == 0) {
-                failEventSequenceExhausted();
-                return false;
-            }
-            emit CapabilityGraphChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
-                                        QStringLiteral("PLATFORM"), QStringLiteral("platform"),
-                                        snapshot.inventoryGeneration,
-                                        snapshot.capabilityGeneration);
-            emit eventPublished();
+    }
+    for (const auto &device : currentHardware.devices) {
+        disconnectedHardwareSubjects_.remove(hardwareSubjectKey(device.subjectKind, device.subjectId));
+    }
+    hardware1Snapshot_ = std::move(currentHardware);
+    hardwareRefreshAvailable_ = true;
+    if (observerRecoveryPending && !hardwareRefreshPending_) {
+        hardwareObserverAvailable_ = true;
+        hardwareObserverRecoveryPending_ = false;
+    }
+    const auto &snapshot = hardware1Snapshot_;
+    if (!hardwareInitializationComplete_) {
+        if (!setState(State::Ready)) {
+            return false;
         }
+        hardwareInitializationComplete_ = true;
+    } else if (state_ != State::Ready) {
+        if (!setState(State::Ready)) {
+            return false;
+        }
+    }
+
+    for (const auto &subject : inventorySubjects) {
+        if (nextEventSequence(subject.first, subject.second) == 0) {
+            failEventSequenceExhausted();
+            return false;
+        }
+        emit InventoryChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                              subject.first, subject.second, snapshot.inventoryGeneration,
+                              snapshot.capabilityGeneration);
+        emit eventPublished();
+    }
+    for (const auto &subject : capabilitySubjects) {
+        if (nextEventSequence(subject.first, subject.second) == 0) {
+            failEventSequenceExhausted();
+            return false;
+        }
+        emit CapabilityGraphChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                    subject.first, subject.second, snapshot.inventoryGeneration,
+                                    snapshot.capabilityGeneration);
+        emit eventPublished();
     }
     logEvent(QStringLiteral("service_ready"), QStringLiteral("info"));
+    if (hardwareRefreshPending_) {
+        hardwareRefreshPending_ = false;
+        startHardwareInventoryRefresh();
+    }
     return true;
 }
 
@@ -205,6 +366,12 @@ void SessionService::failEventSequenceExhausted()
 ushort SessionService::apiMajor() const { return 1; }
 ushort SessionService::apiMinor() const { return 0; }
 QString SessionService::lastInitializationError() const { return lastInitializationError_; }
+bool SessionService::hardwareRefreshAvailable() const { return hardwareRefreshAvailable_; }
+bool SessionService::hardwareObserverAvailable() const { return hardwareObserverAvailable_; }
+bool SessionService::hardwareSubjectDisconnected(const QString &kind, const QString &id) const
+{
+    return disconnectedHardwareSubjects_.contains(hardwareSubjectKey(kind, id));
+}
 
 bool SessionService::setState(State state, QString error)
 {
@@ -248,6 +415,12 @@ void SessionService::setHardware1SnapshotForTesting(
     hardware1Snapshot_ = snapshot;
     hardware1SnapshotInjectedForTesting_ = true;
 }
+
+bool SessionService::reconcileHardwareSnapshotForTesting(
+    const adrenalin::hardware::Hardware1Snapshot &snapshot)
+{
+    return publishHardwareInitialization(snapshot);
+}
 #endif
 
 namespace {
@@ -273,7 +446,8 @@ Reply hardwareReply(const SessionService *service, const Hardware1Snapshot &snap
         reply.snapshotValid = false;
         return reply;
     }
-    if (state == QLatin1String("FAILED") || !snapshot.success) {
+    if (state == QLatin1String("FAILED") || !snapshot.success || !service->hardwareRefreshAvailable()
+        || !service->hardwareObserverAvailable()) {
         reply.code = QStringLiteral("BACKEND_UNAVAILABLE");
         reply.humanMessageKey = QStringLiteral("hardware.snapshot.unavailable");
         reply.diagnosticMessage = snapshot.error.isEmpty()
@@ -311,9 +485,13 @@ Reply notFoundReply(const SessionService *service, const Hardware1Snapshot &snap
                     const QString &kind, const QString &id)
 {
     Reply reply = hardwareReply(service, snapshot, kind, id);
-    reply.code = QStringLiteral("NOT_FOUND");
-    reply.humanMessageKey = QStringLiteral("hardware.subject.notFound");
-    reply.diagnosticMessage = QStringLiteral("The requested subject is absent from the current inventory snapshot");
+    const bool disconnected = service->hardwareSubjectDisconnected(kind, id);
+    reply.code = disconnected ? QStringLiteral("DEVICE_DISCONNECTED") : QStringLiteral("NOT_FOUND");
+    reply.humanMessageKey = disconnected ? QStringLiteral("hardware.subject.disconnected")
+                                         : QStringLiteral("hardware.subject.notFound");
+    reply.diagnosticMessage = disconnected
+        ? QStringLiteral("The requested subject was removed from the current service inventory")
+        : QStringLiteral("The requested subject is absent from the current inventory snapshot");
     return reply;
 }
 } // namespace
