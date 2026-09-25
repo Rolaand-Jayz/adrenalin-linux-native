@@ -18,6 +18,15 @@ struct Settings1WriteResult {
     adrenalin::contracts::MutationResult result;
 };
 
+struct ToastNotificationsReadResult {
+    QString resultCode;
+    QString serviceInstanceUuid;
+    quint64 serviceGeneration = 0;
+    quint64 eventSequence = 0;
+    bool enabled = false;
+    quint64 revision = 0;
+};
+
 class Settings1Contract : public ServiceReadinessContract
 {
 public:
@@ -26,4 +35,8 @@ public:
     virtual Settings1WriteResult setProductTelemetryConsent(const QString &operationId,
                                                             bool enabled,
                                                             quint64 expectedRevision) = 0;
+    virtual ToastNotificationsReadResult getToastNotifications() = 0;
+    virtual Settings1WriteResult setToastNotifications(const QString &operationId,
+                                                       bool enabled,
+                                                       quint64 expectedRevision) = 0;
 };

@@ -268,7 +268,9 @@ bool SessionDatabase::initialize(QString *error)
         && execute(QStringLiteral("INSERT OR IGNORE INTO service_metadata(key, value) "
                                   "VALUES ('service_generation', '0')"), error)
         && execute(QStringLiteral("INSERT OR IGNORE INTO preferences(key, value, revision) "
-                                  "VALUES ('product_telemetry_consent', 0, 0)"), error);
+                                  "VALUES ('product_telemetry_consent', 0, 0)"), error)
+        && execute(QStringLiteral("INSERT OR IGNORE INTO preferences(key, value, revision) "
+                                  "VALUES ('toast_notifications', 2, 0)"), error);
     if (!migrationOk) {
         database_.rollback();
         return false;
@@ -406,6 +408,173 @@ std::optional<ProductTelemetryConsent> SessionDatabase::readProductTelemetryCons
         return std::nullopt;
     }
     return ProductTelemetryConsent{enabledValue == 1, static_cast<quint64>(revisionValue)};
+}
+
+std::optional<BooleanPreferenceSnapshot> SessionDatabase::readToastNotifications(QString *error)
+{
+    QSqlQuery query(database_);
+    query.prepare(QStringLiteral("SELECT value, revision, typeof(value), typeof(revision) "
+                                 "FROM preferences WHERE key='toast_notifications'"));
+    if (!query.exec() || !query.next()) {
+        if (error != nullptr) {
+            *error = query.lastError().isValid() ? query.lastError().text()
+                                                  : QStringLiteral("Toast notification preference is missing");
+        }
+        return std::nullopt;
+    }
+    bool enabledConverted = false;
+    bool revisionConverted = false;
+    const int enabledValue = query.value(0).toInt(&enabledConverted);
+    const qlonglong revisionValue = query.value(1).toLongLong(&revisionConverted);
+    if (query.value(2).toString() != QLatin1String("integer")
+        || query.value(3).toString() != QLatin1String("integer")
+        || !enabledConverted || !revisionConverted
+        || (enabledValue != 0 && enabledValue != 1 && enabledValue != 2) || revisionValue < 0) {
+        if (error != nullptr) {
+            *error = QStringLiteral("Toast notification preference contains invalid persisted data");
+        }
+        return std::nullopt;
+    }
+    if (enabledValue == 2) {
+        if (error != nullptr) *error = QStringLiteral("Toast notification preference has no reference-backed value");
+        return std::nullopt;
+    }
+    return BooleanPreferenceSnapshot{enabledValue == 1, static_cast<quint64>(revisionValue)};
+}
+
+bool SessionDatabase::updateToastNotifications(const QString &operationId, bool enabled,
+                                               quint64 expectedRevision, bool eventSequenceAvailable,
+                                               quint64 *newRevision, bool *stale, bool *conflict,
+                                               bool *replayed, bool *changed, QString *error)
+{
+    if (newRevision != nullptr) *newRevision = 0;
+    if (stale != nullptr) *stale = false;
+    if (conflict != nullptr) *conflict = false;
+    if (replayed != nullptr) *replayed = false;
+    if (changed != nullptr) *changed = false;
+    static const QRegularExpression operationSyntax(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"));
+    if (!operationSyntax.match(operationId).hasMatch()
+        || expectedRevision >= static_cast<quint64>(std::numeric_limits<qlonglong>::max())) {
+        if (error != nullptr) *error = QStringLiteral("Operation ID or revision is outside its supported range");
+        return false;
+    }
+    if (!database_.transaction()) {
+        if (error != nullptr) *error = database_.lastError().text();
+        return false;
+    }
+    QSqlQuery existing(database_);
+    existing.prepare(QStringLiteral("SELECT enabled, expected_revision, result_revision, "
+                                     "typeof(enabled), typeof(expected_revision), typeof(result_revision) "
+                                     "FROM settings_operations "
+                                     "WHERE method='SetToastNotifications' AND operation_id=:operation_id"));
+    existing.bindValue(QStringLiteral(":operation_id"), operationId);
+    if (!existing.exec()) {
+        database_.rollback();
+        if (error != nullptr) *error = existing.lastError().text();
+        return false;
+    }
+    if (existing.next()) {
+        bool storedEnabledConverted = false;
+        bool storedExpectedConverted = false;
+        bool storedResultConverted = false;
+        const int storedEnabled = existing.value(0).toInt(&storedEnabledConverted);
+        const qlonglong storedExpected = existing.value(1).toLongLong(&storedExpectedConverted);
+        const qlonglong storedResult = existing.value(2).toLongLong(&storedResultConverted);
+        if (existing.value(3).toString() != QLatin1String("integer")
+            || existing.value(4).toString() != QLatin1String("integer")
+            || existing.value(5).toString() != QLatin1String("integer")
+            || !storedEnabledConverted || (storedEnabled != 0 && storedEnabled != 1)
+            || !storedExpectedConverted || storedExpected < 0
+            || !storedResultConverted || storedResult < 0) {
+            database_.rollback();
+            if (error != nullptr) *error = QStringLiteral("Toast operation replay contains invalid persisted data");
+            return false;
+        }
+        if ((storedEnabled == 1) != enabled
+            || static_cast<quint64>(storedExpected) != expectedRevision) {
+            database_.rollback();
+            if (conflict != nullptr) *conflict = true;
+            return false;
+        }
+        const quint64 priorResult = static_cast<quint64>(storedResult);
+        database_.rollback();
+        if (newRevision != nullptr) *newRevision = priorResult;
+        if (replayed != nullptr) *replayed = true;
+        return true;
+    }
+    QSqlQuery current(database_);
+    if (!current.exec(QStringLiteral("SELECT value, revision, typeof(value), typeof(revision) "
+                                    "FROM preferences WHERE key='toast_notifications'"))
+        || !current.next()) {
+        database_.rollback();
+        if (error != nullptr) *error = current.lastError().isValid()
+            ? current.lastError().text() : QStringLiteral("Toast notification preference is missing");
+        return false;
+    }
+    bool currentValueConverted = false;
+    bool currentRevisionConverted = false;
+    const int currentValue = current.value(0).toInt(&currentValueConverted);
+    const qlonglong currentRevisionValue = current.value(1).toLongLong(&currentRevisionConverted);
+    if (current.value(2).toString() != QLatin1String("integer")
+        || current.value(3).toString() != QLatin1String("integer")
+        || !currentValueConverted || !currentRevisionConverted
+        || (currentValue != 0 && currentValue != 1 && currentValue != 2) || currentRevisionValue < 0) {
+        database_.rollback();
+        if (error != nullptr) *error = QStringLiteral("Toast notification preference contains invalid persisted data");
+        return false;
+    }
+    const quint64 currentRevision = static_cast<quint64>(currentRevisionValue);
+    if (newRevision != nullptr) *newRevision = currentRevision;
+    if (expectedRevision != currentRevision) {
+        database_.rollback();
+        if (stale != nullptr) *stale = true;
+        return false;
+    }
+    const bool didChange = currentValue == 2 || (currentValue == 1) != enabled;
+    if (didChange && !eventSequenceAvailable) {
+        database_.rollback();
+        if (error != nullptr) *error = QStringLiteral("Session event sequence is exhausted");
+        return false;
+    }
+    if (didChange && currentRevision >= static_cast<quint64>(std::numeric_limits<qlonglong>::max() - 1)) {
+        database_.rollback();
+        if (error != nullptr) *error = QStringLiteral("Toast notification preference revision is exhausted");
+        return false;
+    }
+    const quint64 resultRevision = currentRevision + (didChange ? 1 : 0);
+    if (didChange) {
+        QSqlQuery update(database_);
+        update.prepare(QStringLiteral("UPDATE preferences SET value=:value, revision=:result_revision "
+                                      "WHERE key='toast_notifications' AND revision=:expected_revision"));
+        update.bindValue(QStringLiteral(":value"), enabled ? 1 : 0);
+        update.bindValue(QStringLiteral(":result_revision"), static_cast<qlonglong>(resultRevision));
+        update.bindValue(QStringLiteral(":expected_revision"), static_cast<qlonglong>(expectedRevision));
+        if (!update.exec() || update.numRowsAffected() != 1) {
+            database_.rollback();
+            if (error != nullptr) *error = update.lastError().isValid()
+                ? update.lastError().text() : QStringLiteral("Toast preference changed during update");
+            return false;
+        }
+    }
+    QSqlQuery record(database_);
+    record.prepare(QStringLiteral("INSERT INTO settings_operations "
+                                  "(method, operation_id, enabled, expected_revision, result_revision) "
+                                  "VALUES ('SetToastNotifications', :operation_id, :enabled, "
+                                  ":expected_revision, :result_revision)"));
+    record.bindValue(QStringLiteral(":operation_id"), operationId);
+    record.bindValue(QStringLiteral(":enabled"), enabled ? 1 : 0);
+    record.bindValue(QStringLiteral(":expected_revision"), static_cast<qlonglong>(expectedRevision));
+    record.bindValue(QStringLiteral(":result_revision"), static_cast<qlonglong>(resultRevision));
+    if (!record.exec() || !database_.commit()) {
+        const QString failure = record.lastError().isValid() ? record.lastError().text()
+                                                              : database_.lastError().text();
+        database_.rollback();
+        if (error != nullptr) *error = failure;
+        return false;
+    }
+    if (newRevision != nullptr) *newRevision = resultRevision;
+    if (changed != nullptr) *changed = didChange;
+    return true;
 }
 
 bool SessionDatabase::updateProductTelemetryConsent(

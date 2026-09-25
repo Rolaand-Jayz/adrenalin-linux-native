@@ -18,6 +18,10 @@ public:
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId,
                                                     bool enabled,
                                                     quint64 expectedRevision) override;
+    ToastNotificationsReadResult getToastNotifications() override;
+    Settings1WriteResult setToastNotifications(const QString &operationId,
+                                               bool enabled,
+                                               quint64 expectedRevision) override;
 
 private:
     QString instanceUuid_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -27,4 +31,8 @@ private:
     quint64 revision_ = 0;
     struct Operation { bool enabled; quint64 expected; quint64 result; };
     QHash<QString, Operation> operations_;
+    bool toastNotificationsEnabled_ = false;
+    bool toastNotificationsConfigured_ = false;
+    quint64 toastNotificationsRevision_ = 0;
+    QHash<QString, Operation> toastOperations_;
 };

@@ -15,6 +15,8 @@ struct ProductTelemetryConsent {
     quint64 revision = 0;
 };
 
+using BooleanPreferenceSnapshot = ProductTelemetryConsent;
+
 class SessionDatabase final
 {
 public:
@@ -26,6 +28,11 @@ public:
 
     bool initialize(QString *error);
     std::optional<ProductTelemetryConsent> readProductTelemetryConsent(QString *error);
+    std::optional<BooleanPreferenceSnapshot> readToastNotifications(QString *error);
+    bool updateToastNotifications(const QString &operationId, bool enabled,
+                                 quint64 expectedRevision, bool eventSequenceAvailable,
+                                 quint64 *newRevision, bool *stale, bool *conflict,
+                                 bool *replayed, bool *changed, QString *error);
     bool updateProductTelemetryConsent(const QString &operationId, bool enabled, quint64 expectedRevision,
                                        const adrenalin::contracts::notifications1::Notification &notification,
                                        quint64 *newRevision, quint64 *notificationRevision,

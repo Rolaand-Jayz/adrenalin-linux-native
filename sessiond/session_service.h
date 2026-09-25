@@ -67,6 +67,9 @@ public:
     Settings1ReadResult getProductTelemetryConsent() override;
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId, bool enabled,
                                                     quint64 expectedRevision) override;
+    ToastNotificationsReadResult getToastNotifications() override;
+    Settings1WriteResult setToastNotifications(const QString &operationId, bool enabled,
+                                               quint64 expectedRevision) override;
     adrenalin::contracts::notifications1::ListReply listNotifications() const override;
     adrenalin::contracts::notifications1::MarkReadReply markRead(
         const QString &notificationId, const QString &operationId, quint64 expectedRevision) override;
@@ -112,6 +115,10 @@ signals:
                                         const QString &subjectId,
                                         bool enabled,
                                         qulonglong revision);
+    void ToastNotificationsChanged(const QString &service_instance_uuid,
+                                   qulonglong service_generation, qulonglong event_sequence,
+                                   const QString &subject_kind, const QString &subject_id,
+                                   bool enabled, qulonglong revision);
     void InventoryChanged(const QString &service_instance_uuid, qulonglong service_generation,
                          qulonglong event_sequence, const QString &subject_kind,
                          const QString &subject_id, qulonglong inventory_generation,

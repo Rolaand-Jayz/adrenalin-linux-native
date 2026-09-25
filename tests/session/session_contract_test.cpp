@@ -623,6 +623,25 @@ void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency(
              adrenalin::contracts::OperationResultCode::Conflict);
     QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-2"), false, 0).result.code,
              adrenalin::contracts::OperationResultCode::StaleRevision);
+
+    const auto toastInitial = mock.getToastNotifications();
+    QCOMPARE(toastInitial.resultCode, QStringLiteral("UNAVAILABLE"));
+    QVERIFY(toastInitial.serviceInstanceUuid.isEmpty());
+    QCOMPARE(toastInitial.revision, quint64(0));
+    const auto toastWrite = mock.setToastNotifications(QStringLiteral("toast-operation-1"), false, 0);
+    QCOMPARE(toastWrite.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QCOMPARE(toastWrite.result.revision, quint64(1));
+    QCOMPARE(mock.getToastNotifications().resultCode, QStringLiteral("OK"));
+    QVERIFY(!mock.getToastNotifications().enabled);
+    QCOMPARE(mock.getToastNotifications().eventSequence, quint64(2));
+    const auto toastReplay = mock.setToastNotifications(QStringLiteral("toast-operation-1"), false, 0);
+    QCOMPARE(toastReplay.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QCOMPARE(toastReplay.result.revision, quint64(1));
+    QCOMPARE(mock.getToastNotifications().eventSequence, quint64(2));
+    QCOMPARE(mock.setToastNotifications(QStringLiteral("toast-operation-1"), true, 0).result.code,
+             adrenalin::contracts::OperationResultCode::Conflict);
+    QCOMPARE(mock.setToastNotifications(QStringLiteral("toast-operation-2"), true, 0).result.code,
+             adrenalin::contracts::OperationResultCode::StaleRevision);
 }
 
 void SessionContractTest::preInitializationGenerationSupportsBusyHardwareReplies()
@@ -1244,6 +1263,61 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QVERIFY(!afterRestart.argumentAt<4>());
     QCOMPARE(afterRestart.argumentAt<3>(), service->eventSequence());
     QCOMPARE(afterRestart.argumentAt<5>(), qulonglong(2));
+
+    QSignalSpy toastChanged(&proxy, &OrgAdrenalinlinuxSession1Settings1Interface::ToastNotificationsChanged);
+    QVERIFY(toastChanged.isValid());
+    auto toastInitialPending = proxy.GetToastNotifications();
+    QTRY_VERIFY_WITH_TIMEOUT(toastInitialPending.isFinished(), 2000);
+    const QDBusPendingReply<QString, QString, qulonglong, qulonglong, bool, qulonglong> toastInitial =
+        toastInitialPending;
+    QVERIFY(!toastInitial.isError());
+    QCOMPARE(toastInitial.argumentAt<0>(), QStringLiteral("UNAVAILABLE"));
+    QVERIFY(toastInitial.argumentAt<1>().isEmpty());
+    QCOMPARE(toastInitial.argumentAt<2>(), qulonglong(0));
+    QCOMPARE(toastInitial.argumentAt<3>(), qulonglong(0));
+    QVERIFY(!toastInitial.argumentAt<4>());
+    QCOMPARE(toastInitial.argumentAt<5>(), qulonglong(0));
+    const qulonglong toastEventBefore = service->eventSequence();
+    const auto toastWritePending = proxy.SetToastNotifications(QStringLiteral("toast-write-1"), false, 0);
+    QTRY_VERIFY_WITH_TIMEOUT(toastWritePending.isFinished(), 2000);
+    const QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString, qulonglong> toastWrite =
+        toastWritePending;
+    QVERIFY(!toastWrite.isError());
+    QCOMPARE(toastWrite.argumentAt<0>(), QStringLiteral("OK"));
+    QCOMPARE(toastWrite.argumentAt<1>(), QStringLiteral("toast-write-1"));
+    QCOMPARE(toastWrite.argumentAt<5>(), QStringLiteral("session-settings"));
+    QCOMPARE(toastWrite.argumentAt<6>(), QStringLiteral("toast.notifications"));
+    QCOMPARE(toastWrite.argumentAt<7>(), qulonglong(1));
+    QTRY_COMPARE_WITH_TIMEOUT(toastChanged.count(), 1, 2000);
+    QCOMPARE(toastChanged.constFirst().at(2).toULongLong(), toastEventBefore + 1);
+    QCOMPARE(toastChanged.constFirst().at(3).toString(), QStringLiteral("PREFERENCE"));
+    QCOMPARE(toastChanged.constFirst().at(4).toString(), QStringLiteral("toast.notifications"));
+    QVERIFY(!toastChanged.constFirst().at(5).toBool());
+    QCOMPARE(toastChanged.constFirst().at(6).toULongLong(), qulonglong(1));
+    auto toastReplayPending = proxy.SetToastNotifications(QStringLiteral("toast-write-1"), false, 0);
+    QTRY_VERIFY_WITH_TIMEOUT(toastReplayPending.isFinished(), 2000);
+    QCOMPARE(toastReplayPending.argumentAt<0>(), QStringLiteral("OK"));
+    QCOMPARE(toastReplayPending.argumentAt<7>(), qulonglong(1));
+    auto toastConflictPending = proxy.SetToastNotifications(QStringLiteral("toast-write-1"), true, 0);
+    QTRY_VERIFY_WITH_TIMEOUT(toastConflictPending.isFinished(), 2000);
+    QCOMPARE(toastConflictPending.argumentAt<0>(), QStringLiteral("CONFLICT"));
+    auto toastStalePending = proxy.SetToastNotifications(QStringLiteral("toast-write-2"), true, 0);
+    QTRY_VERIFY_WITH_TIMEOUT(toastStalePending.isFinished(), 2000);
+    QCOMPARE(toastStalePending.argumentAt<0>(), QStringLiteral("STALE_REVISION"));
+    QCOMPARE(toastStalePending.argumentAt<7>(), qulonglong(1));
+    const auto toastStoredPending = proxy.GetToastNotifications();
+    QTRY_VERIFY_WITH_TIMEOUT(toastStoredPending.isFinished(), 2000);
+    QCOMPARE(toastStoredPending.argumentAt<0>(), QStringLiteral("OK"));
+    QVERIFY(!toastStoredPending.argumentAt<4>());
+    QCOMPARE(toastStoredPending.argumentAt<5>(), qulonglong(1));
+    stopService(service);
+    service = startService();
+    QVERIFY(service != nullptr);
+    auto toastAfterRestartPending = proxy.GetToastNotifications();
+    QTRY_VERIFY_WITH_TIMEOUT(toastAfterRestartPending.isFinished(), 2000);
+    QCOMPARE(toastAfterRestartPending.argumentAt<0>(), QStringLiteral("OK"));
+    QVERIFY(!toastAfterRestartPending.argumentAt<4>());
+    QCOMPARE(toastAfterRestartPending.argumentAt<5>(), qulonglong(1));
     stopService(service);
 
 }

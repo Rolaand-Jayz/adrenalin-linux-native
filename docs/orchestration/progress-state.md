@@ -242,6 +242,20 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   shared schemas, providers, safety semantics, or prerequisite tickets, so no
   disjoint implementation was started. Ticket 03 remains open at this shared
   contract seam.
+- Settings1 now has a production `GetToastNotifications` / `SetToastNotifications`
+  slice backed by the existing preferences and operation tables. It uses a
+  schema-defined preference ID, optimistic revisions, method-scoped replay and
+  conflict detection, and the shared Session1 event cursor. Since the spec does
+  not define a default and the authentic reference corpus is still unavailable,
+  existing and new databases represent the preference as unconfigured; reads
+  return `UNAVAILABLE` with an empty envelope until an explicit saved value exists.
+  Generated D-Bus integration coverage verifies unconfigured reads, persistence,
+  the event subject/cursor, no-event idempotent replay, conflict/stale rejection,
+  and service restart. Strict-warning targets build and focused CTest passes 4/4
+  for Session1, Hardware1 session service, profile persistence, and Notifications1
+  contract. This is backend/API scope only: no preference UI, general settings
+  enumeration, export/import, or reference-derived default is claimed. Ticket 03
+  and ID-107 remain open.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,

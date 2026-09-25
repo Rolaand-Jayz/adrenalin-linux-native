@@ -20,6 +20,7 @@ private slots:
     void exhaustedEventSequenceDoesNotCreateProfile();
     void migratesExistingSchemaV2();
     void validFailureResultsReplayAfterStateChanges();
+    void malformedToastPreferenceFailsClosed();
 };
 
 void ProfilePersistenceTest::firstMutationPersistsAndReplays()
@@ -306,6 +307,62 @@ void ProfilePersistenceTest::validFailureResultsReplayAfterStateChanges()
     QCOMPARE(mutation.code, OperationResultCode::StaleRevision);
     QCOMPARE(mutation.revision, quint64(1));
     QVERIFY(stale && replayed && !changed);
+}
+
+void ProfilePersistenceTest::malformedToastPreferenceFailsClosed()
+{
+    QTemporaryFile databaseFile;
+    QVERIFY(databaseFile.open());
+    const QString databasePath = databaseFile.fileName();
+    databaseFile.close();
+    QString error;
+    SessionDatabase database(databasePath);
+    QVERIFY2(database.initialize(&error), qPrintable(error));
+    const auto initial = database.readToastNotifications(&error);
+    QVERIFY(!initial.has_value());
+    QVERIFY(error.contains(QStringLiteral("reference-backed value")));
+
+    const QString connectionName = QStringLiteral("malformed-toast-fixture");
+    {
+        QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        raw.setDatabaseName(databasePath);
+        QVERIFY(raw.open());
+        QSqlQuery corruption(raw);
+        QVERIFY(corruption.exec(QStringLiteral("UPDATE preferences SET value='garbage' "
+                                               "WHERE key='toast_notifications'")));
+        raw.close();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    error.clear();
+    QVERIFY(!database.readToastNotifications(&error).has_value());
+    QVERIFY(error.contains(QStringLiteral("invalid persisted data")));
+    bool stale = false;
+    bool conflict = false;
+    bool replayed = false;
+    bool changed = false;
+    quint64 revision = 0;
+    error.clear();
+    QVERIFY(!database.updateToastNotifications(QStringLiteral("malformed-write"), true, 0, true,
+                                                &revision, &stale, &conflict, &replayed,
+                                                &changed, &error));
+    QVERIFY(error.contains(QStringLiteral("invalid persisted data")));
+    QVERIFY(!stale && !conflict && !replayed && !changed);
+
+    const QString verifyConnectionName = QStringLiteral("verify-malformed-toast-fixture");
+    {
+        QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), verifyConnectionName);
+        raw.setDatabaseName(databasePath);
+        QVERIFY(raw.open());
+        QSqlQuery verify(raw);
+        QVERIFY(verify.exec(QStringLiteral("SELECT value, typeof(value) FROM preferences "
+                                           "WHERE key='toast_notifications'")));
+        QVERIFY(verify.next());
+        QCOMPARE(verify.value(0).toString(), QStringLiteral("garbage"));
+        QCOMPARE(verify.value(1).toString(), QStringLiteral("text"));
+        raw.close();
+    }
+    QSqlDatabase::removeDatabase(verifyConnectionName);
 }
 
 QTEST_GUILESS_MAIN(ProfilePersistenceTest)

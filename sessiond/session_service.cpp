@@ -1069,3 +1069,87 @@ Settings1WriteResult SessionService::setProductTelemetryConsent(const QString &o
     result.humanMessageKey = QStringLiteral("settings.telemetry_consent.updated");
     return writeResult;
 }
+
+ToastNotificationsReadResult SessionService::getToastNotifications()
+{
+    ToastNotificationsReadResult result;
+    if (state_ != State::Ready) {
+        result.resultCode = QStringLiteral("BACKEND_UNAVAILABLE");
+        return result;
+    }
+    QString error;
+    const auto preference = database_->readToastNotifications(&error);
+    if (!preference) {
+        result.resultCode = error.contains(QStringLiteral("no reference-backed value"))
+            ? QStringLiteral("UNAVAILABLE") : QStringLiteral("IO_ERROR");
+        return result;
+    }
+    result.resultCode = QStringLiteral("OK");
+    result.serviceInstanceUuid = serviceInstanceUuid();
+    result.serviceGeneration = serviceGeneration();
+    result.eventSequence = eventSequence_;
+    result.enabled = preference->enabled;
+    result.revision = preference->revision;
+    return result;
+}
+
+Settings1WriteResult SessionService::setToastNotifications(const QString &operationId, bool enabled,
+                                                          quint64 expectedRevision)
+{
+    using adrenalin::contracts::OperationResultCode;
+    Settings1WriteResult writeResult;
+    auto &result = writeResult.result;
+    result.operationId = operationId;
+    result.provider = QStringLiteral("session-settings");
+    result.subjectId = QStringLiteral("toast.notifications");
+    if (state_ != State::Ready) {
+        result.code = OperationResultCode::BackendUnavailable;
+        result.humanMessageKey = QStringLiteral("service.recovering");
+        result.diagnosticMessage = QStringLiteral("Session service is not READY");
+        result.retryable = true;
+        return writeResult;
+    }
+    bool stale = false;
+    bool conflict = false;
+    bool replayed = false;
+    bool changed = false;
+    QString error;
+    const bool sequenceAvailable = eventSequence_ < std::numeric_limits<quint64>::max();
+    if (!database_->updateToastNotifications(operationId, enabled, expectedRevision,
+                                              sequenceAvailable, &result.revision, &stale,
+                                              &conflict, &replayed, &changed, &error)) {
+        result.diagnosticMessage = error;
+        if (stale) {
+            result.code = OperationResultCode::StaleRevision;
+            result.humanMessageKey = QStringLiteral("settings.operation.stale_revision");
+        } else if (conflict) {
+            result.code = OperationResultCode::Conflict;
+            result.humanMessageKey = QStringLiteral("settings.operation.conflict");
+        } else if (error.startsWith(QStringLiteral("Operation ID"))) {
+            result.code = OperationResultCode::InvalidArgument;
+            result.humanMessageKey = QStringLiteral("settings.operation.invalid_argument");
+        } else if (error.contains(QStringLiteral("exhausted"), Qt::CaseInsensitive)) {
+            result.code = OperationResultCode::InternalError;
+            result.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+        } else {
+            result.code = OperationResultCode::IoError;
+            result.humanMessageKey = QStringLiteral("settings.operation.storage_failed");
+        }
+        return writeResult;
+    }
+    if (changed && !replayed) {
+        const quint64 sequence = nextEventSequence(QStringLiteral("PREFERENCE"), result.subjectId);
+        if (sequence == 0) {
+            result.code = OperationResultCode::InternalError;
+            result.humanMessageKey = QStringLiteral("service.event_sequence_exhausted");
+            result.diagnosticMessage = QStringLiteral("Session event sequence is exhausted");
+            return writeResult;
+        }
+        emit ToastNotificationsChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                       eventSubjectKind_, eventSubjectId_, enabled, result.revision);
+        emit eventPublished();
+    }
+    result.code = OperationResultCode::Ok;
+    result.humanMessageKey = QStringLiteral("settings.toast_notifications.updated");
+    return writeResult;
+}
