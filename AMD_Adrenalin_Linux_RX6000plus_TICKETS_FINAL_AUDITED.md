@@ -204,10 +204,18 @@ own acceptance criteria and dependency gates pass.
     mappings, checks token syntax, and rejects unknown/wrong-scope records. This
     is vocabulary only: provider/evidence IDs, source-qualified units and enum
     values, additional feature mappings, or any supported hardware state remain
-    unclaimed.
+    unclaimed; no runtime provider availability or supported hardware state is
+    claimed by the subsequent vocabularies.
+  - [x] Added closed v1 provider-ID, evidence-code, unit, and per-capability enum
+    vocabularies. `Capability::isValid()` now rejects unregistered provider or
+    evidence tokens, units outside the capability mapping, and enum values
+    outside their capability's domain. It permits a supported enum's verified
+    allowed set when the current setting is unknown. Contract cases cover these
+    rejection and acceptance paths. These implementation-owned vocabularies do
+    not certify provider availability or hardware parity.
   - [ ] Production snapshot integration remains open beyond the bounded ID/scope
-    catalog: provider/evidence vocabularies, source-qualified units and enum
-    domains, further parity-feature mappings (including game/runtime and tuning
+    catalog: hardware-backed source/provider qualification, further
+    parity-feature mappings (including game/runtime and tuning
     controls), and provider-backed graph construction still require definition.
     The available GPU, CPU, and DRM display sources
     yield discovery evidence but do not define the complete per-subject capability

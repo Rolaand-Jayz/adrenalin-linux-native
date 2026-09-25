@@ -300,8 +300,8 @@ private slots:
         capability.subjectId = Mock::testGpuSubjectId();
         capability.capabilityId = QStringLiteral("gpu.clock.maximum");
         capability.supportState = QStringLiteral("SUPPORTED");
-        capability.providerId = QStringLiteral("provider.gpu");
-        capability.evidenceCode = QStringLiteral("provider.observed");
+        capability.providerId = QStringLiteral("test.provider.gpu");
+        capability.evidenceCode = QStringLiteral("test.observed.range");
         capability.unit = QStringLiteral("megahertz");
         capability.configuredValue.kind = QStringLiteral("REAL");
         capability.configuredValue.realValue = std::numeric_limits<double>::infinity();
@@ -317,6 +317,17 @@ private slots:
         capability.capabilityId = QStringLiteral("display.brightness");
         QVERIFY(!capability.isValid(&error));
         QVERIFY(error.contains(QStringLiteral("subject kind")));
+
+        capability.subjectKind = QStringLiteral("GPU_PCI");
+        capability.capabilityId = QStringLiteral("gpu.clock.maximum");
+        capability.configuredValue = {};
+        capability.providerId = QStringLiteral("unregistered.provider");
+        QVERIFY(!capability.isValid(&error));
+
+        capability.providerId = QStringLiteral("test.provider.gpu");
+        capability.evidenceCode = QStringLiteral("test.observed.range");
+        capability.unit = QStringLiteral("watts");
+        QVERIFY(!capability.isValid(&error));
     }
 
     void partialRangesAndUnsupportedValuesFailClosed()
@@ -326,8 +337,8 @@ private slots:
         capability.subjectId = Mock::testGpuSubjectId();
         capability.capabilityId = QStringLiteral("gpu.clock.maximum");
         capability.supportState = QStringLiteral("SUPPORTED");
-        capability.providerId = QStringLiteral("provider.gpu");
-        capability.evidenceCode = QStringLiteral("provider.observed");
+        capability.providerId = QStringLiteral("test.provider.gpu");
+        capability.evidenceCode = QStringLiteral("test.observed.range");
         capability.unit = QStringLiteral("megahertz");
         capability.minimum.kind = QStringLiteral("UNSIGNED_INTEGER");
         capability.minimum.unsignedValue = 500;
@@ -340,10 +351,24 @@ private slots:
         capability.subjectId = Mock::testGpuSubjectId();
         capability.capabilityId = QStringLiteral("gpu.voltage.manual");
         capability.supportState = QStringLiteral("UNSUPPORTED");
-        capability.evidenceCode = QStringLiteral("provider.no-control");
+        capability.evidenceCode = QStringLiteral("test.provider.no-control");
         capability.configuredValue.kind = QStringLiteral("REAL");
         capability.configuredValue.realValue = 1.0;
         QVERIFY(!capability.isValid(&error));
+    }
+
+    void providerEvidenceAndUnitRegistriesAreClosed()
+    {
+        const QStringList providers = providerIdRegistryV1();
+        const QStringList evidence = evidenceCodeRegistryV1();
+        const QStringList units = unitRegistryV1();
+        QCOMPARE(QSet<QString>(providers.cbegin(), providers.cend()).size(), providers.size());
+        QCOMPARE(QSet<QString>(evidence.cbegin(), evidence.cend()).size(), evidence.size());
+        QCOMPARE(QSet<QString>(units.cbegin(), units.cend()).size(), units.size());
+        QVERIFY(isProviderIdV1(QStringLiteral("test.provider.gpu")));
+        QVERIFY(isEvidenceCodeV1(QStringLiteral("test.observed.range")));
+        QVERIFY(unitAppliesToV1(QStringLiteral("gpu.clock.maximum"), QStringLiteral("megahertz")));
+        QVERIFY(!unitAppliesToV1(QStringLiteral("gpu.clock.maximum"), QStringLiteral("watts")));
     }
 
     void enumValuesRequireAClosedAllowedSet()
@@ -353,16 +378,22 @@ private slots:
         capability.subjectId = Mock::testGpuSubjectId();
         capability.subjectKind = QStringLiteral("DISPLAY");
         capability.subjectId = QStringLiteral("display-test-0");
-        capability.capabilityId = QStringLiteral("display.scaling_mode");
+        capability.capabilityId = QStringLiteral("display.pixel_format");
         capability.supportState = QStringLiteral("SUPPORTED");
-        capability.providerId = QStringLiteral("provider.gpu");
-        capability.evidenceCode = QStringLiteral("provider.observed");
+        capability.providerId = QStringLiteral("test.provider.gpu");
+        capability.evidenceCode = QStringLiteral("test.observed.range");
         capability.configuredValue.kind = QStringLiteral("ENUM");
-        capability.configuredValue.enumValue = QStringLiteral("balanced");
-        capability.allowedValues = {QStringLiteral("quiet"), QStringLiteral("balanced")};
+        capability.configuredValue.enumValue = QStringLiteral("rgb_444_full");
+        capability.allowedValues = {QStringLiteral("rgb_444_limited"), QStringLiteral("rgb_444_full")};
         QVERIFY(capability.isValid());
 
-        capability.allowedValues = {QStringLiteral("quiet")};
+        capability.allowedValues = {QStringLiteral("rgb_444_limited")};
+        QVERIFY(!capability.isValid());
+
+        capability.configuredValue = {};
+        QVERIFY(capability.isValid());
+
+        capability.allowedValues = {QStringLiteral("invented_format")};
         QVERIFY(!capability.isValid());
     }
 

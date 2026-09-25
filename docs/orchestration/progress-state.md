@@ -57,10 +57,11 @@ remains the active implementation frontier.
   choices where the spec does not assign scope. Record validation enforces
   registry membership/scope, and the focused contract test checks token syntax,
   a golden v1 ID-set digest, every scope mapping, and unknown/wrong-scope
-  rejection. It is vocabulary only: provider/evidence registries,
-  source-qualified units and enum domains, graphics/runtime capabilities,
-  remaining display/system feature mappings, and
-  provider-backed graph construction remain open. `SessionService` still
+  rejection. It is vocabulary only: closed provider/evidence vocabularies and
+  capability-specific unit/enum mappings are now enforced, while hardware-backed
+  source qualification, graphics/runtime capabilities, remaining display/system
+  feature mappings, and provider-backed graph construction remain open.
+  `SessionService` still
   advances to READY after database initialization alone. Treating failed DRM
   access as an empty inventory or publishing a partial graph would violate the
   Hardware1 contract.

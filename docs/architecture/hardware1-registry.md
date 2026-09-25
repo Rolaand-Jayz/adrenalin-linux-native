@@ -34,14 +34,20 @@ SHA-256 digests over the sorted ID set and ID-to-scope mappings pin the v1
 vocabulary in its contract test. The
 registry does not use labels, marketing names, or array positions to infer scope.
 
-## Deliberately not assigned here
+## V1 record vocabularies
 
-The catalog does not assign units or enum domains. Those depend on provider
-semantics and verified source representation; a provider must use a token from
-the eventual versioned unit/enum vocabularies and may not invent a unit ad hoc.
-It also does not define provider IDs or evidence codes. Those vocabularies need
-the provider arbitration and evidence provenance contracts before providers can
-be selected or report support.
+Provider IDs, evidence codes, units, and closed enum values are also explicit
+v1 registries. `Capability::isValid()` rejects identifiers outside those
+registries, units that do not apply to the named capability, and enum options
+outside the capability's closed domain. A supported numeric value must use its
+registered capability-specific unit. A supported enum may publish provider-
+verified allowed options before a current configured/effective option is known.
+
+The current provider and evidence IDs are vocabulary tokens only. They do not
+assert a runtime provider exists, was selected, or observed a specific machine.
+Tokens under `test.*` are reserved for test fixtures. Unit and enum mappings are
+implementation-owned until reconciled with provider contracts and authentic
+reference behavior; registration alone does not certify parity or support.
 
 Game/runtime metrics such as FPS, frame time, percentile FPS, and stutter rate
 are omitted because this Hardware1 contract's subject kinds have no GAME

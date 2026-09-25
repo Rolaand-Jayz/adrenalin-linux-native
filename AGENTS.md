@@ -9,6 +9,7 @@
 ## Production requirements
 
 - Never hardcode machine-specific, user-specific, checkout-specific, or build-host filesystem paths. Derive paths from runtime discovery, configuration, XDG conventions, Qt, CMake, or GNUInstallDirs as appropriate. Fixed paths required by an operating-system or D-Bus protocol are protocol constants and must be documented as such.
+- Do not add absolute paths for the developer home, machine, workspace, checkout, or build directory to source, tests, build files, scripts, or public documentation. Use temporary directories in tests and derive runtime/install locations from platform APIs. Before marking path-related work complete, search changed files for absolute paths and explain any protocol-required constants.
 - Do not report a capability as complete when it is unavailable, unimplemented, only prepared, or only represented by a placeholder. Production behavior must fail clearly and safely when required evidence or a backend is unavailable.
 - Preserve distro, kernel, Mesa, firmware, and package-manager state. Implement user-space behavior within the approved project boundary.
 - Keep privacy, least privilege, read-only discovery, and fail-closed behavior consistent with the audited authority and safety documents.

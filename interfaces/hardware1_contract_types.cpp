@@ -180,21 +180,22 @@ bool Capability::isValid(QString *error) const
         }
     }
     if (supportState == QLatin1String("SUPPORTED")) {
-        if (!isIdentifier(providerId) || !isIdentifier(evidenceCode) || !failureCode.isEmpty()) {
+        if (!isProviderIdV1(providerId) || !isEvidenceCodeV1(evidenceCode)
+            || !failureCode.isEmpty()) {
             return fail(error, QStringLiteral("supported capability lacks provider/evidence or has a failure"));
         }
     } else if (supportState == QLatin1String("UNSUPPORTED")) {
-        if (!isIdentifier(evidenceCode) || !providerId.isEmpty() || !failureCode.isEmpty()
-            || !noValues(*this)) {
+        if (!isEvidenceCodeV1(evidenceCode) || !providerId.isEmpty() || !failureCode.isEmpty()
+            || !unit.isEmpty() || !noValues(*this)) {
             return fail(error, QStringLiteral("unsupported capability carries support values or provider data"));
         }
     } else if (supportState == QLatin1String("UNKNOWN")) {
-        if (!providerId.isEmpty() || !failureCode.isEmpty() || !noValues(*this)) {
+        if (!providerId.isEmpty() || !failureCode.isEmpty() || !unit.isEmpty() || !noValues(*this)) {
             return fail(error, QStringLiteral("unknown capability carries unsupported state data"));
         }
-    } else if ((!providerId.isEmpty() && !isIdentifier(providerId))
+    } else if ((!providerId.isEmpty() && !isProviderIdV1(providerId))
                || failureCode != QLatin1String("BACKEND_UNAVAILABLE")
-               || !noValues(*this)) {
+               || !unit.isEmpty() || !noValues(*this)) {
         return fail(error, QStringLiteral("unavailable provider capability has inconsistent state"));
     }
     if (!failureCode.isEmpty() && !operationResultCodeFromName(failureCode)) {
@@ -203,7 +204,8 @@ bool Capability::isValid(QString *error) const
     if (!allowedValues.isEmpty()) {
         QSet<QString> uniqueValues;
         for (const QString &allowedValue : allowedValues) {
-            if (!isIdentifier(allowedValue) || uniqueValues.contains(allowedValue)) {
+            if (!enumValueAppliesToV1(capabilityId, allowedValue)
+                || uniqueValues.contains(allowedValue)) {
                 return fail(error, QStringLiteral("allowed enum values are invalid or duplicated"));
             }
             uniqueValues.insert(allowedValue);
@@ -249,12 +251,22 @@ bool Capability::isValid(QString *error) const
         return fail(error, QStringLiteral("range and value kinds differ"));
     }
     const QString effectiveKind = valueKind.isEmpty() ? minimum.kind : valueKind;
-    if ((isNumericKind(effectiveKind) && !isIdentifier(unit))
+    if ((isNumericKind(effectiveKind)
+         && (!isUnitV1(unit) || !unitAppliesToV1(capabilityId, unit)))
         || ((effectiveKind == QLatin1String("BOOLEAN") || effectiveKind == QLatin1String("ENUM"))
             && !unit.isEmpty())) {
         return fail(error, QStringLiteral("unit does not match the capability value kind"));
     }
-    if ((effectiveKind == QLatin1String("ENUM")) != !allowedValues.isEmpty()) {
+    if (!unit.isEmpty() && (!isUnitV1(unit) || !unitAppliesToV1(capabilityId, unit))) {
+        return fail(error, QStringLiteral("unit is not registered for this capability"));
+    }
+    const bool hasEnumValue = configuredValue.kind == QLatin1String("ENUM")
+        || effectiveValue.kind == QLatin1String("ENUM");
+    const bool hasNonEnumValue = (isNumericKind(effectiveKind)
+                                  || effectiveKind == QLatin1String("BOOLEAN"))
+        && !noValue(configuredValue) && !noValue(effectiveValue);
+    if ((hasEnumValue && allowedValues.isEmpty())
+        || (!allowedValues.isEmpty() && hasNonEnumValue)) {
         return fail(error, QStringLiteral("allowed enum values do not match the value kind"));
     }
     if ((effectiveKind == QLatin1String("BOOLEAN") || effectiveKind == QLatin1String("ENUM"))
