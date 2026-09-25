@@ -18,7 +18,7 @@ jobs:
       - name: Install build and test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes cmake ninja-build g++ pkg-config libsystemd-dev libdrm-dev desktop-file-utils libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 dbus catch2
+          sudo apt-get install --yes cmake ninja-build g++ pkg-config libsystemd-dev libdrm-dev libhwloc-dev desktop-file-utils libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 dbus catch2
       - name: Reject unsupported activation paths
         run: |
           invalid_parent="$(mktemp -d)"

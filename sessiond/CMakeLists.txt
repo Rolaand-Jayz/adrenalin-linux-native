@@ -58,20 +58,26 @@ adrenalin_session_enable_strict_warnings(adrenalin-session-contract-mock)
 if(ADRENALIN_BUILD_SESSION_SERVICE)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
-    add_library(adrenalin-linux-drm-inventory-source STATIC
+    pkg_check_modules(HWLOC REQUIRED IMPORTED_TARGET hwloc)
+    add_library(adrenalin-linux-hardware-inventory-sources STATIC
         ../interfaces/linux_drm_inventory_source.cpp
         ../interfaces/linux_drm_inventory_source.h
         ../interfaces/pci_gpu_subject_identity.cpp
         ../interfaces/pci_gpu_subject_identity.h
+        ../interfaces/linux_drm_display_source.cpp
+        ../interfaces/linux_drm_display_source.h
+        ../interfaces/linux_cpu_package_source.cpp
+        ../interfaces/linux_cpu_package_source.h
     )
-    target_include_directories(adrenalin-linux-drm-inventory-source PUBLIC
+    target_include_directories(adrenalin-linux-hardware-inventory-sources PUBLIC
         "${ADRENALIN_SOURCE_ROOT}/interfaces"
     )
-    target_link_libraries(adrenalin-linux-drm-inventory-source PUBLIC
+    target_link_libraries(adrenalin-linux-hardware-inventory-sources PUBLIC
         Qt6::Core
         PkgConfig::LIBDRM
+        PkgConfig::HWLOC
     )
-    adrenalin_session_enable_strict_warnings(adrenalin-linux-drm-inventory-source)
+    adrenalin_session_enable_strict_warnings(adrenalin-linux-hardware-inventory-sources)
 
     find_package(Qt6 6.8 REQUIRED COMPONENTS Sql)
     set(ADRENALIN_SESSION_ADAPTOR_FILES)

@@ -166,8 +166,25 @@ own acceptance criteria and dependency gates pass.
     all paths. Its focused project CTest passes. A versioned SHA-256 mapper turns
     validated PCI address/vendor/device evidence into deterministic opaque
     `GPU_PCI` subject IDs; the ID changes if that topology evidence changes. This
-    remains partial groundwork: CPU/display reconciliation, a complete capability
-    graph, production Hardware1 export, and ID-185 recovery remain open.
+    remains partial groundwork: complete CPU/display reconciliation, a complete
+    capability graph, production Hardware1 export, and ID-185 recovery remain open.
+  - [x] A bounded hwloc CPU-package source derives opaque package identities from
+    physical package/topology and CPU signature evidence. It rejects incomplete
+    or contradictory package evidence and verifies every PU represented by the
+    loaded topology maps to exactly one enumerated package. Focused project CTest
+    passes; this source is not yet reconciled into a complete Hardware1 snapshot.
+  - [x] A bounded, read-only libdrm display evidence source derives opaque display
+    identities from an owning GPU token, connector identity, and selected EDID
+    identity fields. It excludes EDID serial/text data, validates malformed
+    resource/property arrays, and passes focused project CTest. This is not Tier-1
+    Wayland/X11 display discovery and does not complete Ticket 19 or Hardware1.
+  - [x] The production source library compiles with both new sources under strict
+    warnings; a full GUI/session-service build with BUILD_TESTING=OFF succeeds.
+    Four focused CTest suites pass: GPU inventory, GPU subject identity, DRM
+    display evidence, and CPU package evidence. Local test configuration used a
+    temporary Catch2 package shim because Catch2 v3 is absent; only the four
+    named suites were built and run. Hosted CI and live hardware discovery remain
+    unverified.
 
 **Additional audited-spec tracking (ID-185):**
 

@@ -217,3 +217,85 @@ endif()
 add_test(NAME adrenalin-pci-gpu-subject-identity
     COMMAND $<TARGET_FILE:adrenalin-pci-gpu-subject-identity-test>
 )
+
+# Read-only display and CPU topology sources have validation seams so malformed
+# provider evidence can be exercised without depending on this host's devices.
+add_library(adrenalin-linux-drm-display-source-testable STATIC
+    ../../interfaces/linux_drm_display_source.cpp
+    ../../interfaces/linux_drm_display_source.h
+    ../../interfaces/pci_gpu_subject_identity.cpp
+    ../../interfaces/pci_gpu_subject_identity.h
+)
+target_compile_definitions(adrenalin-linux-drm-display-source-testable PUBLIC
+    ADRENALIN_DRM_DISPLAY_SOURCE_TESTING
+)
+target_include_directories(adrenalin-linux-drm-display-source-testable PUBLIC
+    "${ADRENALIN_SOURCE_ROOT}/interfaces"
+)
+target_link_libraries(adrenalin-linux-drm-display-source-testable PUBLIC
+    Qt6::Core
+    PkgConfig::LIBDRM
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-drm-display-source-testable PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+
+qt_add_executable(adrenalin-linux-drm-display-source-test
+    linux_drm_display_source_test.cpp
+)
+target_include_directories(adrenalin-linux-drm-display-source-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-linux-drm-display-source-test PRIVATE
+    adrenalin-linux-drm-display-source-testable
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-drm-display-source-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-linux-drm-display-source
+    COMMAND $<TARGET_FILE:adrenalin-linux-drm-display-source-test>
+)
+
+add_library(adrenalin-linux-cpu-package-source-testable STATIC
+    ../../interfaces/linux_cpu_package_source.cpp
+    ../../interfaces/linux_cpu_package_source.h
+)
+target_compile_definitions(adrenalin-linux-cpu-package-source-testable PUBLIC
+    ADRENALIN_CPU_PACKAGE_SOURCE_TESTING
+)
+target_include_directories(adrenalin-linux-cpu-package-source-testable PUBLIC
+    "${ADRENALIN_SOURCE_ROOT}/interfaces"
+)
+target_link_libraries(adrenalin-linux-cpu-package-source-testable PUBLIC
+    Qt6::Core
+    PkgConfig::HWLOC
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-cpu-package-source-testable PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+
+qt_add_executable(adrenalin-linux-cpu-package-source-test
+    linux_cpu_package_source_test.cpp
+)
+target_include_directories(adrenalin-linux-cpu-package-source-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-linux-cpu-package-source-test PRIVATE
+    adrenalin-linux-cpu-package-source-testable
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-cpu-package-source-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-linux-cpu-package-source
+    COMMAND $<TARGET_FILE:adrenalin-linux-cpu-package-source-test>
+)
