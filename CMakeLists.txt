@@ -124,6 +124,9 @@ if(ADRENALIN_BUILD_GUI)
     set_source_files_properties(qml/preferences/ProductTelemetryConsent.qml
         PROPERTIES QT_RESOURCE_ALIAS ProductTelemetryConsent.qml
     )
+    set_source_files_properties(qml/preferences/ToastNotificationsPreference.qml
+        PROPERTIES QT_RESOURCE_ALIAS ToastNotificationsPreference.qml
+    )
     set_source_files_properties(qml/NotificationsPanel.qml
         PROPERTIES QT_RESOURCE_ALIAS NotificationsPanel.qml
     )
@@ -138,6 +141,7 @@ if(ADRENALIN_BUILD_GUI)
             qml/Main.qml
             qml/NotificationsPanel.qml
             qml/preferences/ProductTelemetryConsent.qml
+            qml/preferences/ToastNotificationsPreference.qml
     )
 
     target_link_libraries(adrenalin-shell

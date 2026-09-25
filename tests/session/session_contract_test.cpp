@@ -526,6 +526,7 @@ private slots:
     void clientRefreshesAfterForeignOrMismatchedEvents();
     void clientIgnoresDuplicateEventSequence();
     void qmlPreferenceRoundTripsAndSurvivesGuiRestart();
+    void qmlToastPreferenceRoundTripsAndSurvivesGuiRestart();
 
 private:
     QVariantMap serviceChangedProperties_;
@@ -1909,6 +1910,86 @@ void SessionContractTest::qmlPreferenceRoundTripsAndSurvivesGuiRestart()
     restartedEngine.reset();
     restartedClient.reset();
     bus.unregisterService(QString::fromLatin1(kServiceName));
+    bus.unregisterObject(QString::fromLatin1(kObjectPath));
+}
+
+void SessionContractTest::qmlToastPreferenceRoundTripsAndSurvivesGuiRestart()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+
+    SessionService service(databasePath);
+    Settings1Adaptor settingsAdaptor(&service);
+    SessionServiceRootAdaptor readinessAdaptor(&service);
+    installService1PropertyNotifications(&service);
+    Q_UNUSED(settingsAdaptor);
+    Q_UNUSED(readinessAdaptor);
+    QVERIFY(bus.registerObject(QString::fromLatin1(kObjectPath), &service,
+                               QDBusConnection::ExportAdaptors));
+    QVERIFY(bus.registerService(QString::fromLatin1(kServiceName)));
+    QVERIFY(service.initialize());
+
+    auto launchUi = [](std::unique_ptr<ToastNotificationsClient> &client,
+                       std::unique_ptr<QQmlApplicationEngine> &engine) -> QObject * {
+        client = std::make_unique<ToastNotificationsClient>();
+        engine = std::make_unique<QQmlApplicationEngine>();
+        engine->rootContext()->setContextProperty(
+            QStringLiteral("sessionToastNotificationsClient"), client.get());
+        engine->loadFromModule(QStringLiteral("Adrenalin.SessionTests"),
+                               QStringLiteral("ToastPreferenceHarness"));
+        if (engine->rootObjects().isEmpty()) return nullptr;
+        return engine->rootObjects().constFirst();
+    };
+
+    std::unique_ptr<ToastNotificationsClient> firstClient;
+    std::unique_ptr<QQmlApplicationEngine> firstEngine;
+    QObject *firstRoot = launchUi(firstClient, firstEngine);
+    QVERIFY(firstRoot != nullptr);
+    QTRY_VERIFY_WITH_TIMEOUT(firstClient->ready(), 2000);
+    QVERIFY(!firstClient->configured());
+    QObject *firstSwitch = firstRoot->findChild<QObject *>(
+        QStringLiteral("toastNotificationsSwitch"));
+    QObject *saveOff = firstRoot->findChild<QObject *>(
+        QStringLiteral("saveToastNotificationsOffButton"));
+    QObject *unconfiguredStatus = firstRoot->findChild<QObject *>(
+        QStringLiteral("toastNotificationsUnconfiguredStatus"));
+    QVERIFY(firstSwitch != nullptr);
+    QVERIFY(saveOff != nullptr);
+    QVERIFY(unconfiguredStatus != nullptr);
+    QVERIFY(!firstSwitch->property("checked").toBool());
+    QVERIFY(firstSwitch->property("enabled").toBool());
+    QVERIFY(unconfiguredStatus->property("visible").toBool());
+    QVERIFY(QMetaObject::invokeMethod(saveOff, "click"));
+    QTRY_VERIFY_WITH_TIMEOUT(firstClient->ready() && firstClient->configured(), 2000);
+    QVERIFY(!firstClient->enabled());
+    QCOMPARE(firstClient->revision(), qulonglong(1));
+
+    firstEngine.reset();
+    firstClient.reset();
+
+    std::unique_ptr<ToastNotificationsClient> restartedClient;
+    std::unique_ptr<QQmlApplicationEngine> restartedEngine;
+    QObject *restartedRoot = launchUi(restartedClient, restartedEngine);
+    QVERIFY(restartedRoot != nullptr);
+    QTRY_VERIFY_WITH_TIMEOUT(restartedClient->ready(), 2000);
+    QVERIFY(restartedClient->configured());
+    QVERIFY(!restartedClient->enabled());
+    QCOMPARE(restartedClient->revision(), qulonglong(1));
+    QObject *restartedSwitch = restartedRoot->findChild<QObject *>(
+        QStringLiteral("toastNotificationsSwitch"));
+    QVERIFY(restartedSwitch != nullptr);
+    QVERIFY(!restartedSwitch->property("checked").toBool());
+    QVERIFY(restartedSwitch->property("enabled").toBool());
+    QVERIFY(QMetaObject::invokeMethod(restartedSwitch, "click"));
+    QTRY_VERIFY_WITH_TIMEOUT(restartedClient->ready() && restartedClient->enabled(), 2000);
+    QCOMPARE(restartedClient->revision(), qulonglong(2));
+
+    restartedEngine.reset();
+    restartedClient.reset();
+    QVERIFY(bus.unregisterService(QString::fromLatin1(kServiceName)));
     bus.unregisterObject(QString::fromLatin1(kObjectPath));
 }
 

@@ -1,6 +1,7 @@
 #include "application_config.h"
 #include "interfaces/settings1_client.h"
 #include "interfaces/notifications1_client.h"
+#include "interfaces/toast_notifications_client.h"
 #include "interfaces/hardware1_client.h"
 #include "session_identity.h"
 
@@ -256,6 +257,7 @@ int main(int argc, char *argv[])
 
     Settings1Client settingsClient;
     Notifications1Client notificationsClient;
+    ToastNotificationsClient toastNotificationsClient;
     adrenalin::contracts::hardware1::Client hardwareClient(
         QString::fromLatin1(adrenalin::session1::serviceName),
         QString::fromLatin1(adrenalin::session1::objectPath), QDBusConnection::sessionBus());
@@ -266,6 +268,8 @@ int main(int argc, char *argv[])
                                              &settingsClient);
     engine.rootContext()->setContextProperty(QStringLiteral("sessionNotificationsClient"),
                                              &notificationsClient);
+    engine.rootContext()->setContextProperty(QStringLiteral("sessionToastNotificationsClient"),
+                                             &toastNotificationsClient);
     engine.rootContext()->setContextProperty(QStringLiteral("sessionHardware1Client"),
                                              &hardwareClient);
     engine.loadFromModule(QStringLiteral("Adrenalin.Shell"), QStringLiteral("Main"));

@@ -473,14 +473,20 @@ open.
     A production Qt client now reconciles the service identity/generation and
     shared cursor, advances over unrelated events, fails closed on event gaps,
     and recovers after daemon restart; private-bus coverage exercises those paths.
+    The shell now exposes an accessible preference control through that client;
+    it distinguishes the unset state, lets the user explicitly save either value,
+    and says that toast delivery is not implemented. A Qt/QML private-bus test
+    verifies explicit disable, persistence after UI restart, and enabling later.
     Independent review found and the backend now rejects inconsistent configured/
     revision pairs in persisted state. The client test does not yet simulate a
-    lost mutation reply and replay.
-    Strict-warning service/test targets build; focused regression CTest passes 4/4
-    for Session1, Hardware1 service, profile persistence, and Notifications1
-    contract. General settings enumeration, import/export, reference-derived
-    default behavior, and the user-facing preference control remain open; this
-    partial family slice does not close Ticket 03 or ID-107.
+    lost mutation reply and replay. This control currently sits on the shell's
+    landing surface; the full Settings > Preferences hierarchy remains open.
+    Strict-warning service, shell, and test targets build; focused regression CTest
+    passes 5/5 for shell smoke, Session1, Hardware1 service, profile persistence,
+    and Notifications1 contract. General settings enumeration, import/export, and
+    reference-derived default behavior remain open; this partial family slice does
+    not close Ticket 03 or ID-107. The full Preferences hierarchy, visual parity,
+    and actual toast delivery behavior remain separate acceptance work.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device
     identity evidence, rejects malformed or duplicate PCI evidence, distinguishes
     enumeration errors from a valid empty inventory, and frees libdrm records on

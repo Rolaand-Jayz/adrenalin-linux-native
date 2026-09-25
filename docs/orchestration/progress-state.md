@@ -258,11 +258,19 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   these paths. Independent review identified a persisted configured/revision
   pairing gap, which is now rejected by the backend and covered by corruption
   tests. Lost-reply mutation replay is not yet covered by a client test.
-  Strict-warning targets build and focused CTest passes 4/4
-  for Session1, Hardware1 session service, profile persistence, and Notifications1
-  contract. This is backend/API scope only: no preference UI, general settings
-  enumeration, export/import, or reference-derived default is claimed. Ticket 03
-  and ID-107 remain open.
+  The shell now has an accessible QML control over this client, including an
+  explicit unset state and save-off action; it states that delivery is not
+  implemented. A real SessionService/D-Bus/QML integration test saves off,
+  destroys and recreates the UI, verifies the saved state, then enables the
+  preference. The control is mounted on the current landing surface because the
+  full Settings > Preferences navigation remains open.
+  Strict-warning service, shell, and test targets build; focused regression CTest
+  passes 5/5 for shell smoke, Session1, Hardware1 session service, profile
+  persistence, and Notifications1 contract. This remains a bounded backend/API
+  and preference-control slice: the full Settings hierarchy, general settings
+  enumeration, export/import, and reference-derived default are not implemented.
+  Actual toast delivery and visual parity remain unimplemented. Ticket 03 and
+  ID-107 remain open.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,

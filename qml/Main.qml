@@ -120,6 +120,12 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 settingsClient: sessionSettingsClient
             }
+
+            ToastNotificationsPreference {
+                objectName: "toastNotificationsPreference"
+                Layout.fillWidth: true
+                client: sessionToastNotificationsClient
+            }
         }
 
         Item { Layout.fillHeight: true }

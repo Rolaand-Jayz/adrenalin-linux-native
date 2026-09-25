@@ -12,12 +12,20 @@ set_source_files_properties(PreferenceHarness.qml
 set_source_files_properties("${ADRENALIN_SOURCE_ROOT}/qml/preferences/ProductTelemetryConsent.qml"
     PROPERTIES QT_RESOURCE_ALIAS ProductTelemetryConsent.qml
 )
+set_source_files_properties(ToastPreferenceHarness.qml
+    PROPERTIES QT_RESOURCE_ALIAS ToastPreferenceHarness.qml
+)
+set_source_files_properties("${ADRENALIN_SOURCE_ROOT}/qml/preferences/ToastNotificationsPreference.qml"
+    PROPERTIES QT_RESOURCE_ALIAS ToastNotificationsPreference.qml
+)
 qt_add_qml_module(adrenalin-session-contract-test
     URI Adrenalin.SessionTests
     VERSION 1.0
     QML_FILES
         PreferenceHarness.qml
         "${ADRENALIN_SOURCE_ROOT}/qml/preferences/ProductTelemetryConsent.qml"
+        ToastPreferenceHarness.qml
+        "${ADRENALIN_SOURCE_ROOT}/qml/preferences/ToastNotificationsPreference.qml"
 )
 target_include_directories(adrenalin-session-contract-test PRIVATE
     "${ADRENALIN_SOURCE_ROOT}"
@@ -42,7 +50,7 @@ add_test(NAME adrenalin-session-contract
     COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-session-contract-test>
 )
 set_tests_properties(adrenalin-session-contract PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 30
 )
 
