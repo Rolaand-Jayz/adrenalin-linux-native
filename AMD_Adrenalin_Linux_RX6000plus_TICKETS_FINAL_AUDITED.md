@@ -105,8 +105,16 @@ own acceptance criteria and dependency gates pass.
   authentic collection but does not supply captures, reviews, attestation, or a
   passing comparison; the acceptance gates above remain open.
 
-**Progress (2026-09-25):** Added semantic accessible names and roles for the
-current shell header, title, platform label, telemetry settings, and switch. The
+**Progress (2026-09-25):** Added a real-render candidate-capture CTest under Xvfb.
+At scale factor 2 it verifies a 1280x800 logical request produces a 2560x1600
+PNG and checks the geometry schema, self-reported source, required unique
+component IDs, and in-image rectangles. It does not establish independent
+geometry attestation or parity. The test uses temporary output paths and an
+unserved per-test D-Bus address so portal activation cannot outlive the isolated
+test session. Xvfb is declared as a test dependency in CI.
+
+Added semantic accessible names and roles for the current shell header, title,
+platform label, telemetry settings, and switch. The
 external AT-SPI harness found all eight required name/role pairs with positive
 extents inside the live frame under Xvfb. A scale-2 probe confirmed the external
 screen coordinates match physical Xvfb dimensions in that environment only;
@@ -178,8 +186,13 @@ required for Ticket 02 acceptance.
     target injects snapshots only in private-bus tests. Failed inventory keeps the
     service FAILED and returns typed BACKEND_UNAVAILABLE replies without payload.
     Focused production build and private-bus test passed. This is initial-snapshot
-    coverage only: refresh/removal reconciliation and ID-185 readiness integration
-    remain open.
+    coverage only: service-level refresh/removal observation, DEVICE_DISCONNECTED
+    behavior, and ID-185 readiness integration remain open.
+  - [x] Provider-level successful GPU-plus-dependent-display and display-only
+    removal regressions verify reduced device/info/capability snapshots, retained
+    unaffected subjects, and content-based generation advancement/stability. This
+    validates the provider snapshot seam only; runtime hotplug/event publication
+    and removal-aware service replies remain open.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device
@@ -188,18 +201,21 @@ required for Ticket 02 acceptance.
     all paths. Its focused project CTest passes. A versioned SHA-256 mapper turns
     validated PCI address/vendor/device evidence into deterministic opaque
     `GPU_PCI` subject IDs; the ID changes if that topology evidence changes. This
-    remains partial groundwork: complete CPU/display reconciliation, a complete
-    capability graph, production Hardware1 export, and ID-185 recovery remain open.
+    source now contributes to the production provider's initial Hardware1 snapshot;
+    hardware-backed feature support, runtime removal observation, broader parity
+    mappings, and ID-185 recovery remain open.
   - [x] A bounded hwloc CPU-package source derives opaque package identities from
     physical package/topology and CPU signature evidence. It rejects incomplete
     or contradictory package evidence and verifies every PU represented by the
     loaded topology maps to exactly one enumerated package. Focused project CTest
-    passes; this source is not yet reconciled into a complete Hardware1 snapshot.
+    passes; this source contributes opaque CPU_PACKAGE records to the initial
+    provider snapshot.
   - [x] A bounded, read-only libdrm display evidence source derives opaque display
     identities from an owning GPU token, connector identity, and selected EDID
     identity fields. It excludes EDID serial/text data, validates malformed
-    resource/property arrays, and passes focused project CTest. This is not Tier-1
-    Wayland/X11 display discovery and does not complete Ticket 19 or Hardware1.
+    resource/property arrays, and passes focused project CTest. These display
+    identity observations feed the initial Hardware1 snapshot; they are not Tier-1
+    Wayland/X11 display discovery and do not complete Ticket 19 or Hardware1.
   - [x] The production source library compiles with both new sources under strict
     warnings; a full GUI/session-service build with BUILD_TESTING=OFF succeeds.
     Four focused CTest suites pass: GPU inventory, GPU subject identity, DRM
@@ -252,20 +268,19 @@ required for Ticket 02 acceptance.
     connector/digest/subject-ID rejection. Validation also passed the adjacent
     DRM inventory, display, CPU package, session-contract, and Hardware1-contract
     CTest suites (5/5); session contract tests were run with private D-Bus access.
-    This bounded provider slice is not yet
-    exported through the session Hardware1 D-Bus object and does not complete ID-185 recovery.
-  - [ ] Production snapshot integration remains open beyond the bounded ID/scope
-    catalog: hardware-backed source/provider qualification, further
-    parity-feature mappings (including game/runtime and tuning controls), and
-    production D-Bus export still remain. The bounded composer now produces a
-    registry-complete initial graph with UNKNOWN states, but it does not claim
-    feature support or provide the reference-backed semantics needed for parity.
-    A read-only architecture review confirmed that treating missing DRM access as
-    an empty inventory, returning a partial graph, or adapting the test mock would
-    violate the contract. ID-107's remaining operation families also depend on shared
-    schemas/providers or prerequisite tickets; no independent implementation was
-    found in this audit. Production Hardware1 export and ID-185 therefore remain
-    open.
+    The initial snapshot is now exported through the production Session1 Hardware1
+    object and covered by a private-bus integration test. Provider runtime refresh,
+    hotplug event publication, removal-aware service replies, provider-backed
+    feature state, and ID-185 recovery remain open.
+  - [ ] Production snapshot integration remains partial beyond the bounded ID/scope
+    catalog: initial inventory and the registry-complete UNKNOWN graph are exported
+    through Hardware1, but supported hardware state, further parity-feature
+    mappings (including game/runtime and tuning controls), runtime refresh/removal
+    publication, and reference-backed semantics remain open. A failed source does
+    not become an empty successful inventory, and test snapshot injection is
+    isolated from the shipping daemon. ID-107's remaining operation families still
+    depend on shared schemas/providers or prerequisite tickets. Ticket 03 and ID-185
+    remain open.
 
 **Additional audited-spec tracking (ID-185):**
 

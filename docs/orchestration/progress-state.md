@@ -35,11 +35,14 @@ remains the active implementation frontier.
   existing build tree because `tests/identity_test.cpp` cannot find the Catch2
   header `catch2/catch_test_macros.hpp`; the affected implementation targets and
   focused suites build and pass independently.
-- The native QML shell now exposes accessible names and roles for eight visible
-  component identities. A separate AT-SPI process verified those semantics and
-  positive in-frame extents under Xvfb. Scale-2 Xvfb showed physical-screen
-  extents in that test environment; WM and Wayland mapping and independent
-  candidate-geometry attestation remain unproven.
+- The native QML shell now exposes accessible names and roles for visible
+  component identities. A separate AT-SPI process verified eight name/role pairs
+  and positive in-frame extents under Xvfb. A candidate-capture CTest also runs a
+  real scale-2 render and checks PNG dimensions, geometry schema/source, unique
+  component IDs, and rectangle bounds. Its geometry is explicitly
+  self-reported; WM/Wayland physical-pixel mapping, independent attestation, and
+  parity remain unproven. The Xvfb smoke passed 1/1 after isolating its capture
+  process from D-Bus activation.
 - A read-only libdrm PCI inventory source is now implemented as isolated
   ID-104 groundwork. It bounds enumeration, validates PCI evidence, filters
   AMD vendor IDs, canonicalizes transient BDF evidence, rejects duplicates,
@@ -59,12 +62,16 @@ remains the active implementation frontier.
   real inventory provider; focused private-bus integration covers the generated
   adaptor. Failed inventory leaves the service FAILED with empty typed failure
   replies. Refresh/removal reconciliation, ID-107's remaining operation families,
-  event gap reconciliation, and full ID-185 startup recovery remain open. The
-  separate test-only snapshot injection target is not used by the production daemon.
-- The current service completes database initialization before READY, but it does
-  not yet perform the full ID-185 reconciliation sequence. Hardware/display
-  inventory/recovery, capability rebuild, telemetry recreation, hotkey rebind,
-  gamewatch/capture republish, and client snapshot reconciliation remain open.
+  event gap reconciliation, and full ID-185 startup recovery remain open. New
+  provider-level successful GPU/display removal tests verify reduced authoritative
+  snapshots and content-based generation changes; they do not establish runtime
+  hotplug observation or DEVICE_DISCONNECTED service replies. The separate test-only
+  snapshot injection target is not used by the production daemon.
+- Successful startup now completes database recovery and initial Hardware1 inventory
+  composition before READY. This still does not perform the full ID-185 sequence:
+  display recovery, capability rebuild after runtime changes, telemetry recreation,
+  hotkey rebind, gamewatch/capture republish, and client snapshot reconciliation
+  remain open.
 - The service now exposes a nonzero provisional generation during STARTING,
   allowing valid Hardware1 BUSY invalid-snapshot envelopes before SQLite recovery
   has loaded the persisted service generation. Recovery keeps that value or
@@ -220,10 +227,10 @@ remains the active implementation frontier.
 1. Ticket 02 local harness and operator workflow are ready; keep its authentic
    reference capture, independent geometry attestation, reviewed annotation, and
    passing parity gates open until external evidence arrives.
-2. Extend Ticket 03 beyond the initial Hardware1 snapshot: implement refresh and
-   removal reconciliation, then resolve the ID-185 readiness dependency cycle
-   centrally before integrating the remaining recovery families. Keep Telemetry1
-   fixtures separate from production.
+2. Extend Ticket 03 beyond provider-level removal reconciliation with a
+   spec-backed service refresh/removal trigger and removal-aware replies; resolve
+   the ID-185 readiness dependency cycle centrally before integrating the remaining
+   recovery families. Keep Telemetry1 fixtures separate from production.
 3. Resolve the central Notifications1 wire contract before implementation; then
    complete the remaining ID-105/107 topology, ID-106 service readiness, common
    ID-093 event reconciliation, and ID-185 recovery requirements.

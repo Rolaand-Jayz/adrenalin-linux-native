@@ -170,10 +170,11 @@ if(BUILD_TESTING)
     if(ADRENALIN_BUILD_GUI)
         find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
         find_program(DBUS_RUN_SESSION_EXECUTABLE dbus-run-session REQUIRED)
+        find_program(XVFB_RUN_EXECUTABLE xvfb-run REQUIRED)
         add_executable(adrenalin-shell-smoke-test
             tests/shell_smoke_test.cpp
         )
-        target_link_libraries(adrenalin-shell-smoke-test PRIVATE Qt6::Test)
+        target_link_libraries(adrenalin-shell-smoke-test PRIVATE Qt6::Test Qt6::Gui)
         adrenalin_enable_strict_warnings(adrenalin-shell-smoke-test)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
            AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
@@ -182,10 +183,11 @@ if(BUILD_TESTING)
             )
         endif()
         add_test(NAME adrenalin-shell-smoke
-            COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-shell-smoke-test>)
+            COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- "${XVFB_RUN_EXECUTABLE}" -a
+                -s "-screen 0 2560x1600x24" $<TARGET_FILE:adrenalin-shell-smoke-test>)
         set_tests_properties(adrenalin-shell-smoke PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ADRENALIN_SHELL_EXECUTABLE=$<TARGET_FILE:adrenalin-shell>"
-            TIMEOUT 15
+            TIMEOUT 30
         )
     endif()
 endif()

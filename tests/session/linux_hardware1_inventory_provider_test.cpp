@@ -239,6 +239,126 @@ private slots:
         QCOMPARE(provider.snapshot().inventoryGeneration, recovered.inventoryGeneration);
         QCOMPARE(provider.snapshot().capabilityGeneration, recovered.capabilityGeneration);
     }
+
+    void successfulSubjectRemovalReconcilesInventoryAndCapabilityGraph()
+    {
+        LinuxHardware1InventoryProvider provider;
+        Hardware1Evidence input = evidence();
+        const Hardware1Snapshot initial = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(initial.success);
+
+        const auto removedGpuIdentity = gpuSubjectIdentity(input.gpus.devices[1]);
+        QVERIFY(removedGpuIdentity.has_value());
+        const QString removedGpuId = removedGpuIdentity->subjectId;
+        const QString removedDisplayId = input.displays.displays[1].subjectId;
+        const auto retainedGpuIdentity = gpuSubjectIdentity(input.gpus.devices[0]);
+        QVERIFY(retainedGpuIdentity.has_value());
+        const QString retainedGpuId = retainedGpuIdentity->subjectId;
+        const QString retainedDisplayId = input.displays.displays[0].subjectId;
+
+        input.gpus.devices.removeAt(1);
+        input.displays.displays.removeAt(1);
+        const Hardware1Snapshot reconciled = provider.refreshWithEvidenceForTesting(input);
+
+        QVERIFY(reconciled.success);
+        QCOMPARE(reconciled.inventoryGeneration, initial.inventoryGeneration + 1);
+        QCOMPARE(reconciled.capabilityGeneration, initial.capabilityGeneration + 1);
+        QVERIFY(std::none_of(reconciled.devices.cbegin(), reconciled.devices.cend(),
+            [&removedGpuId, &removedDisplayId](const Device &device) {
+                return (device.subjectKind == QStringLiteral("GPU_PCI")
+                        && device.subjectId == removedGpuId)
+                    || (device.subjectKind == QStringLiteral("DISPLAY")
+                        && device.subjectId == removedDisplayId);
+            }));
+        QVERIFY(std::none_of(reconciled.deviceInfo.cbegin(), reconciled.deviceInfo.cend(),
+            [&removedGpuId, &removedDisplayId](const DeviceInfo &info) {
+                return (info.subjectKind == QStringLiteral("GPU_PCI")
+                        && info.subjectId == removedGpuId)
+                    || (info.subjectKind == QStringLiteral("DISPLAY")
+                        && info.subjectId == removedDisplayId);
+            }));
+        QVERIFY(std::none_of(reconciled.capabilities.cbegin(), reconciled.capabilities.cend(),
+            [&removedGpuId, &removedDisplayId](const Capability &capability) {
+                return (capability.subjectKind == QStringLiteral("GPU_PCI")
+                        && capability.subjectId == removedGpuId)
+                    || (capability.subjectKind == QStringLiteral("DISPLAY")
+                        && capability.subjectId == removedDisplayId);
+            }));
+        QVERIFY(std::any_of(reconciled.devices.cbegin(), reconciled.devices.cend(),
+            [&retainedGpuId](const Device &device) {
+                return device.subjectKind == QStringLiteral("GPU_PCI")
+                    && device.subjectId == retainedGpuId;
+            }));
+        QVERIFY(std::any_of(reconciled.devices.cbegin(), reconciled.devices.cend(),
+            [&retainedDisplayId](const Device &device) {
+                return device.subjectKind == QStringLiteral("DISPLAY")
+                    && device.subjectId == retainedDisplayId;
+            }));
+        QVERIFY(std::any_of(reconciled.capabilities.cbegin(), reconciled.capabilities.cend(),
+            [](const Capability &capability) {
+                return capability.subjectKind == QStringLiteral("PLATFORM")
+                    && capability.subjectId == QStringLiteral("platform");
+            }));
+
+        const Hardware1Snapshot stable = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(stable.success);
+        QCOMPARE(stable.inventoryGeneration, reconciled.inventoryGeneration);
+        QCOMPARE(stable.capabilityGeneration, reconciled.capabilityGeneration);
+    }
+
+    void successfulDisplayRemovalRetainsParentGpuAndPlatformCapabilities()
+    {
+        LinuxHardware1InventoryProvider provider;
+        Hardware1Evidence input = evidence();
+        const Hardware1Snapshot initial = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(initial.success);
+
+        const auto parentGpuIdentity = gpuSubjectIdentity(input.gpus.devices[1]);
+        QVERIFY(parentGpuIdentity.has_value());
+        const QString parentGpuId = parentGpuIdentity->subjectId;
+        const QString removedDisplayId = input.displays.displays[1].subjectId;
+        input.displays.displays.removeAt(1);
+
+        const Hardware1Snapshot reconciled = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(reconciled.success);
+        QCOMPARE(reconciled.inventoryGeneration, initial.inventoryGeneration + 1);
+        QCOMPARE(reconciled.capabilityGeneration, initial.capabilityGeneration + 1);
+        QVERIFY(std::any_of(reconciled.devices.cbegin(), reconciled.devices.cend(),
+            [&parentGpuId](const Device &device) {
+                return device.subjectKind == QStringLiteral("GPU_PCI")
+                    && device.subjectId == parentGpuId;
+            }));
+        QVERIFY(std::none_of(reconciled.devices.cbegin(), reconciled.devices.cend(),
+            [&removedDisplayId](const Device &device) {
+                return device.subjectKind == QStringLiteral("DISPLAY")
+                    && device.subjectId == removedDisplayId;
+            }));
+        QVERIFY(std::none_of(reconciled.deviceInfo.cbegin(), reconciled.deviceInfo.cend(),
+            [&removedDisplayId](const DeviceInfo &info) {
+                return info.subjectKind == QStringLiteral("DISPLAY")
+                    && info.subjectId == removedDisplayId;
+            }));
+        QVERIFY(std::none_of(reconciled.capabilities.cbegin(), reconciled.capabilities.cend(),
+            [&removedDisplayId](const Capability &capability) {
+                return capability.subjectKind == QStringLiteral("DISPLAY")
+                    && capability.subjectId == removedDisplayId;
+            }));
+        QVERIFY(std::any_of(reconciled.capabilities.cbegin(), reconciled.capabilities.cend(),
+            [&parentGpuId](const Capability &capability) {
+                return capability.subjectKind == QStringLiteral("GPU_PCI")
+                    && capability.subjectId == parentGpuId;
+            }));
+        QVERIFY(std::any_of(reconciled.capabilities.cbegin(), reconciled.capabilities.cend(),
+            [](const Capability &capability) {
+                return capability.subjectKind == QStringLiteral("PLATFORM")
+                    && capability.subjectId == QStringLiteral("platform");
+            }));
+
+        const Hardware1Snapshot stable = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(stable.success);
+        QCOMPARE(stable.inventoryGeneration, reconciled.inventoryGeneration);
+        QCOMPARE(stable.capabilityGeneration, reconciled.capabilityGeneration);
+    }
 };
 
 QTEST_GUILESS_MAIN(LinuxHardware1InventoryProviderTest)
