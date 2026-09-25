@@ -93,10 +93,12 @@ remains the active implementation frontier.
   15/15 including focused contracts and shell smoke, and QML lint passes. The Catch2-
   based identity target could not compile because this environment has a package config
   shim but not Catch2 v3 headers, so it was excluded from the run. Independent review found no blocker in identity, readiness,
-  cursor, or retry flow. The UI test invokes the panel action helper and does not
-  directly click the rendered Mark as read button. Toast preference/delivery, other
+  cursor, or retry flow. The UI test opens notification history and clicks the
+  rendered Mark as read button. Toast preference/delivery, other
   notification producers, critical recovery notices, and bounded history policy
-  remain open. These are local results, not hosted CI. MarkRead reports persisted
+  remain open. SessionService JSON logs include service UUID and generation; this
+  satisfies the logging sub-scope, while READY remains gated on complete ID-185
+  recovery. These are local results, not hosted CI. MarkRead reports persisted
   revision-counter exhaustion as an internal failure; the strict-warning rebuild and
   focused 4/4 CTest rerun passed, and independent review confirmed the mapping. A
   contract-only Profiles1 schema, typed global/game record, reference-gated mock, and

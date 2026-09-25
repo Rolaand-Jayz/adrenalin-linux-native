@@ -14,11 +14,6 @@ Item {
     Accessible.role: Accessible.Grouping
     Accessible.name: qsTr("Notifications")
 
-    function requestMarkRead(notificationId) {
-        if (root.client !== null)
-            root.client.markRead(notificationId)
-    }
-
     function messageTitle(key) {
         switch (key) {
         case "settings.telemetry_consent.applied":
@@ -287,7 +282,10 @@ Item {
                                     enabled: root.client !== null && root.client.ready
                                     text: qsTr("Mark as read")
                                     Accessible.name: qsTr("Mark notification as read")
-                                    onClicked: root.requestMarkRead(notificationId)
+                                    onClicked: {
+                                        if (root.client !== null)
+                                            root.client.markRead(notificationId)
+                                    }
                                 }
                             }
                         }

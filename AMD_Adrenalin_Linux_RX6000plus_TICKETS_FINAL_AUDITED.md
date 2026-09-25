@@ -255,12 +255,17 @@ required for Ticket 02 acceptance.
     contracts and shell smoke test, and QML lint passes. The Catch2-based identity
     test is excluded because this environment has a package config shim but lacks the
     Catch2 v3 headers needed to compile it. Independent review found no
-    blocker in async identity, readiness, cursor, or retry handling. The UI test calls
-    the panel action helper rather than clicking the rendered Mark as read button, so
-    that final pointer/accessibility interaction is not directly exercised. This is a
-    tested client/UI sub-scope only: toast preference/delivery, remaining notification
+    blocker in async identity, readiness, cursor, or retry handling. The UI test opens
+    the history and clicks the rendered Mark as read button. This is a tested client/UI
+    sub-scope only: toast preference/delivery, remaining notification
     producers, critical recovery notices, and bounded history policy remain open;
     Ticket 03 and Ticket 08 are not complete.
+  - [x] Structured session logs are compact JSON records with timestamp, level,
+    event, service name, service-instance UUID, current service generation, and API
+    version. `SessionService::logEvent()` emits these fields for state changes,
+    initialization failures, hardware refresh failures, readiness, and sequence
+    exhaustion. This closes the logging sub-scope; the combined READY criterion remains
+    open until every ID-185 recovery participant completes before READY.
   - [x] Profiles1 now defines typed global/game profile reads and updates, stable
     subject validation, bounded scalar setting patches, expected-revision checks,
     operation replay/conflict behavior, and the versioned ID-093 event shape. A

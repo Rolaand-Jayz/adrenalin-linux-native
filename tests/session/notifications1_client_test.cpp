@@ -228,12 +228,11 @@ void Notifications1ClientTest::listAndMarkReadUseAsyncServiceContract()
             popupContent, QStringLiteral("notificationHistoryList"));
         QVERIFY(historyList != nullptr);
         QCOMPARE(historyList->property("count").toInt(), 1);
-        QObject *notificationsPanel = window->findChild<QObject *>(
-            QStringLiteral("notificationsPanel"));
-        QVERIFY(notificationsPanel != nullptr);
-        QVERIFY(QMetaObject::invokeMethod(
-            notificationsPanel, "requestMarkRead",
-            Q_ARG(QVariant, QVariant(QStringLiteral("notification-1")))));
+        QQuickItem *markReadButton = findVisualItem(
+            popupContent, QStringLiteral("notificationsMarkReadButton"));
+        QVERIFY(markReadButton != nullptr);
+        QVERIFY(markReadButton->isEnabled());
+        QVERIFY(QMetaObject::invokeMethod(markReadButton, "click"));
 
         QTRY_COMPARE_WITH_TIMEOUT(fixture.operationIds().size(), 2, 3000);
         QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
