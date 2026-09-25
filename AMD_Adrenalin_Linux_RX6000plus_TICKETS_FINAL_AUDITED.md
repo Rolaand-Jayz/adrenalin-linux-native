@@ -125,6 +125,13 @@ window-manager and Wayland mapping remain unproven. This does not provide the
 independent geometry attestation or authenticated Windows reference captures
 required for Ticket 02 acceptance.
 
+**Progress audit (2026-09-25):** A read-only repository audit found no authentic
+reference PNGs, completed capture manifests, comparison checks, independent geometry
+attestations, or reviewer records. The local capture workflow and worksheets are
+ready, but no further acceptance gate can be closed from the current candidate-only
+evidence. Ticket 02 remains open pending the fixed-build Windows capture corpus and
+independent, checksum-bound review and parity evidence.
+
 ### 03 — Session service and persisted preference tracer
 
 **Blocked by:** 01
@@ -159,6 +166,12 @@ required for Ticket 02 acceptance.
   and the daemon exits so clients observe owner loss and reconcile.
 - [ ] Apply the same event envelope and gap-reconciliation contract to every
   remaining cross-process event family in the v1 topology.
+
+  Progress audit (2026-09-25): current production Settings, Notifications,
+  Hardware, and Service readiness events use the shared session sequence; Telemetry1
+  and Profiles1 remain contract-only, while Display1 and Hotkeys1 production roots
+  are absent. Keep this gate open until each family is implemented with its producer,
+  common event envelope, and authoritative snapshot reconciliation.
 
 **Additional audited-spec tracking (ID-106):**
 

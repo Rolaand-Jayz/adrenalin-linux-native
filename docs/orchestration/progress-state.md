@@ -9,7 +9,8 @@ using the Final Audited Engineering Spec as the controlling contract.
 
 Tickets 02 and 03 — Ticket 01's hosted-CI gate is complete on both branches.
 Ticket 02's remaining gates require authentic reference evidence; Ticket 03
-remains the active implementation frontier.
+remains the active implementation frontier, with its unimplemented event families
+and ID-185 recovery sequence tracked against their owning production contracts.
 
 ## Completed evidence
 
