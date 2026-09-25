@@ -17,6 +17,9 @@ const QList<CapabilityDefinition> kRegistry{
     {QStringLiteral("gpu.metric.vram_use"), {QStringLiteral("GPU_PCI")}},
     {QStringLiteral("gpu.metric.voltage"), {QStringLiteral("GPU_PCI")}},
     {QStringLiteral("gpu.metric.vram_temperature"), {QStringLiteral("GPU_PCI")}},
+    {QStringLiteral("gpu.clock.maximum"), {QStringLiteral("GPU_PCI")}},
+    {QStringLiteral("gpu.fan.control"), {QStringLiteral("GPU_PCI")}},
+    {QStringLiteral("gpu.voltage.manual"), {QStringLiteral("GPU_PCI")}},
 
     // CPU package and platform scopes are stated separately by the spec.
     {QStringLiteral("cpu.metric.utilization"), {QStringLiteral("CPU_PACKAGE")}},
@@ -42,7 +45,6 @@ const QList<CapabilityDefinition> kRegistry{
     {QStringLiteral("display.color_depth"), {QStringLiteral("DISPLAY")}},
     {QStringLiteral("display.pixel_format"), {QStringLiteral("DISPLAY")}},
     {QStringLiteral("display.custom_resolution"), {QStringLiteral("DISPLAY")}},
-    {QStringLiteral("display.specifications"), {QStringLiteral("DISPLAY")}},
 };
 
 } // namespace

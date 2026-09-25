@@ -9,18 +9,27 @@ supply evidence, and the graph must report `UNKNOWN` or
 
 ## Catalog scope
 
-The v1 catalog currently includes only named metrics and controls for which the
-Final Audited Engineering Spec states an unambiguous subject scope:
+The v1 catalog currently includes selected metrics and controls named by the
+Final Audited Engineering Spec. Some subject assignments are implementation
+choices because the spec defines subject kinds but does not map every feature to
+a subject:
 
-- GPU metrics use `GPU_PCI`.
-- CPU utilization, frequency, and temperature use `CPU_PACKAGE`.
-- System RAM uses the single `PLATFORM` subject.
-- Per-display controls/specifications use `DISPLAY`.
+- GPU metrics and clock/fan/voltage controls map to `GPU_PCI`.
+- CPU utilization, frequency, and temperature IDs describe per-package values
+  and map to `CPU_PACKAGE`; system-wide CPU measures require a `PLATFORM` ID.
+- System RAM maps to the single `PLATFORM` subject.
+- Display controls map to `DISPLAY`. Static display specifications belong in
+  `GetDeviceInfo`, not in the capability graph.
+
+`gpu.metric.*` records can describe whether a source can publish a metric with
+its declared validity semantics. They never contain or version volatile sample
+values; live samples and metric definitions belong to Telemetry1.
 
 IDs are lowercase stable tokens and are returned by `capabilityRegistryV1()`.
-Consumers use `findCapabilityV1()` and `capabilityAppliesToV1()`; unknown IDs
-and non-listed subject-kind pairs fail closed. The registry does not use labels,
-marketing names, or array positions to infer scope.
+`Capability::isValid()` checks registry membership and subject-kind applicability,
+so unknown IDs and non-listed pairs cannot pass record validation. A golden
+SHA-256 over the sorted ID set pins the v1 vocabulary in its contract test. The
+registry does not use labels, marketing names, or array positions to infer scope.
 
 ## Deliberately not assigned here
 

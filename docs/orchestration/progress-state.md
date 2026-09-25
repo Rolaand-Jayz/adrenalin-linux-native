@@ -46,11 +46,18 @@ remains the active implementation frontier.
   Session1 service; production event emission, ID-107's remaining operation
   families, event gap reconciliation, and ID-185 startup recovery remain open.
   The corrected test-only mock is not used as runtime hardware data.
+- The service now exposes a nonzero provisional generation during STARTING,
+  allowing valid Hardware1 BUSY invalid-snapshot envelopes before SQLite recovery
+  has loaded the persisted service generation. Recovery keeps that value or
+  advances it before publishing readiness; PropertiesChanged still reports only
+  values that actually changed. The focused session contract test covers this.
 - A bounded implementation-owned Hardware1 v1 capability-ID catalog now names
-  the audited GPU metrics, CPU-package metrics, platform RAM, and per-display
-  controls whose subject scope is explicit. The focused contract test checks
-  unique stable IDs, canonical subject kinds, valid mappings, and rejection of
-  unknown IDs/scopes. It is vocabulary only: provider/evidence registries,
+  selected GPU metrics/controls, per-package CPU metrics, platform RAM, and
+  per-display controls. Subject assignments are documented implementation
+  choices where the spec does not assign scope. Record validation enforces
+  registry membership/scope, and the focused contract test checks token syntax,
+  a golden v1 ID-set digest, every scope mapping, and unknown/wrong-scope
+  rejection. It is vocabulary only: provider/evidence registries,
   source-qualified units and enum domains, additional feature mappings, and
   provider-backed graph construction remain open. `SessionService` still
   advances to READY after database initialization alone. Treating failed DRM

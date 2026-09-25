@@ -173,7 +173,7 @@ Reply Mock::getCapabilityGraph(const QString &subjectKind, const QString &subjec
         Capability temperature;
         temperature.subjectKind = subjectKind;
         temperature.subjectId = subjectId;
-        temperature.capabilityId = QStringLiteral("gpu.telemetry.temperature");
+        temperature.capabilityId = QStringLiteral("gpu.metric.edge_temperature");
         temperature.supportState = QStringLiteral("PROVIDER_UNAVAILABLE");
         temperature.providerId = QStringLiteral("test.provider.telemetry");
         temperature.failureCode = QStringLiteral("BACKEND_UNAVAILABLE");

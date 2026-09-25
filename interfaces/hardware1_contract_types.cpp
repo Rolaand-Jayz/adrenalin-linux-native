@@ -1,6 +1,7 @@
 #include "hardware1_contract_types.h"
 
 #include "operation_result.h"
+#include "hardware1_registry.h"
 
 #include <QRegularExpression>
 #include <QSet>
@@ -159,6 +160,12 @@ bool Capability::isValid(QString *error) const
     }
     if (!isIdentifier(capabilityId)) {
         return fail(error, QStringLiteral("capability ID is not a stable token"));
+    }
+    if (findCapabilityV1(capabilityId) == nullptr) {
+        return fail(error, QStringLiteral("capability ID is not registered in Hardware1 v1"));
+    }
+    if (!capabilityAppliesToV1(capabilityId, subjectKind)) {
+        return fail(error, QStringLiteral("capability ID is not registered for this subject kind"));
     }
     const QStringList states{QStringLiteral("SUPPORTED"), QStringLiteral("UNSUPPORTED"),
                              QStringLiteral("UNKNOWN"), QStringLiteral("PROVIDER_UNAVAILABLE")};

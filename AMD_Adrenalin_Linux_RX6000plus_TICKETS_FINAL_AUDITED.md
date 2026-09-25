@@ -189,13 +189,19 @@ own acceptance criteria and dependency gates pass.
     sysfs topology entries existed. This verifies CPU live enumeration only and
     confirms that missing DRM access is reported as failure rather than empty
     inventory. Hosted CI and real GPU/display provider behavior remain unverified.
+  - [x] Startup service generation is nonzero before database recovery, so a
+    Hardware1 `BUSY` invalid-snapshot reply can satisfy the typed envelope while
+    the service is STARTING/RECOVERING. Successful database recovery advances to
+    the persisted generation before READY. The session private-bus suite covers
+    the startup envelope and passes.
   - [x] Added the implementation-owned `hardware1` v1 capability ID catalog
-    for explicitly named GPU metrics, CPU-package metrics, platform RAM, and
-    per-display controls. Subject-kind scoping is validated and unknown IDs or
-    scope combinations are rejected by the catalog API; the focused Hardware1
-    contract test covers uniqueness, canonical subject kinds, valid mappings,
-    and fail-closed unknown mappings. This is vocabulary only: it creates no
-    provider, evidence claim, unit assignment, or supported capability state.
+    for named GPU metrics/controls, per-package CPU metrics, platform RAM, and
+    per-display controls. Scope is a documented implementation decision where
+    the spec does not assign it. `Capability::isValid()` enforces registry
+    membership and subject-kind applicability; contract coverage checks token
+    syntax, the pinned v1 ID set, every catalog scope mapping, and unknown/wrong-
+    scope record rejection. This is vocabulary only: no provider, evidence,
+    unit/enum registry, or supported capability state is claimed.
   - [ ] Production snapshot integration remains open beyond the bounded ID/scope
     catalog: provider/evidence vocabularies, source-qualified units and enum
     domains, further parity-feature mappings (including game/runtime and tuning

@@ -51,7 +51,14 @@ QString SessionService::initializationState() const
 }
 
 QString SessionService::serviceInstanceUuid() const { return serviceInstanceUuid_; }
-qulonglong SessionService::serviceGeneration() const { return database_->generation(); }
+qulonglong SessionService::serviceGeneration() const
+{
+    // The service incarnation exists before SQLite recovery finishes. Keep the
+    // invalid-snapshot envelope contract usable during STARTING/RECOVERING;
+    // successful database recovery replaces this provisional floor with its
+    // persisted, monotonically advanced generation before READY is published.
+    return qMax<qulonglong>(1, database_->generation());
+}
 qulonglong SessionService::eventSequence() const { return eventSequence_; }
 QString SessionService::eventSubjectKind() const { return eventSubjectKind_; }
 QString SessionService::eventSubjectId() const { return eventSubjectId_; }

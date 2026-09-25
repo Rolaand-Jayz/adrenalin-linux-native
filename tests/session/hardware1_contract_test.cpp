@@ -9,8 +9,10 @@
 #include <QDBusMetaType>
 #include <QFile>
 #include <QDBusVirtualObject>
+#include <QCryptographicHash>
 #include <QTest>
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 
@@ -306,6 +308,15 @@ private slots:
         QString error;
         QVERIFY(!capability.isValid(&error));
         QVERIFY(!error.isEmpty());
+
+        capability.configuredValue = {};
+        capability.capabilityId = QStringLiteral("unknown.metric");
+        QVERIFY(!capability.isValid(&error));
+        QVERIFY(error.contains(QStringLiteral("not registered")));
+
+        capability.capabilityId = QStringLiteral("display.brightness");
+        QVERIFY(!capability.isValid(&error));
+        QVERIFY(error.contains(QStringLiteral("subject kind")));
     }
 
     void partialRangesAndUnsupportedValuesFailClosed()
@@ -340,7 +351,9 @@ private slots:
         Capability capability;
         capability.subjectKind = QStringLiteral("GPU_PCI");
         capability.subjectId = Mock::testGpuSubjectId();
-        capability.capabilityId = QStringLiteral("gpu.profile.mode");
+        capability.subjectKind = QStringLiteral("DISPLAY");
+        capability.subjectId = QStringLiteral("display-test-0");
+        capability.capabilityId = QStringLiteral("display.scaling_mode");
         capability.supportState = QStringLiteral("SUPPORTED");
         capability.providerId = QStringLiteral("provider.gpu");
         capability.evidenceCode = QStringLiteral("provider.observed");
@@ -358,8 +371,11 @@ private slots:
         const auto &registry = capabilityRegistryV1();
         QVERIFY(registry.size() >= 30);
         QSet<QString> ids;
+        const QRegularExpression idPattern(QStringLiteral("^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"));
+        const QStringList subjectKinds{QStringLiteral("CPU_PACKAGE"), QStringLiteral("GPU_PCI"),
+                                       QStringLiteral("DISPLAY"), QStringLiteral("PLATFORM")};
         for (const auto &definition : registry) {
-            QVERIFY(!definition.id.isEmpty());
+            QVERIFY(idPattern.match(definition.id).hasMatch());
             QVERIFY2(!ids.contains(definition.id), qPrintable(definition.id));
             ids.insert(definition.id);
             QVERIFY(!definition.subjectKinds.isEmpty());
@@ -370,8 +386,17 @@ private slots:
                 scopes.insert(kind);
             }
             QCOMPARE(findCapabilityV1(definition.id), &definition);
+            for (const QString &kind : subjectKinds) {
+                QCOMPARE(capabilityAppliesToV1(definition.id, kind),
+                         definition.subjectKinds.contains(kind));
+            }
         }
         QCOMPARE(ids.size(), registry.size());
+        QStringList canonicalIds = ids.values();
+        std::sort(canonicalIds.begin(), canonicalIds.end());
+        const QByteArray catalogBytes = canonicalIds.join(QLatin1Char('\n')).toUtf8();
+        QCOMPARE(QCryptographicHash::hash(catalogBytes, QCryptographicHash::Sha256).toHex(),
+                 QByteArray("e4adc9bbcb5e20b5b92cebf759dfaa1e285d6588868ad920cd798fe377ac91e2"));
         QVERIFY(capabilityAppliesToV1(QStringLiteral("gpu.metric.utilization"), QStringLiteral("GPU_PCI")));
         QVERIFY(capabilityAppliesToV1(QStringLiteral("cpu.metric.temperature"), QStringLiteral("CPU_PACKAGE")));
         QVERIFY(capabilityAppliesToV1(QStringLiteral("platform.metric.system_ram"), QStringLiteral("PLATFORM")));

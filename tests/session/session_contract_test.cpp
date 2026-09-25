@@ -4,6 +4,7 @@
 #include "interfaces/settings1_mock.h"
 #include "interfaces/settings1_client.h"
 #include "interfaces/service_readiness_contract.h"
+#include "interfaces/hardware1_contract_types.h"
 #include "session_identity.h"
 #include "sessiond/service1_property_notifications.h"
 #include "sessiond/session_service.h"
@@ -494,6 +495,7 @@ private slots:
     void operationResultVocabularyIsStable();
     void mockContractSupportsReadWriteAndOptimisticConcurrency();
     void unsupportedSchemaFailsBeforeReady();
+    void preInitializationGenerationSupportsBusyHardwareReplies();
     void eventSequenceExhaustionFailsClosedBeforeMutation();
     void initializationStopsWhenReadinessSequenceIsExhausted();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
@@ -607,6 +609,31 @@ void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency(
              adrenalin::contracts::OperationResultCode::Conflict);
     QCOMPARE(mock.setProductTelemetryConsent(QStringLiteral("operation-2"), false, 0).result.code,
              adrenalin::contracts::OperationResultCode::StaleRevision);
+}
+
+void SessionContractTest::preInitializationGenerationSupportsBusyHardwareReplies()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(
+        QStringLiteral("session.sqlite3"));
+    SessionService service(databasePath);
+
+    QCOMPARE(service.initializationState(), QStringLiteral("STARTING"));
+    QCOMPARE(service.serviceGeneration(), quint64(1));
+
+    adrenalin::contracts::hardware1::Reply reply;
+    reply.code = QStringLiteral("BUSY");
+    reply.humanMessageKey = QStringLiteral("service.recovering");
+    reply.retryable = true;
+    reply.subjectKind = QStringLiteral("PLATFORM");
+    reply.subjectId = QStringLiteral("platform");
+    reply.serviceInstanceUuid = service.serviceInstanceUuid();
+    reply.serviceGeneration = service.serviceGeneration();
+    QVERIFY(reply.isValid());
+
+    QVERIFY(service.initialize());
+    QVERIFY(service.serviceGeneration() >= reply.serviceGeneration);
 }
 
 void SessionContractTest::unsupportedSchemaFailsBeforeReady()
@@ -795,15 +822,18 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(serviceProxy.lastInitializationError(), QString());
     QCOMPARE(serviceProxy.serviceInstanceUuid(), firstUuid);
     QCOMPARE(serviceProxy.serviceGeneration(), firstGeneration);
-    QTRY_VERIFY_WITH_TIMEOUT(
-        serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong()
-                == firstGeneration
-            && serviceChangedProperties_.value(QStringLiteral("InitializationState")).toString()
-                == QStringLiteral("READY"),
-        2000);
+    QTRY_COMPARE_WITH_TIMEOUT(
+        serviceChangedProperties_.value(QStringLiteral("InitializationState")).toString(),
+        QStringLiteral("READY"), 2000);
     QCOMPARE(serviceChangedInterface_, QStringLiteral("org.adrenalinlinux.Session1.Service1"));
-    QCOMPARE(serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong(),
-             firstGeneration);
+    if (firstGeneration == 1) {
+        // The STARTING envelope already has generation 1, so PropertiesChanged
+        // must not announce that unchanged value again.
+        QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("ServiceGeneration")));
+    } else {
+        QCOMPARE(serviceChangedProperties_.value(QStringLiteral("ServiceGeneration")).toULongLong(),
+                 firstGeneration);
+    }
     QCOMPARE(serviceChangedProperties_.value(QStringLiteral("EventSequence")).toULongLong(),
              qulonglong(2));
     QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("ServiceInstanceUuid")));
