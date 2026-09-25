@@ -43,9 +43,11 @@ SingleProducer::SingleProducer(void *mapping, std::size_t size) {
     if (!mapping || size != kMappedSize || reinterpret_cast<std::uintptr_t>(mapping) % alignof(Header))
         return;
     auto *header = static_cast<Header *>(mapping);
-    if (header->abi_major != kMajor || header->header_size != sizeof(Header)
+    if (std::memcmp(header->magic, kMagic, sizeof(kMagic)) != 0
+        || header->abi_major != kMajor || header->header_size != sizeof(Header)
         || header->mapped_size != size || header->slot_count != kSlotCount
-        || header->slot_size != sizeof(Slot) || header->producer_generation == 0
+        || header->slot_size != sizeof(Slot) || header->metric_count != kMetricCount
+        || header->producer_generation == 0
         || header->metric_definition_generation == 0
         || header->subject_definition_generation == 0 || header->service_generation == 0)
         return;

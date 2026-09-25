@@ -298,11 +298,24 @@ void testForkedProducerConcurrentReaders() {
     CHECK(accepted.load() > 0);
     CHECK(corrupt.load() == 0);
 }
+
+void testProducerRejectsMalformedHeaders() {
+    const auto rejectsProducer = [](void (*corrupt)(Header &)) {
+        Region region;
+        corrupt(*static_cast<Header *>(region.mapping()));
+        SingleProducer producer(region.mapping(), kMappedSize);
+        CHECK(!producer.isValid());
+        CHECK(!producer.publish(SampleState::Valid, 1, 1));
+    };
+    rejectsProducer([](Header &header) { header.magic[0] ^= 0xffU; });
+    rejectsProducer([](Header &header) { ++header.metric_count; });
+}
 }
 
 int main() {
     testTypesAndReadOnlyFixture();
     testPublicationStateWrapRejectionAndExhaustion();
     testMalformedMappingsFailClosed();
+    testProducerRejectsMalformedHeaders();
     testForkedProducerConcurrentReaders();
 }

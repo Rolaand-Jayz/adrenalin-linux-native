@@ -376,6 +376,14 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   and [work run #6](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069940024).
 - The hosted full CTest run at `f6037f0` passes 7/7 on both branches, including
   the shell smoke, session/readiness/Hardware1 contracts, and Telemetry1 fixtures.
+- Telemetry1 fixture producer validation now rejects incorrect magic and metric
+  count, matching reader validation. Regression tests prove invalid producer
+  construction and publication fail closed. The strict-warning ABI target builds,
+  focused CTest passes 1/1, and `git diff --check` passes. A second independent
+  reasoning-only independent review found no actionable issue in the described
+  fix but could not inspect the checkout diff. Production telemetry, ID-153 source selection, readiness and
+  recovery integration, and Performance UI remain unimplemented. This does not
+  complete Ticket 07 or Ticket 03.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 

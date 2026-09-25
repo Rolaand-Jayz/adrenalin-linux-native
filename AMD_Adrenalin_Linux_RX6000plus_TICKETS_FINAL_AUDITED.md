@@ -616,6 +616,8 @@ Progress (contract cursor slice; 2026-09-25): `OpenStream` now returns the share
 
 Progress (malformed-mapping fixture tests; 2026-09-25): the Telemetry1 ABI test now checks that the reader rejects null, unaligned, truncated, oversized, and out-of-range inputs; incompatible magic, major, geometry, metric count, and negotiated generations; and zero/invalid slot sequence, guard, state, or encoding. The strict-warning ABI target builds and focused CTest passes 1/1. This expands deterministic reader validation only; it does not define minor-version/reserved-field policy, change the ABI, or satisfy independent ABI review. Telemetry1 remains a fixture, not a production provider, and Ticket 07 stays open.
 
+Progress (producer header validation; 2026-09-25): independent ABI review found that the fixture producer accepted invalid magic and metric count even though the reader rejected both. `SingleProducer` now validates both required header identity fields; regression coverage requires invalid producers to be rejected and publication to fail. The strict-warning ABI target builds, focused CTest passes 1/1, and `git diff --check` passes. A second reviewer found no actionable issue from the supplied patch summary, but could not inspect the checkout or verify the complete diff. This closes only the identified fixture defect; production telemetry/source selection, readiness/recovery, and Performance UI acceptance remain open, so Ticket 07 remains open.
+
 ### 08 — Global search and notification center
 
 **Blocked by:** 03, 04
