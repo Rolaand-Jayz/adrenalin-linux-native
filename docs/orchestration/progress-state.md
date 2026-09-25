@@ -176,9 +176,12 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   rejected and apply has no route, verification, revision, mutation, or event.
   Display1 relays display inventory/capability events using the corresponding
   Hardware1 event cursor. Strict-warning daemon and session-test builds succeeded;
-  focused contract/session CTest passed 2/2. Startup tests verify BUSY with a valid
-  operation UUID and INVALID_ARGUMENT for malformed input without a snapshot. The
-  service-level assertions are not a Display1 private-D-Bus test. Modes,
+  focused contract/session CTest passed 2/2. The private-D-Bus session test covers
+  generated list/state/validate/apply calls, UNKNOWN capability serialization,
+  readiness and malformed-ID envelopes, stale inventory/capability refusals,
+  unchanged post-apply capability record and generations, and exact
+  inventory/capability event pairing with
+  Hardware1. Modes,
   active display state, successful control, production client reconciliation,
   ID-185 display recovery, Ticket 19 and full ID-093 acceptance remain open.
 - Successful startup now completes database recovery and initial Hardware1 inventory

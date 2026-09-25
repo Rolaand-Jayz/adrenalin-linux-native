@@ -1,10 +1,12 @@
 #include "interfaces/hardware1_contract_types.h"
 #include "interfaces/display1_contract_types.h"
+#include "display1_adaptor.h"
 #include "hardware1_adaptor.h"
 #include "sessiond/session_service.h"
 #include "session_identity.h"
 
 #include <hardware1_interface.h>
+#include <display1_interface.h>
 
 #include <QDBusConnection>
 #include <QDir>
@@ -55,6 +57,7 @@ private slots:
     void initTestCase()
     {
         registerMetaTypes();
+        adrenalin::contracts::display1::registerMetaTypes();
         bus_ = QDBusConnection::sessionBus();
         QVERIFY(bus_.isConnected());
     }
@@ -98,37 +101,179 @@ private slots:
         capability.supportState = QStringLiteral("UNKNOWN");
         snapshot.capabilities.append(capability);
         service.setHardware1SnapshotForTesting(snapshot);
-        QVERIFY(service.initialize());
+        Hardware1Adaptor hardwareAdaptor(&service);
+        Display1Adaptor displayAdaptor(&service);
+        QVERIFY(bus_.registerObject(QString::fromLatin1(adrenalin::session1::objectPath), &service,
+                                    QDBusConnection::ExportAdaptors));
+        QVERIFY(bus_.registerService(QString::fromLatin1(adrenalin::session1::serviceName)));
+        const auto cleanup = qScopeGuard([this] {
+            bus_.unregisterService(QString::fromLatin1(adrenalin::session1::serviceName));
+            bus_.unregisterObject(QString::fromLatin1(adrenalin::session1::objectPath));
+        });
+        OrgAdrenalinlinuxSession1Display1Interface displayProxy(
+            QString::fromLatin1(adrenalin::session1::serviceName),
+            QString::fromLatin1(adrenalin::session1::objectPath), bus_);
+        OrgAdrenalinlinuxSession1Hardware1Interface hardwareProxy(
+            QString::fromLatin1(adrenalin::session1::serviceName),
+            QString::fromLatin1(adrenalin::session1::objectPath), bus_);
+        QVERIFY(displayProxy.isValid());
+        QVERIFY(hardwareProxy.isValid());
+        QSignalSpy displayEvents(&displayProxy,
+            &OrgAdrenalinlinuxSession1Display1Interface::DisplayChanged);
+        QSignalSpy hardwareEvents(&hardwareProxy,
+            &OrgAdrenalinlinuxSession1Hardware1Interface::InventoryChanged);
+        QSignalSpy hardwareCapabilityEvents(&hardwareProxy,
+            &OrgAdrenalinlinuxSession1Hardware1Interface::CapabilityGraphChanged);
+        QVERIFY(displayEvents.isValid());
+        QVERIFY(hardwareEvents.isValid());
+        QVERIFY(hardwareCapabilityEvents.isValid());
+        QVERIFY(service.initializeAsync());
+        QTRY_COMPARE_WITH_TIMEOUT(service.initializationState(), QStringLiteral("READY"), 2000);
 
-        const auto displays = service.listDisplays();
+        QTRY_COMPARE_WITH_TIMEOUT(displayEvents.count(), 2, 2000);
+        auto displaysPending = displayProxy.ListDisplays();
+        QTRY_VERIFY_WITH_TIMEOUT(displaysPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::ListReply> displaysPendingReply =
+            displaysPending;
+        QVERIFY2(!displaysPendingReply.isError(), qPrintable(displaysPendingReply.error().message()));
+        const auto displays = displaysPendingReply.value();
         QVERIFY(displays.isValid());
         QCOMPARE(displays.snapshot.code, QStringLiteral("OK"));
         QCOMPARE(displays.displays.size(), 1);
         QCOMPARE(displays.displays.constFirst().subjectId, QString::fromLatin1(displayId));
 
-        const auto state = service.getDisplayState(QString::fromLatin1(displayId));
+        auto statePending = displayProxy.GetDisplayState(QString::fromLatin1(displayId));
+        QTRY_VERIFY_WITH_TIMEOUT(statePending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::StateReply> statePendingReply =
+            statePending;
+        QVERIFY2(!statePendingReply.isError(), qPrintable(statePendingReply.error().message()));
+        const auto state = statePendingReply.value();
         QVERIFY(state.isValid());
         QCOMPARE(state.display.displayName, QStringLiteral("Integration Display"));
         QCOMPARE(state.capabilities.size(), 1);
         QCOMPARE(state.capabilities.constFirst().supportState, QStringLiteral("UNKNOWN"));
 
-        const auto validation = service.validateDisplay(operationId,
+        auto validationPending = displayProxy.ValidateDisplay(operationId,
             QString::fromLatin1(displayId), state.snapshot.inventoryGeneration,
             state.snapshot.capabilityGeneration, {change});
+        QTRY_VERIFY_WITH_TIMEOUT(validationPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::ValidationReply> validationReply =
+            validationPending;
+        QVERIFY2(!validationReply.isError(), qPrintable(validationReply.error().message()));
+        const auto validation = validationReply.value();
         QVERIFY(validation.isValid());
         QCOMPARE(validation.code, QStringLiteral("UNSUPPORTED"));
         QVERIFY(!validation.valid);
         QCOMPARE(validation.safetyClass, QStringLiteral("UNKNOWN"));
 
-        const quint64 eventSequence = service.eventSequence();
-        const auto applied = service.applyDisplay(operationId, QString::fromLatin1(displayId),
+        auto staleInventoryPending = displayProxy.ValidateDisplay(operationId,
+            QString::fromLatin1(displayId), state.snapshot.inventoryGeneration + 1,
+            state.snapshot.capabilityGeneration, {change});
+        QTRY_VERIFY_WITH_TIMEOUT(staleInventoryPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::ValidationReply>
+            staleInventoryReply = staleInventoryPending;
+        QVERIFY2(!staleInventoryReply.isError(),
+                 qPrintable(staleInventoryReply.error().message()));
+        QVERIFY(staleInventoryReply.value().isValid());
+        QCOMPARE(staleInventoryReply.value().code, QStringLiteral("CONFLICT"));
+
+        auto staleCapabilityPending = displayProxy.ValidateDisplay(operationId,
+            QString::fromLatin1(displayId), state.snapshot.inventoryGeneration,
+            state.snapshot.capabilityGeneration + 1, {change});
+        QTRY_VERIFY_WITH_TIMEOUT(staleCapabilityPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::ValidationReply>
+            staleCapabilityReply = staleCapabilityPending;
+        QVERIFY2(!staleCapabilityReply.isError(),
+                 qPrintable(staleCapabilityReply.error().message()));
+        QVERIFY(staleCapabilityReply.value().isValid());
+        QCOMPARE(staleCapabilityReply.value().code, QStringLiteral("STALE_CAPABILITY"));
+
+        auto applyPending = displayProxy.ApplyDisplay(operationId, QString::fromLatin1(displayId),
             state.snapshot.inventoryGeneration, state.snapshot.capabilityGeneration, {change});
+        QTRY_VERIFY_WITH_TIMEOUT(applyPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::ApplyReply> applyReply = applyPending;
+        QVERIFY2(!applyReply.isError(), qPrintable(applyReply.error().message()));
+        const auto applied = applyReply.value();
         QVERIFY(applied.isValid());
         QCOMPARE(applied.code, QStringLiteral("UNSUPPORTED"));
         QCOMPARE(applied.safetyRouteIntent, QStringLiteral("NONE"));
         QVERIFY(!applied.effectiveStateVerified);
         QCOMPARE(applied.revision, quint64(0));
-        QCOMPARE(service.eventSequence(), eventSequence);
+        QCOMPARE(service.eventSequence(), state.snapshot.eventSequence);
+        QCOMPARE(displayEvents.count(), 2);
+        QCOMPARE(hardwareEvents.count(), 2);
+        QCOMPARE(hardwareCapabilityEvents.count(), 2);
+        QVariantList displayInventoryEvent;
+        QVariantList hardwareDisplayInventoryEvent;
+        QVariantList displayCapabilityEvent;
+        QVariantList hardwareDisplayCapabilityEvent;
+        for (const auto &event : displayEvents) {
+            if (event.at(3).toString() == QLatin1String("DISPLAY")) {
+                displayInventoryEvent = event;
+                break;
+            }
+        }
+        for (const auto &event : hardwareEvents) {
+            if (event.at(3).toString() == QLatin1String("DISPLAY")) {
+                hardwareDisplayInventoryEvent = event;
+                break;
+            }
+        }
+        for (const auto &event : displayEvents) {
+            if (event.at(3).toString() == QLatin1String("DISPLAY")
+                && event != displayInventoryEvent) {
+                displayCapabilityEvent = event;
+                break;
+            }
+        }
+        for (const auto &event : hardwareCapabilityEvents) {
+            if (event.at(3).toString() == QLatin1String("DISPLAY")) {
+                hardwareDisplayCapabilityEvent = event;
+                break;
+            }
+        }
+        QVERIFY(!displayInventoryEvent.isEmpty());
+        QVERIFY(!displayCapabilityEvent.isEmpty());
+        QCOMPARE(displayInventoryEvent, hardwareDisplayInventoryEvent);
+        QCOMPARE(displayCapabilityEvent, hardwareDisplayCapabilityEvent);
+        auto stateAfterApplyPending = displayProxy.GetDisplayState(QString::fromLatin1(displayId));
+        QTRY_VERIFY_WITH_TIMEOUT(stateAfterApplyPending.isFinished(), 2000);
+        const QDBusPendingReply<adrenalin::contracts::display1::StateReply>
+            stateAfterApplyReply = stateAfterApplyPending;
+        QVERIFY2(!stateAfterApplyReply.isError(),
+                 qPrintable(stateAfterApplyReply.error().message()));
+        const auto stateAfterApply = stateAfterApplyReply.value();
+        QVERIFY(stateAfterApply.isValid());
+        QCOMPARE(stateAfterApply.snapshot.inventoryGeneration,
+                 state.snapshot.inventoryGeneration);
+        QCOMPARE(stateAfterApply.snapshot.capabilityGeneration,
+                 state.snapshot.capabilityGeneration);
+        QCOMPARE(stateAfterApply.capabilities.size(), state.capabilities.size());
+        const auto &beforeCapability = state.capabilities.constFirst();
+        const auto &afterCapability = stateAfterApply.capabilities.constFirst();
+        QCOMPARE(afterCapability.subjectKind, beforeCapability.subjectKind);
+        QCOMPARE(afterCapability.subjectId, beforeCapability.subjectId);
+        QCOMPARE(afterCapability.capabilityId, beforeCapability.capabilityId);
+        QCOMPARE(afterCapability.supportState, beforeCapability.supportState);
+        QCOMPARE(afterCapability.providerId, beforeCapability.providerId);
+        QCOMPARE(afterCapability.evidenceCode, beforeCapability.evidenceCode);
+        QCOMPARE(afterCapability.failureCode, beforeCapability.failureCode);
+        QCOMPARE(afterCapability.unit, beforeCapability.unit);
+        QCOMPARE(afterCapability.allowedValues, beforeCapability.allowedValues);
+        auto compareValue = [](const adrenalin::contracts::hardware1::Value &after,
+                               const adrenalin::contracts::hardware1::Value &before) {
+            QCOMPARE(after.kind, before.kind);
+            QCOMPARE(after.booleanValue, before.booleanValue);
+            QCOMPARE(after.signedValue, before.signedValue);
+            QCOMPARE(after.unsignedValue, before.unsignedValue);
+            QCOMPARE(after.realValue, before.realValue);
+            QCOMPARE(after.enumValue, before.enumValue);
+        };
+        compareValue(afterCapability.configuredValue, beforeCapability.configuredValue);
+        compareValue(afterCapability.effectiveValue, beforeCapability.effectiveValue);
+        compareValue(afterCapability.minimum, beforeCapability.minimum);
+        compareValue(afterCapability.maximum, beforeCapability.maximum);
+        compareValue(afterCapability.step, beforeCapability.step);
     }
 
     void exportsProviderBackedReadsAndTypedFailureEnvelopes()

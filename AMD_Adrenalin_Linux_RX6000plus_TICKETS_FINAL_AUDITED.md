@@ -255,10 +255,14 @@ identities or derived install locations.
     apply reports no route, verification, revision, mutation, or event. Display1
     relays display inventory/capability events with the exact shared Hardware1 event
     envelope and cursor. Strict-warning daemon and session-test targets build, and
-    focused contract/session CTest passes 2/2. Startup tests cover BUSY envelopes
-    with a valid operation UUID and INVALID_ARGUMENT for malformed requests even
-    when no snapshot is available. This service-level test does not yet exercise Display1
-    over private D-Bus. No modes, active display state, successful mutations,
+    focused contract/session CTest passes 2/2. The private-D-Bus session test covers
+    generated Display1 list/state/validate/apply calls, UNKNOWN capability round-trip,
+    BUSY with a valid operation UUID, INVALID_ARGUMENT for malformed requests while
+    unavailable, stale inventory/capability refusals, full unchanged post-apply
+    capability record and generations,
+    and exact inventory/capability event envelope and cursor pairing with Hardware1.
+    No
+    modes, active display state, successful mutations,
     production Display1 client reconciliation, ID-185 display recovery, Ticket 19,
     or full ID-093 acceptance is claimed; Ticket 03 remains open.
   - [x] CPU_PACKAGE static-info sub-scope (2026-09-25): production Hardware1
