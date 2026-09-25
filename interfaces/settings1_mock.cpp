@@ -56,10 +56,8 @@ Settings1WriteResult Settings1Mock::setProductTelemetryConsent(const QString &op
 
 ToastNotificationsReadResult Settings1Mock::getToastNotifications()
 {
-    if (!toastNotificationsConfigured_) {
-        return {QStringLiteral("UNAVAILABLE"), {}, 0, 0, false, 0};
-    }
     return {QStringLiteral("OK"), instanceUuid_, generation_, eventSequence_,
+            toastNotificationsConfigured_,
             toastNotificationsEnabled_, toastNotificationsRevision_};
 }
 

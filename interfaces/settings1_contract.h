@@ -23,6 +23,7 @@ struct ToastNotificationsReadResult {
     QString serviceInstanceUuid;
     quint64 serviceGeneration = 0;
     quint64 eventSequence = 0;
+    bool configured = false;
     bool enabled = false;
     quint64 revision = 0;
 };

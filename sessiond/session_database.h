@@ -15,7 +15,11 @@ struct ProductTelemetryConsent {
     quint64 revision = 0;
 };
 
-using BooleanPreferenceSnapshot = ProductTelemetryConsent;
+struct BooleanPreferenceSnapshot {
+    bool configured = false;
+    bool enabled = false;
+    quint64 revision = 0;
+};
 
 class SessionDatabase final
 {

@@ -1080,14 +1080,14 @@ ToastNotificationsReadResult SessionService::getToastNotifications()
     QString error;
     const auto preference = database_->readToastNotifications(&error);
     if (!preference) {
-        result.resultCode = error.contains(QStringLiteral("no reference-backed value"))
-            ? QStringLiteral("UNAVAILABLE") : QStringLiteral("IO_ERROR");
+        result.resultCode = QStringLiteral("IO_ERROR");
         return result;
     }
     result.resultCode = QStringLiteral("OK");
     result.serviceInstanceUuid = serviceInstanceUuid();
     result.serviceGeneration = serviceGeneration();
     result.eventSequence = eventSequence_;
+    result.configured = preference->configured;
     result.enabled = preference->enabled;
     result.revision = preference->revision;
     return result;

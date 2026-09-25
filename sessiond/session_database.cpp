@@ -426,20 +426,20 @@ std::optional<BooleanPreferenceSnapshot> SessionDatabase::readToastNotifications
     bool revisionConverted = false;
     const int enabledValue = query.value(0).toInt(&enabledConverted);
     const qlonglong revisionValue = query.value(1).toLongLong(&revisionConverted);
+    const bool configured = enabledValue != 2;
+    const bool revisionPairValid = configured ? revisionValue > 0 : revisionValue == 0;
     if (query.value(2).toString() != QLatin1String("integer")
         || query.value(3).toString() != QLatin1String("integer")
         || !enabledConverted || !revisionConverted
-        || (enabledValue != 0 && enabledValue != 1 && enabledValue != 2) || revisionValue < 0) {
+        || (enabledValue != 0 && enabledValue != 1 && enabledValue != 2) || revisionValue < 0
+        || !revisionPairValid) {
         if (error != nullptr) {
             *error = QStringLiteral("Toast notification preference contains invalid persisted data");
         }
         return std::nullopt;
     }
-    if (enabledValue == 2) {
-        if (error != nullptr) *error = QStringLiteral("Toast notification preference has no reference-backed value");
-        return std::nullopt;
-    }
-    return BooleanPreferenceSnapshot{enabledValue == 1, static_cast<quint64>(revisionValue)};
+    return BooleanPreferenceSnapshot{configured, enabledValue == 1,
+                                     static_cast<quint64>(revisionValue)};
 }
 
 bool SessionDatabase::updateToastNotifications(const QString &operationId, bool enabled,

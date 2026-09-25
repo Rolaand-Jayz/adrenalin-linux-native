@@ -319,10 +319,42 @@ void ProfilePersistenceTest::malformedToastPreferenceFailsClosed()
     SessionDatabase database(databasePath);
     QVERIFY2(database.initialize(&error), qPrintable(error));
     const auto initial = database.readToastNotifications(&error);
-    QVERIFY(!initial.has_value());
-    QVERIFY(error.contains(QStringLiteral("reference-backed value")));
+    QVERIFY2(initial.has_value(), qPrintable(error));
+    QVERIFY(!initial->configured);
+    QVERIFY(!initial->enabled);
+    QCOMPARE(initial->revision, quint64(0));
 
     const QString connectionName = QStringLiteral("malformed-toast-fixture");
+    {
+        QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        raw.setDatabaseName(databasePath);
+        QVERIFY(raw.open());
+        QSqlQuery corruption(raw);
+        QVERIFY(corruption.exec(QStringLiteral("UPDATE preferences SET value=1 "
+                                               "WHERE key='toast_notifications'")));
+        raw.close();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    error.clear();
+    QVERIFY(!database.readToastNotifications(&error).has_value());
+    QVERIFY(error.contains(QStringLiteral("invalid persisted data")));
+
+    {
+        QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+        raw.setDatabaseName(databasePath);
+        QVERIFY(raw.open());
+        QSqlQuery corruption(raw);
+        QVERIFY(corruption.exec(QStringLiteral("UPDATE preferences SET value=2, revision=1 "
+                                               "WHERE key='toast_notifications'")));
+        raw.close();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+
+    error.clear();
+    QVERIFY(!database.readToastNotifications(&error).has_value());
+    QVERIFY(error.contains(QStringLiteral("invalid persisted data")));
+
     {
         QSqlDatabase raw = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
         raw.setDatabaseName(databasePath);

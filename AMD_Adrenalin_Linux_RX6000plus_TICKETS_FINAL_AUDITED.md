@@ -466,9 +466,16 @@ open.
     stale-revision errors, and one shared ID-093 event on changed values. A new
     database begins in an explicitly unconfigured state because the audited spec
     does not define its default and authentic reference evidence is still missing;
-    reads return `UNAVAILABLE` until a value is explicitly saved. The generated
-    D-Bus/private-bus service test verifies initialization, update, event envelope,
+    reads return `configured=false` (with `enabled` ignored) until a value is
+    explicitly saved. The generated D-Bus/private-bus service test verifies
+    initialization, update, event envelope,
     replay/no duplicate event, conflict, stale revision, and restart persistence.
+    A production Qt client now reconciles the service identity/generation and
+    shared cursor, advances over unrelated events, fails closed on event gaps,
+    and recovers after daemon restart; private-bus coverage exercises those paths.
+    Independent review found and the backend now rejects inconsistent configured/
+    revision pairs in persisted state. The client test does not yet simulate a
+    lost mutation reply and replay.
     Strict-warning service/test targets build; focused regression CTest passes 4/4
     for Session1, Hardware1 service, profile persistence, and Notifications1
     contract. General settings enumeration, import/export, reference-derived

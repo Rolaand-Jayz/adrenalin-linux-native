@@ -6,6 +6,7 @@
 #include <service1_interface.h>
 #include "interfaces/settings1_mock.h"
 #include "interfaces/settings1_client.h"
+#include "interfaces/toast_notifications_client.h"
 #include "interfaces/service_readiness_contract.h"
 #include "interfaces/hardware1_contract_types.h"
 #include "session_identity.h"
@@ -513,6 +514,7 @@ private slots:
     void notificationMarkReadFailsClosedWhenEventSequenceExhausted();
     void initializationStopsWhenReadinessSequenceIsExhausted();
     void generatedDbusContractPersistsAndRejectsStaleAndConflictingWrites();
+    void toastNotificationsClientTracksSharedEventsAndRestart();
     void clientWaitsForServiceReadinessBeforeSettingsCalls();
     void clientRejectsIncompatibleServiceApiMajor();
     void clientOwnerRecoveryWhileInitialReadIsOutstanding();
@@ -625,13 +627,18 @@ void SessionContractTest::mockContractSupportsReadWriteAndOptimisticConcurrency(
              adrenalin::contracts::OperationResultCode::StaleRevision);
 
     const auto toastInitial = mock.getToastNotifications();
-    QCOMPARE(toastInitial.resultCode, QStringLiteral("UNAVAILABLE"));
-    QVERIFY(toastInitial.serviceInstanceUuid.isEmpty());
+    QCOMPARE(toastInitial.resultCode, QStringLiteral("OK"));
+    QVERIFY(!toastInitial.serviceInstanceUuid.isEmpty());
+    QCOMPARE(toastInitial.serviceGeneration, quint64(1));
+    QCOMPARE(toastInitial.eventSequence, quint64(1));
+    QVERIFY(!toastInitial.configured);
+    QVERIFY(!toastInitial.enabled);
     QCOMPARE(toastInitial.revision, quint64(0));
     const auto toastWrite = mock.setToastNotifications(QStringLiteral("toast-operation-1"), false, 0);
     QCOMPARE(toastWrite.result.code, adrenalin::contracts::OperationResultCode::Ok);
     QCOMPARE(toastWrite.result.revision, quint64(1));
     QCOMPARE(mock.getToastNotifications().resultCode, QStringLiteral("OK"));
+    QVERIFY(mock.getToastNotifications().configured);
     QVERIFY(!mock.getToastNotifications().enabled);
     QCOMPARE(mock.getToastNotifications().eventSequence, quint64(2));
     const auto toastReplay = mock.setToastNotifications(QStringLiteral("toast-operation-1"), false, 0);
@@ -1268,16 +1275,17 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QVERIFY(toastChanged.isValid());
     auto toastInitialPending = proxy.GetToastNotifications();
     QTRY_VERIFY_WITH_TIMEOUT(toastInitialPending.isFinished(), 2000);
-    const QDBusPendingReply<QString, QString, qulonglong, qulonglong, bool, qulonglong> toastInitial =
-        toastInitialPending;
+    const QDBusPendingReply<QString, QString, qulonglong, qulonglong, bool, bool,
+                            qulonglong> toastInitial = toastInitialPending;
     QVERIFY(!toastInitial.isError());
-    QCOMPARE(toastInitial.argumentAt<0>(), QStringLiteral("UNAVAILABLE"));
-    QVERIFY(toastInitial.argumentAt<1>().isEmpty());
-    QCOMPARE(toastInitial.argumentAt<2>(), qulonglong(0));
-    QCOMPARE(toastInitial.argumentAt<3>(), qulonglong(0));
+    QCOMPARE(toastInitial.argumentAt<0>(), QStringLiteral("OK"));
+    QCOMPARE(toastInitial.argumentAt<1>(), service->serviceInstanceUuid());
+    QCOMPARE(toastInitial.argumentAt<2>(), service->serviceGeneration());
+    QCOMPARE(toastInitial.argumentAt<3>(), service->eventSequence());
     QVERIFY(!toastInitial.argumentAt<4>());
-    QCOMPARE(toastInitial.argumentAt<5>(), qulonglong(0));
-    const qulonglong toastEventBefore = service->eventSequence();
+    QVERIFY(!toastInitial.argumentAt<5>());
+    QCOMPARE(toastInitial.argumentAt<6>(), qulonglong(0));
+    const qulonglong toastEventBefore = toastInitial.argumentAt<3>();
     const auto toastWritePending = proxy.SetToastNotifications(QStringLiteral("toast-write-1"), false, 0);
     QTRY_VERIFY_WITH_TIMEOUT(toastWritePending.isFinished(), 2000);
     const QDBusPendingReply<QString, QString, QString, QString, bool, QString, QString, qulonglong> toastWrite =
@@ -1308,18 +1316,112 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     const auto toastStoredPending = proxy.GetToastNotifications();
     QTRY_VERIFY_WITH_TIMEOUT(toastStoredPending.isFinished(), 2000);
     QCOMPARE(toastStoredPending.argumentAt<0>(), QStringLiteral("OK"));
-    QVERIFY(!toastStoredPending.argumentAt<4>());
-    QCOMPARE(toastStoredPending.argumentAt<5>(), qulonglong(1));
+    QVERIFY(toastStoredPending.argumentAt<4>());
+    QVERIFY(!toastStoredPending.argumentAt<5>());
+    QCOMPARE(toastStoredPending.argumentAt<6>(), qulonglong(1));
     stopService(service);
     service = startService();
     QVERIFY(service != nullptr);
     auto toastAfterRestartPending = proxy.GetToastNotifications();
     QTRY_VERIFY_WITH_TIMEOUT(toastAfterRestartPending.isFinished(), 2000);
     QCOMPARE(toastAfterRestartPending.argumentAt<0>(), QStringLiteral("OK"));
-    QVERIFY(!toastAfterRestartPending.argumentAt<4>());
-    QCOMPARE(toastAfterRestartPending.argumentAt<5>(), qulonglong(1));
+    QVERIFY(toastAfterRestartPending.argumentAt<4>());
+    QVERIFY(!toastAfterRestartPending.argumentAt<5>());
+    QCOMPARE(toastAfterRestartPending.argumentAt<6>(), qulonglong(1));
     stopService(service);
 
+}
+
+void SessionContractTest::toastNotificationsClientTracksSharedEventsAndRestart()
+{
+    QTemporaryDir dataDirectory;
+    QVERIFY(dataDirectory.isValid());
+    const QString databasePath = QDir(dataDirectory.path()).filePath(QStringLiteral("session.sqlite3"));
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    QVERIFY(bus.isConnected());
+
+    auto startService = [&]() -> SessionService * {
+        auto *service = new SessionService(databasePath, this);
+        auto *settings = new Settings1Adaptor(service);
+        auto *notifications = new Notifications1Adaptor(service);
+        auto *readiness = new SessionServiceRootAdaptor(service);
+        Q_UNUSED(settings);
+        Q_UNUSED(notifications);
+        Q_UNUSED(readiness);
+        installService1PropertyNotifications(service);
+        if (!bus.registerObject(QString::fromLatin1(kObjectPath), service,
+                                QDBusConnection::ExportAdaptors)
+            || !bus.registerService(QString::fromLatin1(kServiceName))
+            || !service->initialize()) {
+            bus.unregisterService(QString::fromLatin1(kServiceName));
+            bus.unregisterObject(QString::fromLatin1(kObjectPath));
+            delete service;
+            return nullptr;
+        }
+        return service;
+    };
+    auto stopService = [&](SessionService *service) {
+        if (service == nullptr) return;
+        bus.unregisterService(QString::fromLatin1(kServiceName));
+        bus.unregisterObject(QString::fromLatin1(kObjectPath));
+        delete service;
+    };
+
+    SessionService *service = startService();
+    QVERIFY(service != nullptr);
+    ToastNotificationsClient client(bus);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 2000);
+    QVERIFY(!client.configured());
+    QCOMPARE(client.status(), QStringLiteral("UNCONFIGURED"));
+    QCOMPARE(client.revision(), qulonglong(0));
+
+    client.setEnabled(false);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready() && client.configured(), 2000);
+    QVERIFY(!client.enabled());
+    QCOMPARE(client.revision(), qulonglong(1));
+    QCOMPARE(client.status(), QStringLiteral("READY"));
+
+    const qulonglong beforeForeignSettingsEvent = client.eventSequence();
+    const auto consentWrite = service->setProductTelemetryConsent(
+        QStringLiteral("interleaved-consent"), true, 0);
+    QCOMPARE(consentWrite.result.code, adrenalin::contracts::OperationResultCode::Ok);
+    QTRY_COMPARE_WITH_TIMEOUT(client.eventSequence(), beforeForeignSettingsEvent + 2, 2000);
+    client.setEnabled(true);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready() && client.enabled(), 2000);
+    QCOMPARE(client.revision(), qulonglong(2));
+
+    const QString firstInstance = client.serviceInstanceUuid();
+    const qulonglong firstGeneration = client.serviceGeneration();
+    stopService(service);
+    service = startService();
+    QVERIFY(service != nullptr);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready()
+                             && client.serviceGeneration() == firstGeneration + 1
+                             && client.serviceInstanceUuid() != firstInstance, 2000);
+    QVERIFY(client.configured());
+    QVERIFY(client.enabled());
+    QCOMPARE(client.revision(), qulonglong(2));
+
+    const qulonglong eventGapGeneration = client.serviceGeneration();
+    QDBusMessage gap = QDBusMessage::createSignal(
+        QString::fromLatin1(kObjectPath), QStringLiteral("org.adrenalinlinux.Session1.Service1"),
+        QStringLiteral("EventPublished"));
+    gap << client.serviceInstanceUuid() << eventGapGeneration << client.eventSequence() + 2
+        << QStringLiteral("PREFERENCE") << QStringLiteral("test.unobserved");
+    QVERIFY(bus.send(gap));
+    QTRY_VERIFY_WITH_TIMEOUT(!client.ready(), 2000);
+    QVERIFY(client.status() == QStringLiteral("EVENT_GAP")
+            || client.status() == QStringLiteral("RECONCILING"));
+
+    stopService(service);
+    service = startService();
+    QVERIFY(service != nullptr);
+    QTRY_VERIFY_WITH_TIMEOUT(client.ready()
+                             && client.serviceGeneration() == eventGapGeneration + 1, 2000);
+    QVERIFY(client.configured());
+    QVERIFY(client.enabled());
+    QCOMPARE(client.revision(), qulonglong(2));
+    stopService(service);
 }
 
 void SessionContractTest::clientWaitsForServiceReadinessBeforeSettingsCalls()

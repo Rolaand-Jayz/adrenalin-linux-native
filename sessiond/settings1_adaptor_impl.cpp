@@ -72,13 +72,15 @@ QString Settings1Adaptor::SetProductTelemetryConsent(const QString &operationId,
 QString Settings1Adaptor::GetToastNotifications(QString &serviceInstanceUuid,
                                                 qulonglong &serviceGeneration,
                                                 qulonglong &eventSequence,
-                                                bool &enabled, qulonglong &revision)
+                                                bool &configured, bool &enabled,
+                                                qulonglong &revision)
 {
     auto *service = qobject_cast<SessionService *>(parent());
     if (service == nullptr) {
         serviceInstanceUuid.clear();
         serviceGeneration = 0;
         eventSequence = 0;
+        configured = false;
         enabled = false;
         revision = 0;
         return QStringLiteral("SERVICE_UNAVAILABLE");
@@ -87,6 +89,7 @@ QString Settings1Adaptor::GetToastNotifications(QString &serviceInstanceUuid,
     serviceInstanceUuid = result.serviceInstanceUuid;
     serviceGeneration = result.serviceGeneration;
     eventSequence = result.eventSequence;
+    configured = result.configured;
     enabled = result.enabled;
     revision = result.revision;
     return result.resultCode;

@@ -248,10 +248,17 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   conflict detection, and the shared Session1 event cursor. Since the spec does
   not define a default and the authentic reference corpus is still unavailable,
   existing and new databases represent the preference as unconfigured; reads
-  return `UNAVAILABLE` with an empty envelope until an explicit saved value exists.
+  return a valid service snapshot with `configured=false` and the shared event
+  cursor until an explicit value exists.
   Generated D-Bus integration coverage verifies unconfigured reads, persistence,
   the event subject/cursor, no-event idempotent replay, conflict/stale rejection,
-  and service restart. Strict-warning targets build and focused CTest passes 4/4
+  and service restart. A production Qt client reconciles identity/generation and
+  the shared event cursor, advances over unrelated events, fails closed on event
+  gaps, and recovers after daemon restart; focused private-bus coverage exercises
+  these paths. Independent review identified a persisted configured/revision
+  pairing gap, which is now rejected by the backend and covered by corruption
+  tests. Lost-reply mutation replay is not yet covered by a client test.
+  Strict-warning targets build and focused CTest passes 4/4
   for Session1, Hardware1 session service, profile persistence, and Notifications1
   contract. This is backend/API scope only: no preference UI, general settings
   enumeration, export/import, or reference-derived default is claimed. Ticket 03

@@ -10,9 +10,11 @@ endfunction()
 
 add_library(adrenalin-session-contract STATIC
     ../interfaces/settings1_client.cpp
+    ../interfaces/toast_notifications_client.cpp
     ../interfaces/notifications1_client.cpp
     ../interfaces/profiles1_client.cpp
     ../interfaces/hotkeys1_client.cpp
+    ../interfaces/toast_notifications_client.h
     ../interfaces/service_readiness_client.cpp
     ../interfaces/hardware1_client.cpp
     ../interfaces/display1_client.cpp

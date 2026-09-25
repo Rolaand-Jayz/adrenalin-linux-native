@@ -35,6 +35,7 @@
       <arg name="service_instance_uuid" type="s" direction="out"/>
       <arg name="service_generation" type="t" direction="out"/>
       <arg name="event_sequence" type="t" direction="out"/>
+      <arg name="configured" type="b" direction="out"/>
       <arg name="enabled" type="b" direction="out"/>
       <arg name="revision" type="t" direction="out"/>
     </method>

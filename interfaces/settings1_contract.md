@@ -2,8 +2,10 @@
 
 `Settings1` exposes the product telemetry consent tracer and the schema-defined
 `toast.notifications` boolean preference. Toast notifications are not initialized
-to a guessed default: until a reference-backed value has been chosen and saved,
-`GetToastNotifications` returns `UNAVAILABLE` with an empty service envelope.
+to a guessed default: `GetToastNotifications` returns a successful snapshot with
+`configured=false`, `enabled=false` (ignored while unconfigured), and revision zero
+until a reference-backed value has been chosen and saved. This preserves the
+service identity and shared event cursor needed for client reconciliation.
 `SetToastNotifications` can initialize that preference at revision zero.
 
 Successful reads carry the Session1 service UUID, generation, shared event
