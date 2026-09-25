@@ -202,13 +202,13 @@ open.
 - [ ] Apply the same event envelope and gap-reconciliation contract to every
   remaining cross-process event family in the v1 topology.
 
-  Progress audit (2026-09-25): current production Settings, Notifications,
-  Hardware, and Service readiness events use the shared session sequence; Telemetry1
-  and Profiles1 remain contract-only. Display1 now has a production list/state
-  root, mirrors display inventory/capability hints on the shared cursor, and its
-  production client reconciles authoritative list/state snapshots against shared
-  event envelopes. Hotkeys1 still has no production root. Keep this gate open until
-  every family has its producer, common event envelope, and authoritative snapshot
+  Progress audit (2026-09-25): production Settings, Notifications, Hardware,
+  Display, Profiles, and Service readiness events use the shared session sequence.
+  Display1 and Profiles1 have production read/write roots and clients that reconcile
+  authoritative snapshots against shared event envelopes. Hotkeys1 now has a
+  production snapshot/event client, but no production service root or provider;
+  Telemetry1 remains a contract/fixture. Keep this gate open until every family has
+  its production owner, common event envelope, and authoritative snapshot
   reconciliation.
 
 **Additional audited-spec tracking (ID-106):**
