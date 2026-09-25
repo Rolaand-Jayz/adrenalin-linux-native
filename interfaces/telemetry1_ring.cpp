@@ -26,11 +26,13 @@ bool validState(std::uint32_t state) {
 bool validHeader(const Header &header, std::size_t size, const NegotiatedStream &n) {
     return size >= sizeof(Header)
         && std::memcmp(header.magic, kMagic, sizeof(kMagic)) == 0
-        && header.abi_major == kMajor && n.abi_major == kMajor
+        && header.abi_major == kMajor && header.abi_minor == kMinor
+        && n.abi_major == kMajor
         && header.header_size == sizeof(Header)
         && header.mapped_size == size && n.mapped_size == size
         && header.slot_count == kSlotCount && header.slot_size == sizeof(Slot)
         && header.metric_count == kMetricCount
+        && header.reserved0 == 0 && header.reserved1 == 0
         && header.service_generation == n.service_generation
         && header.producer_generation == n.producer_generation
         && header.metric_definition_generation == n.metric_definition_generation
@@ -44,9 +46,11 @@ SingleProducer::SingleProducer(void *mapping, std::size_t size) {
         return;
     auto *header = static_cast<Header *>(mapping);
     if (std::memcmp(header->magic, kMagic, sizeof(kMagic)) != 0
-        || header->abi_major != kMajor || header->header_size != sizeof(Header)
+        || header->abi_major != kMajor || header->abi_minor != kMinor
+        || header->header_size != sizeof(Header)
         || header->mapped_size != size || header->slot_count != kSlotCount
         || header->slot_size != sizeof(Slot) || header->metric_count != kMetricCount
+        || header->reserved0 != 0 || header->reserved1 != 0
         || header->producer_generation == 0
         || header->metric_definition_generation == 0
         || header->subject_definition_generation == 0 || header->service_generation == 0)

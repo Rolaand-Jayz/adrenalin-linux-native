@@ -389,6 +389,15 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   the reviewer could not inspect the checkout directly. Production telemetry, ID-153 source selection,
   readiness and recovery integration, and Performance UI remain unimplemented.
   This does not complete Ticket 07 or Ticket 03.
+- Telemetry1 fixture policy now explicitly accepts only ABI 1.0, requires zero
+  reserved fields, and documents immutable headers plus descriptor, mapping-size,
+  sharing, lifetime, and no-truncation preconditions for a future production open
+  layer. Reader and producer malformed-header coverage includes minor/reserved
+  fields; the strict-warning ABI target builds and focused CTest passes 1/1. This
+  policy remains fixture-level documentation and does not establish production ABI
+  readiness or close Ticket 07. Reasoning-only review accepted it for the fixture
+  and flagged production compatible-minor negotiation and an enforceable
+  truncation-prevention mechanism as remaining adoption decisions.
 - Ticket 03 requires central completion of the v1 interface topology and
   operation families before it can be considered complete.
 

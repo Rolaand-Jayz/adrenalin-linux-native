@@ -223,14 +223,17 @@ void testMalformedMappingsFailClosed() {
     CHECK(!readSlot(region.mapping(), kMappedSize + 1, region.negotiated(), 0, &sample));
     CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), kSlotCount, &sample));
 
-    const std::array<void (*)(Header &), 12> corruptHeaders{
+    const std::array<void (*)(Header &), 15> corruptHeaders{
         [](Header &value) { value.magic[0] ^= 0xffU; },
         [](Header &value) { ++value.abi_major; },
+        [](Header &value) { ++value.abi_minor; },
         [](Header &value) { ++value.header_size; },
         [](Header &value) { ++value.mapped_size; },
         [](Header &value) { ++value.slot_count; },
         [](Header &value) { ++value.slot_size; },
         [](Header &value) { ++value.metric_count; },
+        [](Header &value) { ++value.reserved0; },
+        [](Header &value) { ++value.reserved1; },
         [](Header &value) { ++value.service_generation; },
         [](Header &value) { ++value.producer_generation; },
         [](Header &value) { ++value.metric_definition_generation; },
@@ -326,6 +329,9 @@ void testProducerRejectsMalformedHeaders() {
     };
     rejectsProducer([](Header &header) { header.magic[0] ^= 0xffU; });
     rejectsProducer([](Header &header) { ++header.metric_count; });
+    rejectsProducer([](Header &header) { ++header.abi_minor; });
+    rejectsProducer([](Header &header) { ++header.reserved0; });
+    rejectsProducer([](Header &header) { ++header.reserved1; });
 }
 }
 

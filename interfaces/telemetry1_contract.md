@@ -65,6 +65,24 @@ atomically to avoid a C++ data race; an even, unchanged guard alone is not used
 to justify copying non-atomic payload bytes. Production adoption still requires
 independent review and broader malformed-mapping/fuzz coverage.
 
+The fixture accepts only ABI major 1/minor 0. Both reserved header fields must
+remain zero; unknown minor versions or nonzero reserved fields are rejected until
+an explicitly reviewed fixture revision defines their meaning. The producer
+initializes the complete header before making a mapping available and never
+changes header fields in place. Generation or definition changes require a new
+mapping and stream reopen. Reader/writer APIs receive an already established
+mapping: callers must verify the backing object size before mapping, use a shared
+mapping, keep the mapping alive for each operation, and prevent backing-object
+truncation while mappings exist. Consumers open the descriptor read-only and map
+with read permission; the single sessiond producer owns a writable shared mapping.
+These descriptor and lifetime preconditions belong at the future production open
+layer; the fixture's pointer-level reader cannot establish them by itself. An
+open-time `fstat()` does not prevent a later truncation, so production adoption
+must also guarantee a trusted producer lifecycle that cannot truncate a published
+object or use backing storage with enforceable size seals. The eventual production
+ABI must separately define compatible minor-version negotiation; the fixture's
+exact 1.0 rule is not that policy.
+
 ## Unresolved dependencies
 
 - A single production service event allocator shared with Hardware1 and other
