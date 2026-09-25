@@ -614,6 +614,8 @@ Progress (fixture slice; 2026-09-24): This patch adds a versioned Telemetry1 D-B
 
 Progress (contract cursor slice; 2026-09-25): `OpenStream` now returns the shared ID-093 event cursor with its authoritative telemetry snapshot. A test-only cursor model advances across common events from other service families and requests an authoritative reopen for true gaps, owner/service-generation changes, or changed telemetry definition generations, including when the specific signal follows its common envelope at the same sequence. Independent review found no remaining actionable findings. The three focused ABI, private-bus, and event-cursor CTests pass 3/3; `git diff --check` passes. This remains contract/test evidence only: the production shared allocator, Telemetry1 producer/client, readiness/recovery, and Performance Metrics UI are not implemented, and Ticket 07 remains open.
 
+Progress (malformed-mapping fixture tests; 2026-09-25): the Telemetry1 ABI test now checks that the reader rejects null, unaligned, truncated, oversized, and out-of-range inputs; incompatible magic, major, geometry, metric count, and negotiated generations; and zero/invalid slot sequence, guard, state, or encoding. The strict-warning ABI target builds and focused CTest passes 1/1. This expands deterministic reader validation only; it does not define minor-version/reserved-field policy, change the ABI, or satisfy independent ABI review. Telemetry1 remains a fixture, not a production provider, and Ticket 07 stays open.
+
 ### 08 — Global search and notification center
 
 **Blocked by:** 03, 04

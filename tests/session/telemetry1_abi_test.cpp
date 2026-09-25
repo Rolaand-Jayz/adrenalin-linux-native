@@ -192,6 +192,66 @@ void testPublicationStateWrapRejectionAndExhaustion() {
     CHECK(exhausted.nextSampleSequence() == std::numeric_limits<std::uint64_t>::max());
 }
 
+void testMalformedMappingsFailClosed() {
+    Region region;
+    auto *header = static_cast<Header *>(region.mapping());
+    const Header validHeader = *header;
+    ReadSample sample;
+
+    CHECK(!readSlot(nullptr, kMappedSize, region.negotiated(), 0, &sample));
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, nullptr));
+    CHECK(!readSlot(static_cast<const char *>(region.mapping()) + 1, kMappedSize,
+                    region.negotiated(), 0, &sample));
+    CHECK(!readSlot(region.mapping(), kMappedSize - 1, region.negotiated(), 0, &sample));
+    CHECK(!readSlot(region.mapping(), kMappedSize + 1, region.negotiated(), 0, &sample));
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), kSlotCount, &sample));
+
+    const std::array<void (*)(Header &), 12> corruptHeaders{
+        [](Header &value) { value.magic[0] ^= 0xffU; },
+        [](Header &value) { ++value.abi_major; },
+        [](Header &value) { ++value.header_size; },
+        [](Header &value) { ++value.mapped_size; },
+        [](Header &value) { ++value.slot_count; },
+        [](Header &value) { ++value.slot_size; },
+        [](Header &value) { ++value.metric_count; },
+        [](Header &value) { ++value.service_generation; },
+        [](Header &value) { ++value.producer_generation; },
+        [](Header &value) { ++value.metric_definition_generation; },
+        [](Header &value) { ++value.subject_definition_generation; },
+        [](Header &value) { value.service_generation = 0; }
+    };
+    for (const auto corruptHeader : corruptHeaders) {
+        *header = validHeader;
+        corruptHeader(*header);
+        CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    }
+    *header = validHeader;
+
+    SingleProducer producer(region.mapping(), kMappedSize);
+    CHECK(producer.isValid());
+    auto *slot = reinterpret_cast<Slot *>(static_cast<char *>(region.mapping()) + kHeaderSize);
+    CHECK(producer.publish(SampleState::Valid, 42, 10));
+    const Slot validSlot = *slot;
+
+    slot->sample_sequence = 0;
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    *slot = validSlot;
+    slot->encoding = static_cast<std::uint32_t>(MetricEncoding::UnsignedMicroUnits) + 1U;
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    *slot = validSlot;
+    slot->sequence_guard = 0;
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    *slot = validSlot;
+
+    const auto initial = region.negotiated();
+    auto zeroGeneration = initial;
+    zeroGeneration.service_generation = 0;
+    CHECK(!readSlot(region.mapping(), kMappedSize, zeroGeneration, 0, &sample));
+    auto zeroProducerGeneration = initial;
+    zeroProducerGeneration.producer_generation = 0;
+    CHECK(!readSlot(region.mapping(), kMappedSize, zeroProducerGeneration, 0, &sample));
+}
+
 void testForkedProducerConcurrentReaders() {
     Region region;
     const pid_t child = ::fork();
@@ -243,5 +303,6 @@ void testForkedProducerConcurrentReaders() {
 int main() {
     testTypesAndReadOnlyFixture();
     testPublicationStateWrapRejectionAndExhaustion();
+    testMalformedMappingsFailClosed();
     testForkedProducerConcurrentReaders();
 }

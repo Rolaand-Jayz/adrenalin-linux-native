@@ -38,7 +38,7 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   ID-093 families, other ID-107 operations, and ID-185 recovery remain open;
   Ticket 03 is not complete.
 
-- Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. Independent review passed; focused ABI, private-bus, and cursor CTests passed 3/3. This adds no production telemetry provider or event client; Ticket 07 and production ID-093/ID-185 work remain open.
+- Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. The ABI fixture's reader tests now reject malformed mapping lengths/alignment, incompatible fixed header fields, and invalid slot sequence/guard/state/encoding. Strict-warning ABI build and focused CTest pass. The contract/cursor tests passed 3/3 after the earlier slice. This is fixture validation only: minor/reserved-field policy and independent ABI review remain open, as do production source selection, producer/client, readiness/recovery, Ticket 07, and production ID-093/ID-185 work.
 
 - Profiles1 contract correction: `ReadProfile` carries service incarnation and
   event-sequence cursor beside the profile; zero is valid before the first event,
