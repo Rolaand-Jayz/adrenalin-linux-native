@@ -618,6 +618,8 @@ Progress (malformed-mapping fixture tests; 2026-09-25): the Telemetry1 ABI test 
 
 Progress (producer header validation; 2026-09-25): independent ABI review found that the fixture producer accepted invalid magic and metric count even though the reader rejected both. `SingleProducer` now validates both required header identity fields; regression coverage requires invalid producers to be rejected and publication to fail. The strict-warning ABI target builds, focused CTest passes 1/1, and `git diff --check` passes. A second reviewer found no actionable issue from the supplied patch summary, but could not inspect the checkout or verify the complete diff. This closes only the identified fixture defect; production telemetry/source selection, readiness/recovery, and Performance UI acceptance remain open, so Ticket 07 remains open.
 
+Progress (fixture sample identity validation; 2026-09-25): the reader now checks the fixture producer's sequence-to-slot mapping and requires the committed guard to match the sample sequence's even-guard progression, rejecting impossible cross-field combinations and the maximum sequence that cannot be rounded to a committed guard. Tests cover mismatched sequence, slot, guard, and maximum sequence. The strict-warning ABI target builds and focused CTest passes 1/1. A reasoning-only adversarial review of the supplied reader body confirmed these checks follow the stable even-guard validation and do not disturb the described sequentially consistent atomic read protocol; the reviewer could not inspect the checkout directly. This strengthens only the two-slot fixture and does not establish production ABI adoption or Ticket 07 acceptance.
+
 ### 08 — Global search and notification center
 
 **Blocked by:** 03, 04

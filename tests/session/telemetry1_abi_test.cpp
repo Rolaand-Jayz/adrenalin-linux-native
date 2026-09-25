@@ -131,6 +131,23 @@ void testPublicationStateWrapRejectionAndExhaustion() {
     CHECK(readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
     CHECK(sample.sample_sequence == 5 && sample.value == 555);
 
+    __atomic_store_n(&slot0->sample_sequence, std::uint64_t(3), __ATOMIC_SEQ_CST);
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    __atomic_store_n(&slot0->sample_sequence, std::uint64_t(5), __ATOMIC_SEQ_CST);
+    __atomic_store_n(&slot0->sample_sequence, std::numeric_limits<std::uint64_t>::max(),
+                     __ATOMIC_SEQ_CST);
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    __atomic_store_n(&slot0->sample_sequence, std::uint64_t(5), __ATOMIC_SEQ_CST);
+    __atomic_store_n(&slot0->sequence_guard, std::uint64_t(4), __ATOMIC_SEQ_CST);
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 0, &sample));
+    __atomic_store_n(&slot0->sequence_guard, std::uint64_t(6), __ATOMIC_SEQ_CST);
+
+    auto *slot1 = reinterpret_cast<Slot *>(static_cast<char *>(region.mapping()) + kHeaderSize)
+        + 1;
+    __atomic_store_n(&slot1->sample_sequence, std::uint64_t(3), __ATOMIC_SEQ_CST);
+    CHECK(!readSlot(region.mapping(), kMappedSize, region.negotiated(), 1, &sample));
+    __atomic_store_n(&slot1->sample_sequence, std::uint64_t(4), __ATOMIC_SEQ_CST);
+
     const auto baseline = region.negotiated();
     const auto rejectsNegotiation = [&](NegotiatedStream candidate) {
         CHECK(!readSlot(region.mapping(), kMappedSize, candidate, 0, &sample));

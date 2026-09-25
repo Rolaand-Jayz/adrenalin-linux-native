@@ -113,6 +113,9 @@ bool readSlot(const void *mapping, std::size_t mappedSize,
     const auto value = load(slot.metric_value);
     const auto second = load(slot.sequence_guard);
     if (first != second || (second & 1U) != 0U || candidate.sample_sequence == 0
+        || candidate.sample_sequence == std::numeric_limits<std::uint64_t>::max()
+        || (candidate.sample_sequence - 1U) % kSlotCount != slotIndex
+        || second != candidate.sample_sequence + (candidate.sample_sequence & 1U)
         || !validState(state)
         || encoding != static_cast<std::uint32_t>(MetricEncoding::UnsignedMicroUnits)) return false;
     candidate.state = static_cast<SampleState>(state);
