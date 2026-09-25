@@ -22,6 +22,7 @@ Reply makeReply(const QString &subjectKind, const QString &subjectId)
     reply.serviceGeneration = 2;
     reply.inventoryGeneration = 5;
     reply.capabilityGeneration = 9;
+    reply.eventSequence = 17;
     return reply;
 }
 

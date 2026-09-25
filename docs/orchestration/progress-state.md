@@ -14,6 +14,18 @@ and ID-185 recovery sequence tracked against their owning production contracts.
 
 ## Completed evidence
 
+- Hardware1 snapshot/event reconciliation: production device, static-info, and
+  capability reads now include the shared per-service event cursor captured with
+  each snapshot. The shell client reconciles common envelopes and Hardware1 family
+  changes, handling duplicates, unrelated sequential events, gaps, identity or
+  generation changes, and stale in-flight reads through authoritative refreshes.
+  The shared nested Display1 Hardware1 reply signature was updated consistently.
+  Strict-warning builds passed for the contract/service/client/shell targets, and
+  focused CTest passed 5/5 including shell smoke. Independent review of the exact
+  slice found no actionable findings. Display1 production roots, remaining ID-093
+  families, other ID-107 operations, and ID-185 recovery remain open; Ticket 03 is
+  not complete.
+
 - Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. Independent review passed; focused ABI, private-bus, and cursor CTests passed 3/3. This adds no production telemetry provider or event client; Ticket 07 and production ID-093/ID-185 work remain open.
 
 - Profiles1 contract correction: `ReadProfile` carries service incarnation and

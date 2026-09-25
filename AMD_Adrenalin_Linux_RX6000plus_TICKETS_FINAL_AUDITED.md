@@ -232,6 +232,21 @@ identities or derived install locations.
     service build and CTest pass. Live physical
     hotplug behavior and hosted CI remain unverified. ID-185 readiness recovery is
     still open.
+  - [x] Hardware1 snapshot/event reconciliation slice (2026-09-25): all three
+    production Hardware1 reads carry the service-wide event cursor captured with
+    their authoritative snapshot. The generated D-Bus signatures and nested
+    Display1 Hardware1 reply signatures match the serialized field order; a valid
+    pre-event snapshot may use cursor zero. The production shell client consumes
+    common Service1 envelopes and Hardware1 family signals, ignores duplicates,
+    advances across sequential unrelated events, and refreshes on gaps, identity or
+    generation changes, family changes, and stale in-flight snapshots. Strict
+    warning builds succeeded for Hardware1/Display1 contracts, Hardware1 service,
+    client, and shell. Focused CTest passed 5/5 including shell smoke. Independent
+    review of this exact slice found no remaining actionable findings; a subsequent
+    redundant reviewer checkout was unrelated and could not inspect the diff. This
+    does not implement Display1 production events or complete the remaining ID-093
+    families, Hardware1 operation families, or ID-185 recovery; Ticket 03 remains
+    open.
   - [x] Notifications1 now defines typed list/mark-read records, the audited closed
     notification category vocabulary, a test-only in-memory mock, and a generated
     proxy/private-bus contract test for snapshot validation, idempotent mark-read,

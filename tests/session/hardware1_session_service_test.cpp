@@ -107,6 +107,7 @@ private slots:
         QVERIFY(listed.isValid());
         QCOMPARE(listed.code, QStringLiteral("OK"));
         QCOMPARE(listed.inventoryGeneration, quint64(1));
+        QCOMPARE(listed.eventSequence, service.eventSequence());
         QCOMPARE(devicesReply.argumentAt<1>().size(), 1);
 
         auto infoPending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind), QString::fromLatin1(kCpuId));
@@ -114,6 +115,7 @@ private slots:
         const QDBusPendingReply<Reply, DeviceInfo> infoReply = infoPending;
         QVERIFY2(!infoReply.isError(), qPrintable(infoReply.error().message()));
         QCOMPARE(infoReply.argumentAt<0>().code, QStringLiteral("OK"));
+        QCOMPARE(infoReply.argumentAt<0>().eventSequence, listed.eventSequence);
         QCOMPARE(infoReply.argumentAt<1>().displayName, QStringLiteral("Integration CPU"));
 
         auto graphPending = proxy.GetCapabilityGraph(QString::fromLatin1(kCpuKind),
@@ -122,6 +124,7 @@ private slots:
         const QDBusPendingReply<Reply, QList<Capability>> graphReply = graphPending;
         QVERIFY2(!graphReply.isError(), qPrintable(graphReply.error().message()));
         QCOMPARE(graphReply.argumentAt<0>().code, QStringLiteral("OK"));
+        QCOMPARE(graphReply.argumentAt<0>().eventSequence, listed.eventSequence);
         QCOMPARE(graphReply.argumentAt<1>().size(), 1);
         QCOMPARE(graphReply.argumentAt<1>().constFirst().capabilityId,
                  QStringLiteral("cpu.metric.core_count"));
@@ -180,6 +183,7 @@ private slots:
         const QDBusPendingReply<Reply, QList<Device>> removedList = removedListPending;
         QVERIFY2(!removedList.isError(), qPrintable(removedList.error().message()));
         QCOMPARE(removedList.argumentAt<0>().code, QStringLiteral("OK"));
+        QCOMPARE(removedList.argumentAt<0>().eventSequence, service.eventSequence());
         QVERIFY(removedList.argumentAt<1>().isEmpty());
 
         auto disconnectedInfoPending = proxy.GetDeviceInfo(QString::fromLatin1(kCpuKind),
@@ -190,6 +194,7 @@ private slots:
         QCOMPARE(disconnectedInfo.argumentAt<0>().code, QStringLiteral("DEVICE_DISCONNECTED"));
         QVERIFY(disconnectedInfo.argumentAt<0>().snapshotValid);
         QCOMPARE(disconnectedInfo.argumentAt<0>().inventoryGeneration, quint64(2));
+        QCOMPARE(disconnectedInfo.argumentAt<0>().eventSequence, removedList.argumentAt<0>().eventSequence);
         QCOMPARE(disconnectedInfo.argumentAt<1>().subjectId, QString());
 
         auto disconnectedGraphPending = proxy.GetCapabilityGraph(QString::fromLatin1(kCpuKind),

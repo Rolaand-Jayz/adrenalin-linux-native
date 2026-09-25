@@ -2,12 +2,12 @@
   <interface name="org.adrenalinlinux.Session1.Display1">
     <method name="ListDisplays">
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="adrenalin::contracts::display1::ListReply"/>
-      <arg name="reply" type="((sssbsssbsttt)a(ssss))" direction="out"/>
+      <arg name="reply" type="((sssbsssbstttt)a(ssss))" direction="out"/>
     </method>
     <method name="GetDisplayState">
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="adrenalin::contracts::display1::StateReply"/>
       <arg name="subject_id" type="s" direction="in"/>
-      <arg name="reply" type="((sssbsssbsttt)(ssss)a(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as))" direction="out"/>
+      <arg name="reply" type="((sssbsssbstttt)(ssss)a(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as))" direction="out"/>
     </method>
     <method name="ValidateDisplay">
       <annotation name="org.qtproject.QtDBus.QtTypeName.In4" value="QList&lt;adrenalin::contracts::display1::ControlChange&gt;"/>

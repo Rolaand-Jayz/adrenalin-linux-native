@@ -436,6 +436,9 @@ Reply hardwareReply(const SessionService *service, const Hardware1Snapshot &snap
     reply.subjectId = id;
     reply.serviceInstanceUuid = service->serviceInstanceUuid();
     reply.serviceGeneration = service->serviceGeneration();
+    // Read methods execute on the serialized service thread, so this cursor
+    // identifies the event history covered by the copied snapshot.
+    reply.eventSequence = service->eventSequence();
     reply.provider = QStringLiteral("linux-hardware1-inventory");
     const QString state = service->initializationState();
     if (state == QLatin1String("STARTING") || state == QLatin1String("RECOVERING")) {

@@ -293,7 +293,7 @@ QDBusArgument &operator<<(QDBusArgument &argument, const Reply &reply)
     argument << reply.code << reply.humanMessageKey << reply.diagnosticMessage << reply.retryable
              << reply.provider << reply.subjectKind << reply.subjectId << reply.snapshotValid
              << reply.serviceInstanceUuid << reply.serviceGeneration << reply.inventoryGeneration
-             << reply.capabilityGeneration;
+             << reply.capabilityGeneration << reply.eventSequence;
     argument.endStructure();
     return argument;
 }
@@ -304,7 +304,7 @@ const QDBusArgument &operator>>(const QDBusArgument &argument, Reply &reply)
     argument >> reply.code >> reply.humanMessageKey >> reply.diagnosticMessage >> reply.retryable
              >> reply.provider >> reply.subjectKind >> reply.subjectId >> reply.snapshotValid
              >> reply.serviceInstanceUuid >> reply.serviceGeneration >> reply.inventoryGeneration
-             >> reply.capabilityGeneration;
+             >> reply.capabilityGeneration >> reply.eventSequence;
     argument.endStructure();
     return argument;
 }

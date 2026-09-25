@@ -12,6 +12,7 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/settings1_client.cpp
     ../interfaces/notifications1_client.cpp
     ../interfaces/service_readiness_client.cpp
+    ../interfaces/hardware1_client.cpp
     ../interfaces/operation_result.cpp
     ../interfaces/hardware1_contract_types.cpp
     ../interfaces/display1_contract_types.cpp
@@ -31,6 +32,7 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/hotkeys1_contract.h
     ../interfaces/hardware1_registry.h
     ../interfaces/service_readiness_client.h
+    ../interfaces/hardware1_client.h
     ../interfaces/notifications1_client.h
     ../interfaces/service_readiness_contract.h
 )

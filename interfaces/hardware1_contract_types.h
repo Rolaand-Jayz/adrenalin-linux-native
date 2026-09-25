@@ -21,6 +21,7 @@ struct Reply {
     quint64 serviceGeneration = 0;
     quint64 inventoryGeneration = 0;
     quint64 capabilityGeneration = 0;
+    quint64 eventSequence = 0;
 
     bool isValid(QString *error = nullptr) const;
 };

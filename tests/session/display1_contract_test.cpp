@@ -147,16 +147,16 @@ private slots:
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<Capability>())),
                  QByteArray("(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as)"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<Reply>())),
-                 QByteArray("(sssbsssbsttt)"));
+                 QByteArray("(sssbsssbstttt)"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<ControlChange>())),
                  QByteArray("(s(sbxtds))"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(
                      QMetaType::fromType<QList<ControlChange>>())),
                  QByteArray("a(s(sbxtds))"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<ListReply>())),
-                 QByteArray("((sssbsssbsttt)a(ssss))"));
+                 QByteArray("((sssbsssbstttt)a(ssss))"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<StateReply>())),
-                 QByteArray("((sssbsssbsttt)(ssss)a(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as))"));
+                 QByteArray("((sssbsssbstttt)(ssss)a(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as))"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(
                      QMetaType::fromType<ValidationReply>())),
                  QByteArray("(ssssbssstbttbsas)"));
@@ -192,6 +192,7 @@ private slots:
         QCOMPARE(list.snapshot.subjectKind, QStringLiteral("PLATFORM"));
         QCOMPARE(list.snapshot.inventoryGeneration, quint64(5));
         QCOMPARE(list.snapshot.capabilityGeneration, quint64(9));
+        QCOMPARE(list.snapshot.eventSequence, quint64(30));
         QCOMPARE(list.displays.size(), 1);
         QCOMPARE(list.displays.constFirst().subjectKind, QStringLiteral("DISPLAY"));
         QCOMPARE(list.displays.constFirst().subjectId, Mock::testDisplaySubjectId());
@@ -363,6 +364,7 @@ private slots:
         const StateReply refreshed = refreshedPending.argumentAt<0>();
         QVERIFY(refreshed.isValid());
         QCOMPARE(refreshed.snapshot.capabilityGeneration, first.capabilityGeneration);
+        QCOMPARE(refreshed.snapshot.eventSequence, first.eventSequence);
         QCOMPARE(refreshed.capabilities.constFirst().effectiveValue.realValue, 60.0);
 
         auto retryPending = proxy_->ApplyDisplay(operationId, Mock::testDisplaySubjectId(),

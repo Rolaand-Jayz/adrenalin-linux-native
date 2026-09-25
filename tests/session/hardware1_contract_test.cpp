@@ -103,7 +103,7 @@ private slots:
     void wireTypesAndIntrospectionMatchTheVersionedSchema()
     {
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<Reply>())),
-                 QByteArray("(sssbsssbsttt)"));
+                 QByteArray("(sssbsssbstttt)"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<Device>())),
                  QByteArray("(ssss)"));
         QCOMPARE(QByteArray(QDBusMetaType::typeToSignature(QMetaType::fromType<DeviceInfo>())),
@@ -124,7 +124,7 @@ private slots:
         QVERIFY2(response.type() == QDBusMessage::ReplyMessage,
                  qPrintable(response.errorMessage()));
         const QString schema = response.arguments().value(0).toString();
-        QVERIFY(schema.contains(QStringLiteral("<arg name=\"reply\" type=\"(sssbsssbsttt)\" direction=\"out\"/>")));
+        QVERIFY(schema.contains(QStringLiteral("<arg name=\"reply\" type=\"(sssbsssbstttt)\" direction=\"out\"/>")));
         const QString completeEventEnvelope = QStringLiteral(
             "\n      <arg name=\"service_instance_uuid\" type=\"s\"/>"
             "\n      <arg name=\"service_generation\" type=\"t\"/>"
@@ -172,6 +172,15 @@ private slots:
         QVERIFY(capabilities.isEmpty());
     }
 
+    void snapshotCursorMayPrecedeTheFirstEvent()
+    {
+        Mock mock;
+        QList<Device> devices;
+        Reply reply = mock.listDevices(&devices);
+        reply.eventSequence = 0;
+        QVERIFY2(reply.isValid(), "an authoritative snapshot may precede the first event");
+    }
+
     void listDevicesRoundTripsTypedIdentityAndEnvelope()
     {
         auto pending = proxy_->ListDevices();
@@ -194,6 +203,7 @@ private slots:
         QCOMPARE(reply.serviceGeneration, quint64(2));
         QCOMPARE(reply.inventoryGeneration, quint64(5));
         QCOMPARE(reply.capabilityGeneration, quint64(9));
+        QCOMPARE(reply.eventSequence, quint64(17));
         QCOMPARE(devices.size(), 3);
         QCOMPARE(devices.at(0).subjectKind, QStringLiteral("CPU_PACKAGE"));
         QCOMPARE(devices.at(0).subjectId, QStringLiteral("cpu-package-test-0"));

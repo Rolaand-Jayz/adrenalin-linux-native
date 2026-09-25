@@ -3,7 +3,7 @@
     <method name="ListDevices">
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="adrenalin::contracts::hardware1::Reply"/>
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="QList&lt;adrenalin::contracts::hardware1::Device&gt;"/>
-      <arg name="reply" type="(sssbsssbsttt)" direction="out"/>
+      <arg name="reply" type="(sssbsssbstttt)" direction="out"/>
       <arg name="devices" type="a(ssss)" direction="out"/>
     </method>
     <method name="GetDeviceInfo">
@@ -11,7 +11,7 @@
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="adrenalin::contracts::hardware1::DeviceInfo"/>
       <arg name="subject_kind" type="s" direction="in"/>
       <arg name="subject_id" type="s" direction="in"/>
-      <arg name="reply" type="(sssbsssbsttt)" direction="out"/>
+      <arg name="reply" type="(sssbsssbstttt)" direction="out"/>
       <arg name="device_info" type="(sssssssssss)" direction="out"/>
     </method>
     <method name="GetCapabilityGraph">
@@ -19,7 +19,7 @@
       <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="QList&lt;adrenalin::contracts::hardware1::Capability&gt;"/>
       <arg name="subject_kind" type="s" direction="in"/>
       <arg name="subject_id" type="s" direction="in"/>
-      <arg name="reply" type="(sssbsssbsttt)" direction="out"/>
+      <arg name="reply" type="(sssbsssbstttt)" direction="out"/>
       <arg name="capabilities" type="a(ssssssss(sbxtds)(sbxtds)(sbxtds)(sbxtds)(sbxtds)as)" direction="out"/>
     </method>
     <signal name="InventoryChanged">

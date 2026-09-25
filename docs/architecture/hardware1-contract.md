@@ -11,20 +11,26 @@ describe a hardware mutation API.
 at the fixed Session1 root object.
 
 - `ListDevices()` returns a typed result and one snapshot envelope containing
-  service-instance UUID, service generation, inventory generation, and
-  capability generation, followed by device records.
+  service-instance UUID, service generation, inventory generation, capability
+  generation, and the shared per-service event sequence, followed by device
+  records.
 - `GetDeviceInfo(subject_kind, subject_id)` returns a typed result, the same
-  four-part snapshot envelope, and static information for the requested
+  five-field snapshot envelope, and static information for the requested
   resolved subject.
 - `GetCapabilityGraph(subject_kind, subject_id)` returns a typed result, the
-  same four-generation envelope, and the requested subject's capability
+  same five-field envelope, and the requested subject's capability
   records.
 
 Every response carries service UUID, service generation, inventory generation,
-and capability generation, so a caller can detect a capability-only change
-between `ListDevices`, `GetDeviceInfo`, and `GetCapabilityGraph`. Each response
-is built from one immutable in-process snapshot. A caller must discard a
-combination of replies if any envelope field differs. The inventory generation
+capability generation, and event sequence. On a valid snapshot, the event
+sequence is captured on the serialized service thread with that immutable
+snapshot; zero is valid before the first event. A caller can detect a
+capability-only change between `ListDevices`, `GetDeviceInfo`, and
+`GetCapabilityGraph`, and can reconcile events that arrive during a read. A
+caller must discard a combination of replies if any envelope field differs.
+Invalid readiness replies have no authoritative hardware snapshot: they retain
+the current service event sequence for diagnostics, but clients must not use it
+as a snapshot cursor. The inventory generation
 starts at one after the first successful reconciliation in a service
 incarnation. It advances when resolved subject membership or typed
 identity-bearing evidence changes; order and presentation-label changes do not

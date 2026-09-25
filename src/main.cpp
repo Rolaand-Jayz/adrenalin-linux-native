@@ -1,9 +1,12 @@
 #include "application_config.h"
 #include "interfaces/settings1_client.h"
 #include "interfaces/notifications1_client.h"
+#include "interfaces/hardware1_client.h"
+#include "session_identity.h"
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QDBusConnection>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -253,6 +256,9 @@ int main(int argc, char *argv[])
 
     Settings1Client settingsClient;
     Notifications1Client notificationsClient;
+    adrenalin::contracts::hardware1::Client hardwareClient(
+        QString::fromLatin1(adrenalin::session1::serviceName),
+        QString::fromLatin1(adrenalin::session1::objectPath), QDBusConnection::sessionBus());
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(
         QStringLiteral("appDisplayName"), QString::fromUtf8(ADRENALIN_APP_NAME));
@@ -260,6 +266,8 @@ int main(int argc, char *argv[])
                                              &settingsClient);
     engine.rootContext()->setContextProperty(QStringLiteral("sessionNotificationsClient"),
                                              &notificationsClient);
+    engine.rootContext()->setContextProperty(QStringLiteral("sessionHardware1Client"),
+                                             &hardwareClient);
     engine.loadFromModule(QStringLiteral("Adrenalin.Shell"), QStringLiteral("Main"));
 
     if (engine.rootObjects().isEmpty())

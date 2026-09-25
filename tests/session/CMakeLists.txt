@@ -98,6 +98,28 @@ add_test(NAME adrenalin-hardware1-contract
 )
 set_tests_properties(adrenalin-hardware1-contract PROPERTIES TIMEOUT 30)
 
+qt_add_executable(adrenalin-hardware1-client-test
+    hardware1_client_test.cpp
+)
+target_include_directories(adrenalin-hardware1-client-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-hardware1-client-test PRIVATE
+    adrenalin-session-contract
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-hardware1-client-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-hardware1-client
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-hardware1-client-test>
+)
+set_tests_properties(adrenalin-hardware1-client PROPERTIES TIMEOUT 30)
+
 qt_add_executable(adrenalin-display1-contract-test
     display1_contract_test.cpp
 )

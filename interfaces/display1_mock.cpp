@@ -24,7 +24,8 @@ bool validOperationId(const QString &value)
 }
 
 Reply makeSnapshot(const QString &subjectKind, const QString &subjectId,
-                   quint64 inventoryGeneration = 5, quint64 capabilityGeneration = 9)
+                   quint64 inventoryGeneration, quint64 capabilityGeneration,
+                   quint64 eventSequence)
 {
     Reply reply;
     reply.code = QStringLiteral("OK");
@@ -36,15 +37,17 @@ Reply makeSnapshot(const QString &subjectKind, const QString &subjectId,
     reply.serviceGeneration = 2;
     reply.inventoryGeneration = inventoryGeneration;
     reply.capabilityGeneration = capabilityGeneration;
+    reply.eventSequence = eventSequence;
     return reply;
 }
 
 Reply failedSnapshot(const QString &code, const QString &key,
                      const QString &subjectKind, const QString &subjectId,
-                     quint64 inventoryGeneration = 5, quint64 capabilityGeneration = 9)
+                     quint64 inventoryGeneration, quint64 capabilityGeneration,
+                     quint64 eventSequence)
 {
     Reply reply = makeSnapshot(subjectKind, subjectId, inventoryGeneration,
-                               capabilityGeneration);
+                               capabilityGeneration, eventSequence);
     reply.code = code;
     reply.humanMessageKey = key;
     reply.diagnosticMessage = QStringLiteral("Display1 test fixture rejected the request");
@@ -52,7 +55,7 @@ Reply failedSnapshot(const QString &code, const QString &key,
 }
 
 Reply notReadySnapshot(const QString &code, const QString &subjectKind,
-                       const QString &subjectId)
+                       const QString &subjectId, quint64 eventSequence)
 {
     Reply reply;
     reply.code = code;
@@ -66,6 +69,7 @@ Reply notReadySnapshot(const QString &code, const QString &subjectKind,
     reply.snapshotValid = false;
     reply.serviceInstanceUuid = QString::fromLatin1(kServiceUuid);
     reply.serviceGeneration = 2;
+    reply.eventSequence = eventSequence;
     return reply;
 }
 
@@ -231,14 +235,14 @@ ListReply Mock::listDisplays() const
     ListReply reply;
     if (readinessState_ == ReadinessState::Ready) {
         reply.snapshot = makeSnapshot(QStringLiteral("PLATFORM"), QStringLiteral("platform"),
-                                      inventoryGeneration_, capabilityGeneration_);
+                                      inventoryGeneration_, capabilityGeneration_, eventSequence_);
         reply.displays.append({QStringLiteral("DISPLAY"), QString::fromLatin1(kDisplayId),
                                QStringLiteral("test.display.edid"), QStringLiteral("Test Display")});
     } else {
         const QString code = readinessState_ == ReadinessState::Recovering
             ? QStringLiteral("BUSY") : QStringLiteral("BACKEND_UNAVAILABLE");
         reply.snapshot = notReadySnapshot(code, QStringLiteral("PLATFORM"),
-                                          QStringLiteral("platform"));
+                                          QStringLiteral("platform"), eventSequence_);
     }
     return reply;
 }
@@ -249,18 +253,19 @@ StateReply Mock::getDisplayState(const QString &subjectId) const
     if (readinessState_ != ReadinessState::Ready) {
         const QString code = readinessState_ == ReadinessState::Recovering
             ? QStringLiteral("BUSY") : QStringLiteral("BACKEND_UNAVAILABLE");
-        reply.snapshot = notReadySnapshot(code, QStringLiteral("DISPLAY"), subjectId);
+        reply.snapshot = notReadySnapshot(code, QStringLiteral("DISPLAY"), subjectId,
+                                          eventSequence_);
         return reply;
     }
     if (subjectId != QLatin1String(kDisplayId)) {
         reply.snapshot = failedSnapshot(QStringLiteral("NOT_FOUND"),
                                         QStringLiteral("hardware.subject.notFound"),
                                         QStringLiteral("DISPLAY"), subjectId,
-                                        inventoryGeneration_, capabilityGeneration_);
+                                        inventoryGeneration_, capabilityGeneration_, eventSequence_);
         return reply;
     }
     reply.snapshot = makeSnapshot(QStringLiteral("DISPLAY"), subjectId,
-                                  inventoryGeneration_, capabilityGeneration_);
+                                  inventoryGeneration_, capabilityGeneration_, eventSequence_);
     reply.display = {QStringLiteral("DISPLAY"), QString::fromLatin1(kDisplayId),
                      QStringLiteral("test.display.edid"), QStringLiteral("Test Display")};
     reply.capabilities = capabilities_;
