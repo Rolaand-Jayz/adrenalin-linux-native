@@ -61,7 +61,7 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
     pkg_check_modules(HWLOC REQUIRED IMPORTED_TARGET hwloc)
-    add_library(adrenalin-linux-hardware-inventory-sources STATIC
+    set(ADRENALIN_HARDWARE_INVENTORY_SOURCES
         ../interfaces/linux_drm_inventory_source.cpp
         ../interfaces/linux_drm_inventory_source.h
         ../interfaces/pci_gpu_subject_identity.cpp
@@ -72,6 +72,9 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         ../interfaces/linux_cpu_package_source.h
         ../interfaces/linux_hardware1_inventory_provider.cpp
         ../interfaces/linux_hardware1_inventory_provider.h
+    )
+    add_library(adrenalin-linux-hardware-inventory-sources STATIC
+        ${ADRENALIN_HARDWARE_INVENTORY_SOURCES}
     )
     target_include_directories(adrenalin-linux-hardware-inventory-sources PUBLIC
         "${ADRENALIN_SOURCE_ROOT}/interfaces"
@@ -100,14 +103,25 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         service1_adaptor
         Service1Adaptor
     )
+    qt_add_dbus_adaptor(ADRENALIN_SESSION_ADAPTOR_FILES
+        "${ADRENALIN_HARDWARE1_XML}"
+        "sessiond/session_service.h"
+        ""
+        hardware1_adaptor
+        Hardware1Adaptor
+    )
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 0 ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP)
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 1 ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_HEADER)
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 2 ADRENALIN_GENERATED_SERVICE1_ADAPTOR_CPP)
     list(GET ADRENALIN_SESSION_ADAPTOR_FILES 3 ADRENALIN_GENERATED_SERVICE1_ADAPTOR_HEADER)
-    set_source_files_properties("${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP}"
+    list(GET ADRENALIN_SESSION_ADAPTOR_FILES 4 ADRENALIN_GENERATED_HARDWARE1_ADAPTOR_CPP)
+    list(GET ADRENALIN_SESSION_ADAPTOR_FILES 5 ADRENALIN_GENERATED_HARDWARE1_ADAPTOR_HEADER)
+    set_source_files_properties(
+        "${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP}"
+        "${ADRENALIN_GENERATED_HARDWARE1_ADAPTOR_CPP}"
         PROPERTIES HEADER_FILE_ONLY TRUE
     )
-    add_library(adrenalin-session-core STATIC
+    set(ADRENALIN_SESSION_CORE_SOURCES
         session_database.cpp
         session_database.h
         session_service.cpp
@@ -115,12 +129,17 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         service1_property_notifications.cpp
         service1_property_notifications.h
         settings1_adaptor_impl.cpp
+        hardware1_adaptor_impl.cpp
         "${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_CPP}"
         "${ADRENALIN_GENERATED_SETTINGS1_ADAPTOR_HEADER}"
         "${ADRENALIN_GENERATED_SERVICE1_ADAPTOR_CPP}"
         "${ADRENALIN_GENERATED_SERVICE1_ADAPTOR_HEADER}"
+        "${ADRENALIN_GENERATED_HARDWARE1_ADAPTOR_CPP}"
+        "${ADRENALIN_GENERATED_HARDWARE1_ADAPTOR_HEADER}"
         "${CMAKE_CURRENT_BINARY_DIR}/moc_settings1_adaptor.cpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/moc_hardware1_adaptor.cpp"
     )
+    add_library(adrenalin-session-core STATIC ${ADRENALIN_SESSION_CORE_SOURCES})
     target_include_directories(adrenalin-session-core PUBLIC
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${ADRENALIN_SOURCE_ROOT}"
@@ -128,11 +147,32 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
     )
     target_link_libraries(adrenalin-session-core PUBLIC
         adrenalin-session-contract
+        adrenalin-linux-hardware-inventory-sources
         Qt6::Core
         Qt6::DBus
         Qt6::Sql
     )
     adrenalin_session_enable_strict_warnings(adrenalin-session-core)
+    if(BUILD_TESTING)
+        add_library(adrenalin-session-core-testable STATIC ${ADRENALIN_SESSION_CORE_SOURCES})
+        target_compile_definitions(adrenalin-session-core-testable PRIVATE
+            ADRENALIN_SESSION_HARDWARE1_TESTING
+        )
+        target_include_directories(adrenalin-session-core-testable PUBLIC
+            "${CMAKE_CURRENT_BINARY_DIR}"
+            "${ADRENALIN_SOURCE_ROOT}"
+            "${ADRENALIN_GENERATED_INCLUDE_DIR}"
+        )
+        target_link_libraries(adrenalin-session-core-testable PUBLIC
+            adrenalin-session-contract
+            adrenalin-linux-hardware-inventory-sources-testable
+            Qt6::Core Qt6::DBus Qt6::Sql
+        )
+        adrenalin_session_enable_strict_warnings(adrenalin-session-core-testable)
+        target_compile_definitions(adrenalin-session-core-testable INTERFACE
+            ADRENALIN_SESSION_HARDWARE1_TESTING
+        )
+    endif()
 
     qt_add_executable(adrenalin-sessiond main.cpp)
     target_include_directories(adrenalin-sessiond PRIVATE "${ADRENALIN_SOURCE_ROOT}")
@@ -164,5 +204,19 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
 endif()
 
 if(BUILD_TESTING AND ADRENALIN_BUILD_SESSION_SERVICE)
+    add_library(adrenalin-linux-hardware-inventory-sources-testable STATIC
+        ${ADRENALIN_HARDWARE_INVENTORY_SOURCES}
+    )
+    target_compile_definitions(adrenalin-linux-hardware-inventory-sources-testable PUBLIC
+        ADRENALIN_HARDWARE1_INVENTORY_TESTING
+    )
+    target_include_directories(adrenalin-linux-hardware-inventory-sources-testable PUBLIC
+        "${ADRENALIN_SOURCE_ROOT}/interfaces"
+    )
+    target_link_libraries(adrenalin-linux-hardware-inventory-sources-testable PUBLIC
+        Qt6::Core PkgConfig::LIBDRM PkgConfig::HWLOC adrenalin-session-contract
+    )
+    adrenalin_session_enable_strict_warnings(adrenalin-linux-hardware-inventory-sources-testable)
+
     add_subdirectory(../tests/session "${CMAKE_CURRENT_BINARY_DIR}/tests-session")
 endif()

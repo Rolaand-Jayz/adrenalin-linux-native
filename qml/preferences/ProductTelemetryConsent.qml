@@ -4,6 +4,9 @@ import QtQuick.Layouts
 
 Item {
     id: root
+    Accessible.id: "productTelemetryConsent"
+    Accessible.name: qsTr("Product telemetry settings")
+    Accessible.role: Accessible.Grouping
 
     required property var settingsClient
     implicitWidth: 520
@@ -26,6 +29,9 @@ Item {
                     objectName: "telemetryPreferenceLabel"
                     Layout.fillWidth: true
                     text: qsTr("Product telemetry participation")
+                    Accessible.id: "telemetryPreferenceLabel"
+                    Accessible.name: text
+                    Accessible.role: Accessible.StaticText
                     font.pixelSize: 16
                 }
 
@@ -40,6 +46,8 @@ Item {
             Switch {
                 id: consentSwitch
                 objectName: "productTelemetryConsentSwitch"
+                Accessible.id: "productTelemetryConsentSwitch"
+                Accessible.role: Accessible.Switch
                 enabled: root.settingsClient !== null && root.settingsClient.ready
                 checked: root.settingsClient !== null
                     && root.settingsClient.productTelemetryConsent
@@ -47,13 +55,16 @@ Item {
                     if (root.settingsClient !== null && root.settingsClient.ready)
                         root.settingsClient.setProductTelemetryConsent(checked)
                 }
-                Accessible.name: qsTr("Product telemetry participation opt-in")
-                Accessible.description: qsTr("Only saves your consent preference. No telemetry is sent by this build.")
+                Accessible.name: qsTr("Product telemetry participation")
+                Accessible.description: qsTr("Stores your opt-in choice. Telemetry transmission is not implemented.")
             }
         }
 
         Label {
             objectName: "serviceStatus"
+            Accessible.id: "serviceStatus"
+            Accessible.name: text
+            Accessible.role: Accessible.StaticText
             Layout.fillWidth: true
             visible: root.settingsClient !== null
                 && (root.settingsClient.lastOperationCode !== ""

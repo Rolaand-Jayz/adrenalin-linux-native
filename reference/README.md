@@ -232,3 +232,28 @@ application-self-reported. The parity comparator requires independent
 runtime-geometry attestation and intentionally rejects this self-report, so this
 capture is useful candidate evidence but cannot pass the geometry gate. The
 reference manifest and comparator schemas remain unchanged.
+
+## Live accessibility-tree check
+
+`tools/reference/test_accessibility.py` launches the built shell and inspects its
+live Qt Quick accessibility tree from a separate AT-SPI client. It checks
+accessible names, roles, and that named component extents remain inside the
+window frame. It requires PyGObject's AT-SPI typelib, the AT-SPI registry,
+D-Bus, and Xvfb; these are development-test dependencies, not application
+runtime dependencies. Select the executable paths from the local build and
+accessibility installation:
+
+```sh
+: "${SHELL_EXECUTABLE:?Set SHELL_EXECUTABLE to the built native shell}"
+: "${AT_SPI_REGISTRY:?Set AT_SPI_REGISTRY to the installed AT-SPI registry daemon}"
+
+dbus-run-session -- xvfb-run -a python3 tools/reference/test_accessibility.py \
+  --shell "$SHELL_EXECUTABLE" \
+  --registry "$AT_SPI_REGISTRY"
+```
+
+The check verifies the live screen-reader semantics and externally observed
+logical-screen extents. It does not emit candidate geometry evidence or attest
+physical-pixel mapping for window-manager decorations or Wayland compositors.
+It therefore does not satisfy the independent candidate-geometry or parity
+acceptance gate.

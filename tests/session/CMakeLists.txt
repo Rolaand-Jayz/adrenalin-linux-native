@@ -26,7 +26,7 @@ target_include_directories(adrenalin-session-contract-test PRIVATE
 target_link_libraries(adrenalin-session-contract-test PRIVATE
     adrenalin-session-contract
     adrenalin-session-contract-mock
-    adrenalin-session-core
+    adrenalin-session-core-testable
     Qt6::Core
     Qt6::DBus
     Qt6::Gui
@@ -97,6 +97,28 @@ add_test(NAME adrenalin-hardware1-contract
     COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-hardware1-contract-test>
 )
 set_tests_properties(adrenalin-hardware1-contract PROPERTIES TIMEOUT 30)
+
+qt_add_executable(adrenalin-hardware1-session-service-test
+    hardware1_session_service_test.cpp
+)
+target_include_directories(adrenalin-hardware1-session-service-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+    "${ADRENALIN_SOURCE_ROOT}/sessiond"
+)
+target_link_libraries(adrenalin-hardware1-session-service-test PRIVATE
+    adrenalin-session-contract
+    adrenalin-session-core-testable
+    Qt6::Core Qt6::DBus Qt6::Sql Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-hardware1-session-service-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-hardware1-session-service
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-hardware1-session-service-test>
+)
+set_tests_properties(adrenalin-hardware1-session-service PROPERTIES TIMEOUT 30)
 
 # Fixture-only Telemetry1 ABI and private-bus contract checks. These sources
 # are intentionally excluded from the production session contract/provider.

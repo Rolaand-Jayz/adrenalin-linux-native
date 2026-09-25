@@ -816,6 +816,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
 
     const QString firstUuid = service->serviceInstanceUuid();
     const quint64 firstGeneration = service->serviceGeneration();
+    const qulonglong startupEventSequence = service->eventSequence();
     QCOMPARE(service->initializationState(), QStringLiteral("READY"));
 
     QCOMPARE(serviceProxy.initializationState(), QStringLiteral("READY"));
@@ -835,15 +836,22 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
                  firstGeneration);
     }
     QCOMPARE(serviceChangedProperties_.value(QStringLiteral("EventSequence")).toULongLong(),
-             qulonglong(2));
+             qulonglong(service->hardware1Snapshot_.success ? 4 : 2));
     QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("ServiceInstanceUuid")));
     QVERIFY(!serviceChangedProperties_.contains(QStringLiteral("EventSubjectId")));
-    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 2, 2000);
-    QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
-    QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
-    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(2));
-    QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("SERVICE"));
-    QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("service.readiness"));
+    const int expectedServiceEvents = service->hardware1Snapshot_.success ? 4 : 2;
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), expectedServiceEvents, 2000);
+    QCOMPARE(serviceEvents.at(1).at(0).toString(), firstUuid);
+    QCOMPARE(serviceEvents.at(1).at(1).toULongLong(), firstGeneration);
+    QCOMPARE(serviceEvents.at(1).at(2).toULongLong(), qulonglong(2));
+    QCOMPARE(serviceEvents.at(1).at(3).toString(), QStringLiteral("SERVICE"));
+    QCOMPARE(serviceEvents.at(1).at(4).toString(), QStringLiteral("service.readiness"));
+    if (service->hardware1Snapshot_.success) {
+        QCOMPARE(serviceEvents.at(2).at(2).toULongLong(), qulonglong(3));
+        QCOMPARE(serviceEvents.at(3).at(2).toULongLong(), qulonglong(4));
+        QCOMPARE(serviceEvents.at(2).at(3).toString(), QStringLiteral("PLATFORM"));
+        QCOMPARE(serviceEvents.at(3).at(3).toString(), QStringLiteral("PLATFORM"));
+    }
     QVERIFY(serviceChangedProperties_.contains(QStringLiteral("InitializationState")));
 
     auto readPending = proxy.GetProductTelemetryConsent();
@@ -854,7 +862,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(initial.argumentAt<0>(), QStringLiteral("OK"));
     QCOMPARE(initial.argumentAt<1>(), firstUuid);
     QCOMPARE(initial.argumentAt<2>(), firstGeneration);
-    QCOMPARE(initial.argumentAt<3>(), qulonglong(2));
+    QCOMPARE(initial.argumentAt<3>(), startupEventSequence);
     QVERIFY(!initial.argumentAt<4>());
     QCOMPARE(initial.argumentAt<5>(), qulonglong(0));
 
@@ -874,15 +882,15 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(write.argumentAt<6>(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(write.argumentAt<7>(), qulonglong(1));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 1, 2000);
-    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 3, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 1, 2000);
     QCOMPARE(serviceEvents.last().at(0).toString(), firstUuid);
     QCOMPARE(serviceEvents.last().at(1).toULongLong(), firstGeneration);
-    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(3));
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 1);
     QCOMPARE(serviceEvents.last().at(3).toString(), QStringLiteral("PREFERENCE"));
     QCOMPARE(serviceEvents.last().at(4).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(0).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(0).at(1).toULongLong(), firstGeneration);
-    QCOMPARE(changed.at(0).at(2).toULongLong(), qulonglong(3));
+    QCOMPARE(changed.at(0).at(2).toULongLong(), startupEventSequence + 1);
     QCOMPARE(changed.at(0).at(3).toString(), QStringLiteral("PREFERENCE"));
     QCOMPARE(changed.at(0).at(4).toString(), QStringLiteral("product.telemetry_consent"));
     QVERIFY(changed.at(0).at(5).toBool());
@@ -910,11 +918,11 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QCOMPARE(nextWrite.argumentAt<0>(), QStringLiteral("OK"));
     QCOMPARE(nextWrite.argumentAt<7>(), qulonglong(2));
     QTRY_COMPARE_WITH_TIMEOUT(changed.count(), 2, 2000);
-    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), 4, 2000);
-    QCOMPARE(serviceEvents.last().at(2).toULongLong(), qulonglong(4));
+    QTRY_COMPARE_WITH_TIMEOUT(serviceEvents.count(), startupEventSequence + 2, 2000);
+    QCOMPARE(serviceEvents.last().at(2).toULongLong(), startupEventSequence + 2);
     QCOMPARE(changed.at(1).at(0).toString(), firstUuid);
     QCOMPARE(changed.at(1).at(1).toULongLong(), firstGeneration);
-    QCOMPARE(changed.at(1).at(2).toULongLong(), qulonglong(4));
+    QCOMPARE(changed.at(1).at(2).toULongLong(), startupEventSequence + 2);
     QCOMPARE(changed.at(1).at(3).toString(), QStringLiteral("PREFERENCE"));
     QCOMPARE(changed.at(1).at(4).toString(), QStringLiteral("product.telemetry_consent"));
     QCOMPARE(changed.at(1).at(5).toBool(), false);
@@ -941,7 +949,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
         currentPending;
     QCOMPARE(current.argumentAt<0>(), QStringLiteral("OK"));
     QVERIFY(!current.argumentAt<4>());
-    QCOMPARE(current.argumentAt<3>(), qulonglong(4));
+    QCOMPARE(current.argumentAt<3>(), startupEventSequence + 2);
     QCOMPARE(current.argumentAt<5>(), qulonglong(2));
 
     stopService(service);
@@ -967,7 +975,7 @@ void SessionContractTest::generatedDbusContractPersistsAndRejectsStaleAndConflic
     QVERIFY(!afterRestart.isError());
     QCOMPARE(afterRestart.argumentAt<0>(), QStringLiteral("OK"));
     QVERIFY(!afterRestart.argumentAt<4>());
-    QCOMPARE(afterRestart.argumentAt<3>(), qulonglong(2));
+    QCOMPARE(afterRestart.argumentAt<3>(), service->eventSequence());
     QCOMPARE(afterRestart.argumentAt<5>(), qulonglong(2));
     stopService(service);
 

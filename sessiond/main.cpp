@@ -2,6 +2,7 @@
 #include "session_identity.h"
 
 #include "settings1_adaptor.h"
+#include "hardware1_adaptor.h"
 #include "service1_property_notifications.h"
 
 #include <QCoreApplication>
@@ -27,11 +28,14 @@ int main(int argc, char *argv[])
     SessionService service(databasePath);
     auto *settings = new Settings1Adaptor(&service);
     auto *readiness = new SessionServiceRootAdaptor(&service);
+    auto *hardware = new Hardware1Adaptor(&service);
+    adrenalin::contracts::hardware1::registerMetaTypes();
     installService1PropertyNotifications(&service);
     QObject::connect(&service, &SessionService::eventSequenceExhausted,
                      &app, &QCoreApplication::quit);
     Q_UNUSED(settings);
     Q_UNUSED(readiness);
+    Q_UNUSED(hardware);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (!bus.isConnected()) {
@@ -40,7 +44,7 @@ int main(int argc, char *argv[])
     }
     if (!bus.registerObject(QString::fromLatin1(adrenalin::session1::objectPath), &service,
                             QDBusConnection::ExportAdaptors)) {
-        qCritical("Could not export the Session1 Settings1 D-Bus contract");
+        qCritical("Could not export the Session1 D-Bus contracts");
         return 2;
     }
     if (!bus.registerService(QString::fromLatin1(adrenalin::session1::serviceName))) {
@@ -48,7 +52,7 @@ int main(int argc, char *argv[])
         return 2;
     }
     QTimer::singleShot(0, &service, [&service] {
-        service.initialize();
+        service.initializeAsync();
     });
     return app.exec();
 }

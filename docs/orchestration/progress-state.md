@@ -23,12 +23,23 @@ remains the active implementation frontier.
   Settings1/Service1 private-bus tests, and the new Hardware1 private-bus test.
   This clean-source run used Qt 6.11.2, GCC 16.2.1, and Catch2 3.4.0. It does not
   establish a hosted CI run.
-- The Hardware1 wire/mock/test slice now has a matching Reply XML signature and
+- The Hardware1 wire/mock/test slice has a matching Reply XML signature and
   serialized field order, typed subject fields, failure-path output clearing, and
-  ordered seven-field event declarations for both inventory and capability
-  signals. Independent lead review confirms these bounded repairs. The latest
-  focused build passed, and the private-bus CTest passed 1/1 after the final
-  event assertion update.
+  ordered seven-field event declarations. Production Session1 now exports initial
+  provider-backed Hardware1 inventory, info, and capability reads. A separate
+  testable core target injects snapshots only in private-bus tests. Independent
+  review found and the lead fixed a readiness bug: failed inventory now leaves the
+  service FAILED, and Hardware1 replies fail closed after any FAILED state. Focused
+  CTest passed 4/4 after the final readiness correction. The shell smoke test also
+  passed 1/1. The aggregate all-target build remains unavailable in this session's
+  existing build tree because `tests/identity_test.cpp` cannot find the Catch2
+  header `catch2/catch_test_macros.hpp`; the affected implementation targets and
+  focused suites build and pass independently.
+- The native QML shell now exposes accessible names and roles for eight visible
+  component identities. A separate AT-SPI process verified those semantics and
+  positive in-frame extents under Xvfb. Scale-2 Xvfb showed physical-screen
+  extents in that test environment; WM and Wayland mapping and independent
+  candidate-geometry attestation remain unproven.
 - A read-only libdrm PCI inventory source is now implemented as isolated
   ID-104 groundwork. It bounds enumeration, validates PCI evidence, filters
   AMD vendor IDs, canonicalizes transient BDF evidence, rejects duplicates,
@@ -207,9 +218,10 @@ remains the active implementation frontier.
 1. Ticket 02 local harness and operator workflow are ready; keep its authentic
    reference capture, independent geometry attestation, reviewed annotation, and
    passing parity gates open until external evidence arrives.
-2. Advance Ticket 03 from the isolated libdrm source to production Hardware1 with
-   audited stable identities, truthful provider-backed fields, and production
-   private-bus coverage. Keep Telemetry1 fixtures separate from production.
+2. Extend Ticket 03 beyond the initial Hardware1 snapshot: implement refresh and
+   removal reconciliation, then resolve the ID-185 readiness dependency cycle
+   centrally before integrating the remaining recovery families. Keep Telemetry1
+   fixtures separate from production.
 3. Resolve the central Notifications1 wire contract before implementation; then
    complete the remaining ID-105/107 topology, ID-106 service readiness, common
    ID-093 event reconciliation, and ID-185 recovery requirements.

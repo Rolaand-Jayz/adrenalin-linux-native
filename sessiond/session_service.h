@@ -2,10 +2,12 @@
 
 #include "session_database.h"
 #include "interfaces/settings1_contract.h"
+#include "interfaces/linux_hardware1_inventory_provider.h"
 
 #include <QObject>
 #include <QSqlDatabase>
 #include <QString>
+#include <QThread>
 
 #include <memory>
 
@@ -37,6 +39,7 @@ public:
     ~SessionService() override;
 
     bool initialize();
+    bool initializeAsync();
     QString initializationState() const override;
     QString serviceInstanceUuid() const override;
     qulonglong serviceGeneration() const override;
@@ -51,6 +54,18 @@ public:
     Settings1ReadResult getProductTelemetryConsent() override;
     Settings1WriteResult setProductTelemetryConsent(const QString &operationId, bool enabled,
                                                     quint64 expectedRevision) override;
+#ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
+    void setHardware1SnapshotForTesting(
+        const adrenalin::hardware::Hardware1Snapshot &snapshot);
+#endif
+    adrenalin::contracts::hardware1::Reply listHardwareDevices(
+        QList<adrenalin::contracts::hardware1::Device> *devices) const;
+    adrenalin::contracts::hardware1::Reply getHardwareDeviceInfo(
+        const QString &subjectKind, const QString &subjectId,
+        adrenalin::contracts::hardware1::DeviceInfo *info) const;
+    adrenalin::contracts::hardware1::Reply getHardwareCapabilityGraph(
+        const QString &subjectKind, const QString &subjectId,
+        QList<adrenalin::contracts::hardware1::Capability> *capabilities) const;
 
 signals:
     void initializationStateChanged();
@@ -63,6 +78,14 @@ signals:
                                         const QString &subjectId,
                                         bool enabled,
                                         qulonglong revision);
+    void InventoryChanged(const QString &service_instance_uuid, qulonglong service_generation,
+                         qulonglong event_sequence, const QString &subject_kind,
+                         const QString &subject_id, qulonglong inventory_generation,
+                         qulonglong capability_generation);
+    void CapabilityGraphChanged(const QString &service_instance_uuid, qulonglong service_generation,
+                                qulonglong event_sequence, const QString &subject_kind,
+                                const QString &subject_id, qulonglong inventory_generation,
+                                qulonglong capability_generation);
 
 private:
     qulonglong nextEventSequence(const QString &subjectKind, const QString &subjectId);
@@ -70,6 +93,8 @@ private:
     bool setState(State state, QString error = {});
     void logEvent(const QString &eventName, const QString &level,
                   const QString &detail = {}) const;
+    bool prepareDatabaseRecovery();
+    bool publishHardwareInitialization(adrenalin::hardware::Hardware1Snapshot snapshot);
 
     State state_ = State::Starting;
     QString serviceInstanceUuid_;
@@ -78,4 +103,10 @@ private:
     QString eventSubjectKind_;
     QString eventSubjectId_;
     std::unique_ptr<SessionDatabase> database_;
+    adrenalin::hardware::LinuxHardware1InventoryProvider hardware1Provider_;
+    adrenalin::hardware::Hardware1Snapshot hardware1Snapshot_;
+    QThread *hardwareInventoryThread_ = nullptr;
+#ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
+    bool hardware1SnapshotInjectedForTesting_ = false;
+#endif
 };

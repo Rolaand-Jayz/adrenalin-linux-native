@@ -24,12 +24,18 @@ own acceptance criteria and dependency gates pass.
   manifest checks, staged install validation, D-Bus activation, and custom-prefix
   quoting. See Actions runs [main #5](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069938259) and [work #6](https://github.com/Rolaand-Jayz/adrenalin-linux-native/actions/runs/36069940024).
 - Ticket 02: **partial / blocked** — fixed baseline, live candidate capture, and
-  self-reported runtime geometry export exist; authentic reference captures,
-  independent geometry attestation, reviewed annotations, and a passing
-  comparison remain open.
+  self-reported runtime geometry export exist. The shell now exposes named roles
+  and accessible labels, with a live external AT-SPI check for eight visible
+  components and in-frame logical extents. Authentic reference captures,
+  independent geometry attestation, reviewed annotations, physical-pixel mapping,
+  and a passing comparison remain open.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
-  criteria below are covered. The v1 interface topology/operation families and
-  ID-185 recovery sequence are not complete, so this ticket is not closed.
+  criteria below are covered. The production Session1 root now exports a
+  provider-backed Hardware1 initial snapshot and capability graph, with typed
+  failure envelopes and private-bus integration coverage. Failed discovery now
+  remains FAILED and Hardware1 reads fail closed. The v1 interface
+  topology/operation families and ID-185 recovery sequence are not complete, so
+  this ticket is not closed.
 - ID-093 event contract: the consent tracer now uses the required event envelope;
   applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
@@ -99,6 +105,15 @@ own acceptance criteria and dependency gates pass.
   authentic collection but does not supply captures, reviews, attestation, or a
   passing comparison; the acceptance gates above remain open.
 
+**Progress (2026-09-25):** Added semantic accessible names and roles for the
+current shell header, title, platform label, telemetry settings, and switch. The
+external AT-SPI harness found all eight required name/role pairs with positive
+extents inside the live frame under Xvfb. A scale-2 probe confirmed the external
+screen coordinates match physical Xvfb dimensions in that environment only;
+window-manager and Wayland mapping remain unproven. This does not provide the
+independent geometry attestation or authenticated Windows reference captures
+required for Ticket 02 acceptance.
+
 ### 03 — Session service and persisted preference tracer
 
 **Blocked by:** 01
@@ -158,8 +173,13 @@ own acceptance criteria and dependency gates pass.
     Both seven-field event declarations are checked in order by introspection.
     Independent lead review confirms this bounded wire/mock/test slice; production
     event emission is not implemented.
-  - [ ] The production Session1 root exports Hardware1 through a truthful
-    provider-backed implementation; the test-only mock is never used as runtime data.
+  - [x] The production Session1 root exports initial Hardware1 device, static-info,
+    and capability reads from the Linux inventory provider; a separate testable
+    target injects snapshots only in private-bus tests. Failed inventory keeps the
+    service FAILED and returns typed BACKEND_UNAVAILABLE replies without payload.
+    Focused production build and private-bus test passed. This is initial-snapshot
+    coverage only: refresh/removal reconciliation and ID-185 readiness integration
+    remain open.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device
