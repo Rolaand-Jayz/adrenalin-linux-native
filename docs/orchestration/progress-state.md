@@ -77,7 +77,13 @@ remains the active implementation frontier.
   affected Hardware1 service test targets build under strict warnings, and focused
   CTest passes 2/2. Independent review rechecked the failure shape. The test
   configuration used a temporary Catch2 package shim because Catch2 v3 is absent;
-  this is not hosted CI or a full project test run. The separate test-only snapshot
+  this is not hosted CI or a full project test run. A contract-only Profiles1 schema,
+  typed global/game record, reference-gated mock, and private-bus read/update test
+  cover the bounded ID-104/105/107 artifact. The focused strict-warning build and
+  test pass; production persistence, inheritance/effective-state behavior, presets,
+  UI, and Ticket 12 acceptance remain gated by Tickets 05 and 11 plus reference
+  evidence. The combined focused regression set for Profiles1, Notifications1, and
+  the affected Hardware1 service passes 3/3. The separate test-only snapshot
   injection target is not used by the production daemon.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
@@ -239,12 +245,18 @@ remains the active implementation frontier.
 1. Ticket 02 local harness and operator workflow are ready; keep its authentic
    reference capture, independent geometry attestation, reviewed annotation, and
    passing parity gates open until external evidence arrives.
-2. Extend Ticket 03 beyond provider-level removal reconciliation with a
-   spec-backed service refresh/removal trigger and removal-aware replies; resolve
-   the ID-185 readiness dependency cycle centrally before integrating the remaining
-   recovery families. Keep Telemetry1 fixtures separate from production.
-3. Resolve the central Notifications1 wire contract before implementation; then
-   complete the remaining ID-105/107 topology, ID-106 service readiness, common
-   ID-093 event reconciliation, and ID-185 recovery requirements.
+2. Ticket 03 now has Notifications1 and Profiles1 contract artifacts, but still
+   needs production operations and remaining ID-107 families. The next serialized
+   seam is Notifications1 persistence and a real notification producer in
+   SessionDatabase/SessionService, with schema migration, restart/idempotency tests,
+   and shared ID-093 sequencing/reconciliation. Keep the session database, producer,
+   and event allocator changes centralized; resolve the ID-185 readiness dependency
+   cycle before integrating the remaining recovery families. Keep Telemetry1 fixtures
+   separate from production until ID-153 source precedence and recovery are met.
+3. Profiles1 remains contract-only: production profiles wait for Tickets 05 and 11,
+   while ID-097 configured/effective precedence and reason fields need a
+   reference-backed production contract. Continue the other ID-105/107 families only
+   after their shared schema, provider, portal, rollback, and migration prerequisites
+   are met.
 4. Recompute the dependency frontier after each integration and continue through
    the Final 1:1 Parity Closure ticket.

@@ -32,10 +32,11 @@ own acceptance criteria and dependency gates pass.
 - Ticket 03: **tracer acceptance met; audited-spec work remains** — the four tracer
   criteria below are covered. Production Session1 exports provider-backed Hardware1
   snapshots with runtime DRM change observation, removal tombstones, and fail-closed
-  reads when provider or observer state is unavailable. A contract-only Notifications1
-  schema/mock/private-bus test now pins list/mark-read wire behavior and audited class
-  tokens; production persistence, shared event reconciliation, and toast delivery are
-  still absent. Other ID-107 families and ID-185 recovery remain open.
+  reads when provider or observer state is unavailable. Contract-only Notifications1
+  and Profiles1 schemas, mocks, and private-bus tests now pin their bounded wire
+  surfaces. Production notification persistence/event reconciliation and toast
+  delivery, production profiles/inheritance semantics, other ID-107 families, and
+  ID-185 recovery remain open.
 - ID-093 event contract: the consent tracer now uses the required event envelope;
   applying it to the remaining v1 services is still open.
 - Filesystem-path policy: no machine-specific filesystem paths may be added. Fixed
@@ -219,6 +220,15 @@ required for Ticket 02 acceptance.
     rechecked that failure-shape issue. Test configuration used the temporary Catch2
     package shim because Catch2 v3 is not installed; this is focused local evidence,
     not hosted CI or a full project test run.
+  - [x] Profiles1 now defines typed global/game profile reads and updates, stable
+    subject validation, bounded scalar setting patches, expected-revision checks,
+    operation replay/conflict behavior, and the versioned ID-093 event shape. A
+    private-bus proxy/mock test covers wire serialization, reference-gated preset
+    semantics, malformed values, stale revisions, idempotency, conflicts, and events.
+    Focused strict-warning build and CTest pass. This is an ID-104 contract artifact
+    only: persistence, inheritance/effective-state calculation, preset/Custom behavior,
+    UI, and Ticket 12 production acceptance remain blocked by Tickets 05 and 11 and
+    reference evidence.
   - [ ] ID-107's telemetry, profile, settings import/export, display, hotkey,
     notification, and Hardware1 operation families exist in the fixed v1 topology.
   - [x] A bounded libdrm PCI inventory source provides read-only AMD device

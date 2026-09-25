@@ -14,11 +14,14 @@ add_library(adrenalin-session-contract STATIC
     ../interfaces/operation_result.cpp
     ../interfaces/hardware1_contract_types.cpp
     ../interfaces/notifications1_contract_types.cpp
+    ../interfaces/profiles1_contract_types.cpp
     ../interfaces/hardware1_registry.cpp
     ../interfaces/hardware1_contract.h
     ../interfaces/hardware1_contract_types.h
     ../interfaces/notifications1_contract_types.h
     ../interfaces/notifications1_contract.h
+    ../interfaces/profiles1_contract.h
+    ../interfaces/profiles1_contract_types.h
     ../interfaces/hardware1_registry.h
     ../interfaces/service_readiness_client.h
     ../interfaces/service_readiness_contract.h
@@ -27,11 +30,15 @@ set(ADRENALIN_SETTINGS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinli
 set(ADRENALIN_SERVICE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Service1.xml")
 set(ADRENALIN_HARDWARE1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Hardware1.xml")
 set(ADRENALIN_NOTIFICATIONS1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Notifications1.xml")
+set(ADRENALIN_PROFILES1_XML "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Profiles1.xml")
 set_source_files_properties("${ADRENALIN_HARDWARE1_XML}"
     PROPERTIES INCLUDE "${ADRENALIN_SOURCE_ROOT}/interfaces/hardware1_contract_types.h"
 )
 set_source_files_properties("${ADRENALIN_NOTIFICATIONS1_XML}"
     PROPERTIES INCLUDE "${ADRENALIN_SOURCE_ROOT}/interfaces/notifications1_contract_types.h"
+)
+set_source_files_properties("${ADRENALIN_PROFILES1_XML}"
+    PROPERTIES INCLUDE "${ADRENALIN_SOURCE_ROOT}/interfaces/profiles1_contract_types.h"
 )
 qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
     "${ADRENALIN_SETTINGS1_XML}"
@@ -49,6 +56,10 @@ qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
     "${ADRENALIN_NOTIFICATIONS1_XML}"
     notifications1_interface
 )
+qt_add_dbus_interface(ADRENALIN_SESSION_CONTRACT_SOURCES
+    "${ADRENALIN_PROFILES1_XML}"
+    profiles1_interface
+)
 target_sources(adrenalin-session-contract PRIVATE ${ADRENALIN_SESSION_CONTRACT_SOURCES})
 target_include_directories(adrenalin-session-contract PUBLIC
     "${CMAKE_CURRENT_BINARY_DIR}"
@@ -62,6 +73,8 @@ add_library(adrenalin-session-contract-mock STATIC
     ../interfaces/settings1_mock.cpp
     ../interfaces/notifications1_mock.cpp
     ../interfaces/notifications1_mock.h
+    ../interfaces/profiles1_mock.cpp
+    ../interfaces/profiles1_mock.h
     ../interfaces/hardware1_mock.cpp
     ../interfaces/hardware1_mock.h
 )

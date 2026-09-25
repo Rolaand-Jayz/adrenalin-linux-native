@@ -176,6 +176,40 @@ add_test(NAME adrenalin-telemetry1-contract
 )
 set_tests_properties(adrenalin-telemetry1-contract PROPERTIES TIMEOUT 30)
 
+# Profiles1 is a contract-only fixture until reference captures resolve preset,
+# Custom-state, and effective-value behavior.
+set(ADRENALIN_PROFILES1_XML
+    "${ADRENALIN_SOURCE_ROOT}/interfaces/org.adrenalinlinux.Session1.Profiles1.xml")
+set_source_files_properties("${ADRENALIN_PROFILES1_XML}"
+    PROPERTIES QT_RESOURCE_ALIAS org.adrenalinlinux.Session1.Profiles1.xml
+)
+qt_add_executable(adrenalin-profiles1-contract-test
+    profiles1_contract_test.cpp
+)
+qt_add_resources(adrenalin-profiles1-contract-test profiles1_contract_schema
+    PREFIX "/profiles1"
+    FILES "${ADRENALIN_PROFILES1_XML}"
+)
+target_include_directories(adrenalin-profiles1-contract-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-profiles1-contract-test PRIVATE
+    adrenalin-session-contract
+    adrenalin-session-contract-mock
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-profiles1-contract-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-profiles1-contract
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-profiles1-contract-test>
+)
+set_tests_properties(adrenalin-profiles1-contract PROPERTIES TIMEOUT 30)
+
 # The inventory source uses real libdrm enumeration in production; this target
 # enables only its validation seam so malformed records can be tested without
 # relying on host GPU visibility.

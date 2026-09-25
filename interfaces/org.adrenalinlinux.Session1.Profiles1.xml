@@ -1,0 +1,35 @@
+<node>
+  <interface name="org.adrenalinlinux.Session1.Profiles1">
+    <method name="ReadProfile">
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out1" value="adrenalin::contracts::profiles1::Profile"/>
+      <arg name="subject_kind" type="s" direction="in"/>
+      <arg name="subject_id" type="s" direction="in"/>
+      <arg name="result_code" type="s" direction="out"/>
+      <arg name="profile" type="(sssssta{sv})" direction="out"/>
+    </method>
+    <method name="UpdateProfile">
+      <annotation name="org.qtproject.QtDBus.QtTypeName.In4" value="QVariantMap"/>
+      <arg name="subject_kind" type="s" direction="in"/>
+      <arg name="subject_id" type="s" direction="in"/>
+      <arg name="expected_revision" type="t" direction="in"/>
+      <arg name="operation_id" type="s" direction="in"/>
+      <arg name="settings_patch" type="a{sv}" direction="in"/>
+      <arg name="code" type="s" direction="out"/>
+      <arg name="operation_id" type="s" direction="out"/>
+      <arg name="human_message_key" type="s" direction="out"/>
+      <arg name="diagnostic_message" type="s" direction="out"/>
+      <arg name="retryable" type="b" direction="out"/>
+      <arg name="provider" type="s" direction="out"/>
+      <arg name="result_subject_id" type="s" direction="out"/>
+      <arg name="revision" type="t" direction="out"/>
+    </method>
+    <signal name="ProfileChanged">
+      <arg name="service_instance_uuid" type="s"/>
+      <arg name="service_generation" type="t"/>
+      <arg name="event_sequence" type="t"/>
+      <arg name="subject_kind" type="s"/>
+      <arg name="subject_id" type="s"/>
+      <arg name="revision" type="t"/>
+    </signal>
+  </interface>
+</node>
