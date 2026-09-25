@@ -70,6 +70,8 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         ../interfaces/linux_drm_display_source.h
         ../interfaces/linux_cpu_package_source.cpp
         ../interfaces/linux_cpu_package_source.h
+        ../interfaces/linux_hardware1_inventory_provider.cpp
+        ../interfaces/linux_hardware1_inventory_provider.h
     )
     target_include_directories(adrenalin-linux-hardware-inventory-sources PUBLIC
         "${ADRENALIN_SOURCE_ROOT}/interfaces"
@@ -78,6 +80,7 @@ if(ADRENALIN_BUILD_SESSION_SERVICE)
         Qt6::Core
         PkgConfig::LIBDRM
         PkgConfig::HWLOC
+        adrenalin-session-contract
     )
     adrenalin_session_enable_strict_warnings(adrenalin-linux-hardware-inventory-sources)
 

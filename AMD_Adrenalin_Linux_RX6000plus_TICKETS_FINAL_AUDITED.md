@@ -110,7 +110,9 @@ own acceptance criteria and dependency gates pass.
 - [x] `adrenalin-sessiond` owns the core SQLite database and schema migration; the GUI does not open the production DB directly.
 - [x] Canonical D-Bus bindings expose service readiness and a typed Settings operation for the tracer preference.
 - [x] The preference survives service and GUI restart and stale expected revisions fail explicitly.
-- [x] Structured logs identify the service instance/generation and recovery completes before the service reports READY.
+- [ ] Structured logs identify the service instance/generation and the complete mandatory recovery sequence finishes before the service reports READY.
+  - [x] Database initialization/migration completes before the current service reports READY.
+  - [ ] Hardware/display inventory and display recovery, capability generation rebuild, telemetry publication recreation, hotkey portal rebind, and gamewatch/capture state republish complete before READY (ID-185).
 
 **Additional audited-spec tracking (ID-093):**
 
@@ -213,16 +215,34 @@ own acceptance criteria and dependency gates pass.
     allowed set when the current setting is unknown. Contract cases cover these
     rejection and acceptance paths. These implementation-owned vocabularies do
     not certify provider availability or hardware parity.
+  - [x] Added `LinuxHardware1InventoryProvider` to compose libdrm GPU, hwloc
+    CPU-package, and libdrm display evidence as one all-or-nothing snapshot. It
+    rejects source failures and display-to-GPU cross-reference mismatches without
+    exposing partial records, lists only resolved GPU/CPU_PACKAGE/DISPLAY devices,
+    and includes every registered applicable capability plus the reserved PLATFORM
+    graph as explicit UNKNOWN records until a real provider establishes state.
+    Device model/driver claims remain empty and PCI BDF is not copied into
+    user-facing info. Independent inventory/capability generations are content
+    based; successful empty GPU/display inventories remain distinct from failure,
+    and source failure clears published records. Production source library
+    and focused CTest `adrenalin-linux-hardware1-inventory-provider` build/pass;
+    cases cover CPU/GPU/display composition, full registry graph, cross-source
+    failure, successful empty GPU/display inventories, content-stable/order-invariant
+    generation, failure clearing/recovery, zero-generation invalid envelopes, and canonical
+    connector/digest/subject-ID rejection. Validation also passed the adjacent
+    DRM inventory, display, CPU package, session-contract, and Hardware1-contract
+    CTest suites (5/5); session contract tests were run with private D-Bus access.
+    This bounded provider slice is not yet
+    exported through the session Hardware1 D-Bus object and does not complete ID-185 recovery.
   - [ ] Production snapshot integration remains open beyond the bounded ID/scope
     catalog: hardware-backed source/provider qualification, further
-    parity-feature mappings (including game/runtime and tuning
-    controls), and provider-backed graph construction still require definition.
-    The available GPU, CPU, and DRM display sources
-    yield discovery evidence but do not define the complete per-subject capability
-    graph required before a valid Hardware1 snapshot or READY state. A read-only
-    architecture review confirmed that treating missing DRM access as an empty
-    inventory, returning a partial graph, or adapting the test mock would violate
-    the contract. ID-107's remaining operation families also depend on shared
+    parity-feature mappings (including game/runtime and tuning controls), and
+    production D-Bus export still remain. The bounded composer now produces a
+    registry-complete initial graph with UNKNOWN states, but it does not claim
+    feature support or provide the reference-backed semantics needed for parity.
+    A read-only architecture review confirmed that treating missing DRM access as
+    an empty inventory, returning a partial graph, or adapting the test mock would
+    violate the contract. ID-107's remaining operation families also depend on shared
     schemas/providers or prerequisite tickets; no independent implementation was
     found in this audit. Production Hardware1 export and ID-185 therefore remain
     open.

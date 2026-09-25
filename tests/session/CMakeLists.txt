@@ -299,3 +299,43 @@ endif()
 add_test(NAME adrenalin-linux-cpu-package-source
     COMMAND $<TARGET_FILE:adrenalin-linux-cpu-package-source-test>
 )
+
+# The provider test seam accepts captured source-result values only in this
+# test target. Production code always calls the real Linux providers.
+add_library(adrenalin-linux-hardware1-inventory-provider-testable STATIC
+    ../../interfaces/linux_hardware1_inventory_provider.cpp
+    ../../interfaces/linux_hardware1_inventory_provider.h
+)
+target_compile_definitions(adrenalin-linux-hardware1-inventory-provider-testable PUBLIC
+    ADRENALIN_HARDWARE1_INVENTORY_TESTING
+)
+target_include_directories(adrenalin-linux-hardware1-inventory-provider-testable PUBLIC
+    "${ADRENALIN_SOURCE_ROOT}/interfaces"
+)
+target_link_libraries(adrenalin-linux-hardware1-inventory-provider-testable PUBLIC
+    adrenalin-session-contract
+    adrenalin-linux-drm-inventory-source-testable
+    adrenalin-linux-drm-display-source-testable
+    adrenalin-linux-cpu-package-source-testable
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-hardware1-inventory-provider-testable PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+
+qt_add_executable(adrenalin-linux-hardware1-inventory-provider-test
+    linux_hardware1_inventory_provider_test.cpp
+)
+target_link_libraries(adrenalin-linux-hardware1-inventory-provider-test PRIVATE
+    adrenalin-linux-hardware1-inventory-provider-testable
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-linux-hardware1-inventory-provider-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-linux-hardware1-inventory-provider
+    COMMAND $<TARGET_FILE:adrenalin-linux-hardware1-inventory-provider-test>
+)

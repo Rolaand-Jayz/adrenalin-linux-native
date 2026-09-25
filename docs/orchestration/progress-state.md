@@ -46,6 +46,10 @@ remains the active implementation frontier.
   Session1 service; production event emission, ID-107's remaining operation
   families, event gap reconciliation, and ID-185 startup recovery remain open.
   The corrected test-only mock is not used as runtime hardware data.
+- The current service completes database initialization before READY, but it does
+  not yet perform the full ID-185 reconciliation sequence. Hardware/display
+  inventory/recovery, capability rebuild, telemetry recreation, hotkey rebind,
+  gamewatch/capture republish, and client snapshot reconciliation remain open.
 - The service now exposes a nonzero provisional generation during STARTING,
   allowing valid Hardware1 BUSY invalid-snapshot envelopes before SQLite recovery
   has loaded the persisted service generation. Recovery keeps that value or
