@@ -34,6 +34,8 @@ adrenalin::hardware::Hardware1Snapshot validSnapshot()
     info.subjectId = QString::fromLatin1(kCpuId);
     info.identityEvidence = QStringLiteral("integration.cpu");
     info.displayName = QStringLiteral("Integration CPU");
+    info.manufacturer = QStringLiteral("AuthenticAMD");
+    info.model = QStringLiteral("Family 25 Model 97");
     snapshot.deviceInfo.append(info);
     Capability capability;
     capability.subjectKind = info.subjectKind;
@@ -117,6 +119,8 @@ private slots:
         QCOMPARE(infoReply.argumentAt<0>().code, QStringLiteral("OK"));
         QCOMPARE(infoReply.argumentAt<0>().eventSequence, listed.eventSequence);
         QCOMPARE(infoReply.argumentAt<1>().displayName, QStringLiteral("Integration CPU"));
+        QCOMPARE(infoReply.argumentAt<1>().manufacturer, QStringLiteral("AuthenticAMD"));
+        QCOMPARE(infoReply.argumentAt<1>().model, QStringLiteral("Family 25 Model 97"));
 
         auto graphPending = proxy.GetCapabilityGraph(QString::fromLatin1(kCpuKind),
                                                      QString::fromLatin1(kCpuId));

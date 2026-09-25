@@ -179,6 +179,11 @@ Hardware1Snapshot composeEvidence(const Hardware1Evidence &evidence)
                        QStringLiteral("CPU package"))) {
             return failure(QStringLiteral("CPU package identity evidence is invalid or duplicated"));
         }
+        DeviceInfo &info = result.deviceInfo.last();
+        info.manufacturer = cpu.vendorId;
+        info.model = QStringLiteral("Family %1 Model %2")
+            .arg(static_cast<qulonglong>(cpu.family))
+            .arg(static_cast<qulonglong>(cpu.model));
     }
 
     for (const DrmDisplayIdentity &display : evidence.displays.displays) {

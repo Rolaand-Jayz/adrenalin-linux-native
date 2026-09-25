@@ -24,3 +24,7 @@ events.
 
 This contract does not claim that every other v1 event family has a production
 client or that the complete ID-185 startup recovery sequence is implemented.
+
+For `CPU_PACKAGE` static information, `manufacturer` carries the source CPUID
+vendor identifier and `model` carries the decimal family/model pair. The hardware
+package index and CPUID stepping are not exposed as presentation fields.

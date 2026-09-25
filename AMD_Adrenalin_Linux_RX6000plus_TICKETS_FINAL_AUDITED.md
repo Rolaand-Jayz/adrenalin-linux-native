@@ -247,6 +247,16 @@ identities or derived install locations.
     does not implement Display1 production events or complete the remaining ID-093
     families, Hardware1 operation families, or ID-185 recovery; Ticket 03 remains
     open.
+  - [x] CPU_PACKAGE static-info sub-scope (2026-09-25): production Hardware1
+    `GetDeviceInfo` now reports the source CPUID vendor identifier and decimal
+    family/model pair from hwloc evidence. It does not expose stepping or the
+    physical package index. A source CPU identity change updates its opaque subject
+    token, advancing inventory and graph generations through subject reconciliation.
+    Provider tests cover two distinct package records and identity-change generation
+    behavior; the private-bus service test verifies the existing DeviceInfo fields
+    round-trip. Strict-warning target
+    builds succeeded and focused provider/session CTest passed 2/2. Ticket 03 stays
+    open; no live multi-socket hardware qualification is claimed.
   - [x] Notifications1 now defines typed list/mark-read records, the audited closed
     notification category vocabulary, a test-only in-memory mock, and a generated
     proxy/private-bus contract test for snapshot validation, idempotent mark-read,

@@ -14,6 +14,17 @@ and ID-185 recovery sequence tracked against their owning production contracts.
 
 ## Completed evidence
 
+- Hardware1 CPU package static-info: `GetDeviceInfo` now returns the hwloc CPUID
+  vendor identifier and decimal family/model pair for CPU_PACKAGE subjects. It
+  omits stepping and physical package index. A CPU identity change updates the
+  opaque subject token, advancing inventory and capability graph generations.
+  Provider tests cover two
+  subject-to-metadata mappings and generation behavior; the private-bus service
+  test verifies the fields over the existing D-Bus schema. Strict-warning builds
+  succeeded and the focused provider/session tests passed 2/2. This closes only a
+  static-info sub-scope; no live multi-socket qualification or Ticket 03 completion
+  is claimed.
+
 - Hardware1 snapshot/event reconciliation: production device, static-info, and
   capability reads now include the shared per-service event cursor captured with
   each snapshot. The shell client reconciles common envelopes and Hardware1 family

@@ -41,9 +41,20 @@ private:
         result.cpuPackages.success = true;
         CpuPackageIdentity cpu;
         cpu.subjectId = QStringLiteral("cpu-package-") + QString(64, QLatin1Char('a'));
+        cpu.physicalPackageId = 3;
+        cpu.vendorId = QStringLiteral("AuthenticAMD");
+        cpu.architecture = QStringLiteral("x86_64");
+        cpu.family = 25;
+        cpu.model = 97;
+        cpu.stepping = 2;
         result.cpuPackages.packages.push_back(cpu);
         CpuPackageIdentity secondCpu = cpu;
         secondCpu.subjectId = QStringLiteral("cpu-package-") + QString(64, QLatin1Char('e'));
+        secondCpu.physicalPackageId = 7;
+        secondCpu.vendorId = QStringLiteral("GenuineIntel");
+        secondCpu.family = 6;
+        secondCpu.model = 143;
+        secondCpu.stepping = 8;
         result.cpuPackages.packages.push_back(secondCpu);
 
         const auto gpu = gpuSubjectIdentity(pci);
@@ -127,6 +138,44 @@ private slots:
         QVERIFY(gpuInfo->pciAddress.isEmpty());
         QVERIFY(gpuInfo->model.isEmpty());
         QVERIFY(gpuInfo->driverName.isEmpty());
+
+        const auto cpuInfo = std::find_if(snapshot.deviceInfo.cbegin(), snapshot.deviceInfo.cend(),
+            [](const DeviceInfo &info) {
+                return info.subjectKind == QStringLiteral("CPU_PACKAGE")
+                    && info.subjectId.endsWith(QLatin1Char('a'));
+            });
+        const auto secondCpuInfo = std::find_if(snapshot.deviceInfo.cbegin(), snapshot.deviceInfo.cend(),
+            [](const DeviceInfo &info) {
+                return info.subjectKind == QStringLiteral("CPU_PACKAGE")
+                    && info.subjectId.endsWith(QLatin1Char('e'));
+            });
+        QVERIFY(cpuInfo != snapshot.deviceInfo.cend());
+        QVERIFY(secondCpuInfo != snapshot.deviceInfo.cend());
+        QCOMPARE(cpuInfo->manufacturer, QStringLiteral("AuthenticAMD"));
+        QCOMPARE(cpuInfo->model, QStringLiteral("Family 25 Model 97"));
+        QCOMPARE(secondCpuInfo->manufacturer, QStringLiteral("GenuineIntel"));
+        QCOMPARE(secondCpuInfo->model, QStringLiteral("Family 6 Model 143"));
+        QVERIFY(!cpuInfo->model.contains(QStringLiteral("Stepping")));
+        QVERIFY(!secondCpuInfo->model.contains(QStringLiteral("Stepping")));
+    }
+
+    void cpuIdentityChangesAdvanceInventoryAndCapabilityGenerations()
+    {
+        LinuxHardware1InventoryProvider provider;
+        Hardware1Evidence input = evidence();
+        const Hardware1Snapshot initial = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(initial.success);
+        const Hardware1Snapshot unchanged = provider.refreshWithEvidenceForTesting(input);
+        QCOMPARE(unchanged.inventoryGeneration, initial.inventoryGeneration);
+        QCOMPARE(unchanged.capabilityGeneration, initial.capabilityGeneration);
+
+        input.cpuPackages.packages[0].model += 1;
+        input.cpuPackages.packages[0].subjectId = QStringLiteral("cpu-package-")
+            + QString(64, QLatin1Char('b'));
+        const Hardware1Snapshot changed = provider.refreshWithEvidenceForTesting(input);
+        QVERIFY(changed.success);
+        QCOMPARE(changed.inventoryGeneration, initial.inventoryGeneration + 1);
+        QCOMPARE(changed.capabilityGeneration, initial.capabilityGeneration + 1);
     }
 
     void rejectsCrossSourceMismatchWithoutPartialData()
