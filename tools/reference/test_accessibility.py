@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Verify the native shell's live Qt Quick accessibility tree through AT-SPI."""
 
 from __future__ import annotations

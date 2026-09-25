@@ -137,6 +137,10 @@ names, roles, and extents. It does not bind those extents to the exact candidate
 PNG crop and therefore cannot emit comparator geometry or satisfy independent
 attestation. The reference-tooling regression suite passes 43/43 after enforcing
 this boundary; no capture, attestation, annotation, or parity gate is closed.
+The no-hardcoded-filesystem-path audit found one fixed interpreter launcher in
+the non-executable AT-SPI helper; its shebang was removed so it is invoked through
+the selected `python3` command. Remaining absolute-path matches are D-Bus protocol
+identities or derived install locations.
 
 ### 03 — Session service and persisted preference tracer
 
