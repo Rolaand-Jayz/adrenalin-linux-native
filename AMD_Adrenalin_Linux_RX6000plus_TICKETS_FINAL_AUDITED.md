@@ -179,9 +179,12 @@ identities or derived install locations.
 
   Progress audit (2026-09-25): current production Settings, Notifications,
   Hardware, and Service readiness events use the shared session sequence; Telemetry1
-  and Profiles1 remain contract-only, while Display1 and Hotkeys1 production roots
-  are absent. Keep this gate open until each family is implemented with its producer,
-  common event envelope, and authoritative snapshot reconciliation.
+  and Profiles1 remain contract-only. Display1 now has a production list/state
+  root, mirrors display inventory/capability hints on the shared cursor, and its
+  production client reconciles authoritative list/state snapshots against shared
+  event envelopes. Hotkeys1 still has no production root. Keep this gate open until
+  every family has its producer, common event envelope, and authoritative snapshot
+  reconciliation.
 
 **Additional audited-spec tracking (ID-106):**
 
@@ -261,10 +264,27 @@ identities or derived install locations.
     unavailable, stale inventory/capability refusals, full unchanged post-apply
     capability record and generations,
     and exact inventory/capability event envelope and cursor pairing with Hardware1.
-    No
-    modes, active display state, successful mutations,
-    production Display1 client reconciliation, ID-185 display recovery, Ticket 19,
-    or full ID-093 acceptance is claimed; Ticket 03 remains open.
+    No modes, active display state, successful mutations, ID-185 display recovery,
+    Ticket 19, or full ID-093 acceptance is claimed; Ticket 03 remains open.
+  - [x] Display1 production client reconciliation (2026-09-25): a production
+    session client now reads ListDisplays and every GetDisplayState into one
+    snapshot, accepting it only when service identity, service generation, event
+    cursor, inventory generation, capability generation, display identity, and
+    display name agree across replies. It consumes common Service1 events and the
+    Hardware1/Display1 mirrored family signals, deduplicates each shared cursor,
+    advances over unrelated events, and refreshes on gaps, malformed envelopes,
+    identity/generation rollover, and display changes. In-flight reads are fenced
+    against owner/generation changes; unavailable snapshots clear their public
+    generations; persistent state-read failures do not create an immediate retry
+    loop. Focused private-bus tests cover all three mirrored signal orders,
+    sequential/duplicate/gapped common events, stale in-flight state, owner loss,
+    same-owner generation rollover during a held read, and persistent NOT_FOUND.
+    Strict-warning targets build, focused Display1 client/contract/session CTest
+    passes 3/3, and the available local regression suite passes 20/20 when excluding
+    the Catch2-dependent identity test (its v3 headers are absent in this build
+    environment). `git diff --check` passes, and independent review found no
+    actionable findings. ID-185 display recovery, Ticket 19, other required ID-107
+    operations, and full ID-093 acceptance remain open.
   - [x] CPU_PACKAGE static-info sub-scope (2026-09-25): production Hardware1
     `GetDeviceInfo` now reports the source CPUID vendor identifier and decimal
     family/model pair from hwloc evidence. It does not expose stepping or the

@@ -33,9 +33,10 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   The shared nested Display1 Hardware1 reply signature was updated consistently.
   Strict-warning builds passed for the contract/service/client/shell targets, and
   focused CTest passed 5/5 including shell smoke. Independent review of the exact
-  slice found no actionable findings. Display1 production roots, remaining ID-093
-  families, other ID-107 operations, and ID-185 recovery remain open; Ticket 03 is
-  not complete.
+  slice found no actionable findings. Display1 production list/state and mirrored
+  event roots are now implemented, while Display1 client reconciliation, remaining
+  ID-093 families, other ID-107 operations, and ID-185 recovery remain open;
+  Ticket 03 is not complete.
 
 - Telemetry1 contract progress: `OpenStream` now carries the shared ID-093 cursor; an isolated test model advances through common events from other Session1 families and reopens on sequence gaps, owner/generation changes, or changed telemetry definitions. Independent review passed; focused ABI, private-bus, and cursor CTests passed 3/3. This adds no production telemetry provider or event client; Ticket 07 and production ID-093/ID-185 work remain open.
 
@@ -182,8 +183,23 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   unchanged post-apply capability record and generations, and exact
   inventory/capability event pairing with
   Hardware1. Modes,
-  active display state, successful control, production client reconciliation,
-  ID-185 display recovery, Ticket 19 and full ID-093 acceptance remain open.
+  active display state, successful control, ID-185 display recovery, Ticket 19
+  and full ID-093 acceptance remain open.
+- Display1 production client reconciliation (2026-09-25): the client assembles
+  ListDisplays and GetDisplayState results only when their service UUID, generation,
+  shared event cursor, inventory generation, and capability generation match. It
+  handles common events and mirrored Hardware1/Display1 hints once per cursor,
+  refreshes on gaps/owner or generation changes, and fences stale in-flight reads.
+  Public snapshot generations clear while unavailable, and persistent state-read
+  failures stop without a tight retry loop. Focused private-bus scenarios cover all
+  three mirrored signal orders, unrelated sequential and duplicate events, gaps,
+  stale replies, owner loss, same-owner generation rollover, and repeated NOT_FOUND.
+  Strict-warning targets build; the focused client, contract, and service CTests
+  pass 3/3. The available local regression suite passes 20/20 with the
+  Catch2-dependent identity test excluded because its v3 headers are unavailable in
+  this environment. Independent review found no actionable findings. This closes
+  only this production client slice, not Ticket 03, full ID-093, ID-185, or display
+  controls.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,
