@@ -46,6 +46,16 @@ remains the active implementation frontier.
   Session1 service; production event emission, ID-107's remaining operation
   families, event gap reconciliation, and ID-185 startup recovery remain open.
   The corrected test-only mock is not used as runtime hardware data.
+- A fresh production-path review traced the readiness issue: `SessionService`
+  still advances to READY after database initialization alone. The available
+  inventory sources provide identity evidence but there is no production
+  capability registry/evidence catalog from which to build the complete graph
+  required for a valid Hardware1 snapshot. Treating failed DRM access as an empty
+  inventory or publishing a partial graph would violate the Hardware1 contract.
+  An independent ID-107 frontier audit found the remaining families depend on
+  shared schemas, providers, safety semantics, or prerequisite tickets, so no
+  disjoint implementation was started. Ticket 03 remains open at this shared
+  contract seam.
 - Ticket 01 native Qt shell and initial packaging/bootstrap commits exist.
 - The shell smoke test was built in a temporary out-of-tree harness and passed
   on this CachyOS host: QML loaded, the process exited normally with status 0,

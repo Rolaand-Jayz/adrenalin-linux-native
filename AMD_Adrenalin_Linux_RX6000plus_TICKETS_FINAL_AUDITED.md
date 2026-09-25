@@ -189,6 +189,16 @@ own acceptance criteria and dependency gates pass.
     sysfs topology entries existed. This verifies CPU live enumeration only and
     confirms that missing DRM access is reported as failure rather than empty
     inventory. Hosted CI and real GPU/display provider behavior remain unverified.
+  - [ ] Production snapshot integration remains blocked on a versioned capability
+    registry/evidence catalog. The available GPU, CPU, and DRM display sources
+    yield discovery evidence but do not define the complete per-subject capability
+    graph required before a valid Hardware1 snapshot or READY state. A read-only
+    architecture review confirmed that treating missing DRM access as an empty
+    inventory, returning a partial graph, or adapting the test mock would violate
+    the contract. ID-107's remaining operation families also depend on shared
+    schemas/providers or prerequisite tickets; no independent implementation was
+    found in this audit. Production Hardware1 export and ID-185 therefore remain
+    open.
 
 **Additional audited-spec tracking (ID-185):**
 
