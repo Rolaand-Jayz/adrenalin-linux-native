@@ -82,14 +82,25 @@ remains the active implementation frontier.
   corruption, and sequence exhaustion have regression coverage. Strict-warning
   production and test targets build; focused CTest passes 4/4 for session,
   Notifications1, Profiles1, and Hardware1 service. Independent review findings
-  were fixed and rechecked. Toast preference/delivery, notification UI/client event
-  reconciliation, critical recovery notices, and bounded history-query policy remain
-  open; Ticket 08 is not complete. Test configuration uses a temporary Catch2
-  package shim because Catch2 v3 is absent; this is focused local evidence, not
-  hosted CI or a full project test run. MarkRead reports persisted revision-counter
-  exhaustion as an internal failure; the strict-warning rebuild and focused 4/4 CTest
-  rerun passed, and independent review confirmed the mapping. A contract-only Profiles1 schema,
-  typed global/game record, reference-gated mock, and private-bus read/update test
+  were fixed and rechecked. Toast preference/delivery, critical recovery notices,
+  and bounded history-query policy remain open; Ticket 08 is not complete. An
+  asynchronous Qt Notifications1 list model now reconciles persistent snapshots with service readiness and NotificationsChanged,
+  preserves operation UUIDs across uncertain retry, and discards snapshots when an
+  event arrives in flight. The shell exposes an accessible bell, unread badge,
+  persistent history panel, human-readable consent messages, and mark-read actions.
+  Client tests cover model roles, retry identity, and the snapshot/event race. The
+  strict-warning shell and client-test targets build, all available CTest entries pass
+  15/15 including focused contracts and shell smoke, and QML lint passes. The Catch2-
+  based identity target could not compile because this environment has a package config
+  shim but not Catch2 v3 headers, so it was excluded from the run. Independent review found no blocker in identity, readiness,
+  cursor, or retry flow. The UI test invokes the panel action helper and does not
+  directly click the rendered Mark as read button. Toast preference/delivery, other
+  notification producers, critical recovery notices, and bounded history policy
+  remain open. These are local results, not hosted CI. MarkRead reports persisted
+  revision-counter exhaustion as an internal failure; the strict-warning rebuild and
+  focused 4/4 CTest rerun passed, and independent review confirmed the mapping. A
+  contract-only Profiles1 schema, typed global/game record, reference-gated mock, and
+  private-bus read/update test
   cover the bounded ID-104/105/107 artifact. The focused strict-warning build and
   test pass; production persistence, inheritance/effective-state behavior, presets,
   UI, and Ticket 12 acceptance remain gated by Tickets 05 and 11 plus reference
@@ -256,9 +267,10 @@ remains the active implementation frontier.
 1. Ticket 02 local harness and operator workflow are ready; keep its authentic
    reference capture, independent geometry attestation, reviewed annotation, and
    passing parity gates open until external evidence arrives.
-2. Ticket 03 now has persistent Notifications1 list/read operations and a consent-
-   change producer, but still needs UI/client event reconciliation, toast behavior,
-   critical recovery notices, and the other ID-107 families. History remains an
+2. Ticket 03 now has persistent Notifications1 list/read operations, a consent-
+   change producer, and a tested client/history UI with unread state and read actions.
+   Toast behavior, critical recovery notices, and the other ID-107 families remain.
+   History remains an
    unbounded snapshot because the spec defines no pagination or retention policy;
    silent pruning is not implemented. Keep the session database and shared event
    allocator centralized for future producers; resolve the ID-185 readiness

@@ -124,6 +124,9 @@ if(ADRENALIN_BUILD_GUI)
     set_source_files_properties(qml/preferences/ProductTelemetryConsent.qml
         PROPERTIES QT_RESOURCE_ALIAS ProductTelemetryConsent.qml
     )
+    set_source_files_properties(qml/NotificationsPanel.qml
+        PROPERTIES QT_RESOURCE_ALIAS NotificationsPanel.qml
+    )
     qt_add_executable(adrenalin-shell
         src/main.cpp
     )
@@ -133,6 +136,7 @@ if(ADRENALIN_BUILD_GUI)
         VERSION 1.0
         QML_FILES
             qml/Main.qml
+            qml/NotificationsPanel.qml
             qml/preferences/ProductTelemetryConsent.qml
     )
 
@@ -186,7 +190,7 @@ if(BUILD_TESTING)
             COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- "${XVFB_RUN_EXECUTABLE}" -a
                 -s "-screen 0 2560x1600x24" $<TARGET_FILE:adrenalin-shell-smoke-test>)
         set_tests_properties(adrenalin-shell-smoke PROPERTIES
-            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ADRENALIN_SHELL_EXECUTABLE=$<TARGET_FILE:adrenalin-shell>"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic;ADRENALIN_SHELL_EXECUTABLE=$<TARGET_FILE:adrenalin-shell>"
             TIMEOUT 30
         )
     endif()

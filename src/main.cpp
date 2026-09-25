@@ -1,5 +1,6 @@
 #include "application_config.h"
 #include "interfaces/settings1_client.h"
+#include "interfaces/notifications1_client.h"
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -251,11 +252,14 @@ int main(int argc, char *argv[])
     }
 
     Settings1Client settingsClient;
+    Notifications1Client notificationsClient;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(
         QStringLiteral("appDisplayName"), QString::fromUtf8(ADRENALIN_APP_NAME));
     engine.rootContext()->setContextProperty(QStringLiteral("sessionSettingsClient"),
                                              &settingsClient);
+    engine.rootContext()->setContextProperty(QStringLiteral("sessionNotificationsClient"),
+                                             &notificationsClient);
     engine.loadFromModule(QStringLiteral("Adrenalin.Shell"), QStringLiteral("Main"));
 
     if (engine.rootObjects().isEmpty())

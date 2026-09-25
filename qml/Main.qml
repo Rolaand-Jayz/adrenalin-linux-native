@@ -62,6 +62,13 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
+                NotificationsPanel {
+                    objectName: "notificationsPanel"
+                    client: sessionNotificationsClient
+                    windowWidth: window.width
+                    windowHeight: window.height
+                }
+
                 Text {
                     objectName: "platformLabel"
                     text: qsTr("Linux")

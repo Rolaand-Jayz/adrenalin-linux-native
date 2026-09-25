@@ -35,8 +35,9 @@ own acceptance criteria and dependency gates pass.
   reads when provider or observer state is unavailable. Contract-only Notifications1
   and Profiles1 schemas, mocks, and private-bus tests now pin their bounded wire
   surfaces. Production Notifications1 persistence and a real consent-change producer
-  now exist with shared event sequencing; notification client reconciliation and toast
-  delivery, production profiles/inheritance semantics, other ID-107 families, and
+  now exist with shared event sequencing; persistent notification history now has
+  a client model and shell panel with unread state and read actions. Toast delivery,
+  production profiles/inheritance semantics, other ID-107 families, and
   ID-185 recovery remain open.
 - ID-093 event contract: the consent tracer now uses the required event envelope;
   applying it to the remaining v1 services is still open.
@@ -243,6 +244,23 @@ required for Ticket 02 acceptance.
     sub-scope: no notification client/UI,
     toast preference/delivery, critical recovery producer, bounded history/query
     policy, or Ticket 08 acceptance is claimed; Ticket 03 remains open.
+  - [x] Notifications1 client/history UI sub-scope: the asynchronous D-Bus model
+    reconciles persistent snapshots with service readiness and NotificationsChanged,
+    retains the same operation UUID after uncertain outcomes, and discards stale
+    snapshots when a signal arrives in flight. Main shell now exposes an accessible
+    bell, unread badge, persistent history, human-readable consent messages, and
+    explicit mark-read controls. Client tests cover model roles, retry identity, and
+    in-flight snapshot/event reconciliation; integrated strict-warning shell/client
+    targets build, all available CTest entries pass 15/15 including the focused
+    contracts and shell smoke test, and QML lint passes. The Catch2-based identity
+    test is excluded because this environment has a package config shim but lacks the
+    Catch2 v3 headers needed to compile it. Independent review found no
+    blocker in async identity, readiness, cursor, or retry handling. The UI test calls
+    the panel action helper rather than clicking the rendered Mark as read button, so
+    that final pointer/accessibility interaction is not directly exercised. This is a
+    tested client/UI sub-scope only: toast preference/delivery, remaining notification
+    producers, critical recovery notices, and bounded history policy remain open;
+    Ticket 03 and Ticket 08 are not complete.
   - [x] Profiles1 now defines typed global/game profile reads and updates, stable
     subject validation, bounded scalar setting patches, expected-revision checks,
     operation replay/conflict behavior, and the versioned ID-093 event shape. A

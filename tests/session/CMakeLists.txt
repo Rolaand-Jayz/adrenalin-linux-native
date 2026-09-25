@@ -183,6 +183,48 @@ set(ADRENALIN_PROFILES1_XML
 set_source_files_properties("${ADRENALIN_PROFILES1_XML}"
     PROPERTIES QT_RESOURCE_ALIAS org.adrenalinlinux.Session1.Profiles1.xml
 )
+set_source_files_properties(NotificationsPanelHarness.qml
+    PROPERTIES QT_RESOURCE_ALIAS NotificationsPanelHarness.qml
+)
+set_source_files_properties("${ADRENALIN_SOURCE_ROOT}/qml/NotificationsPanel.qml"
+    PROPERTIES QT_RESOURCE_ALIAS NotificationsPanel.qml
+)
+qt_add_executable(adrenalin-notifications1-client-test
+    notifications1_client_test.cpp
+)
+qt_add_qml_module(adrenalin-notifications1-client-test
+    URI Adrenalin.NotificationsClientTests
+    VERSION 1.0
+    QML_FILES
+        NotificationsPanelHarness.qml
+        "${ADRENALIN_SOURCE_ROOT}/qml/NotificationsPanel.qml"
+)
+target_include_directories(adrenalin-notifications1-client-test PRIVATE
+    "${ADRENALIN_SOURCE_ROOT}"
+)
+target_link_libraries(adrenalin-notifications1-client-test PRIVATE
+    adrenalin-session-contract
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::Test
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(adrenalin-notifications1-client-test PRIVATE
+        -Wall -Wextra -Wpedantic -Werror
+    )
+endif()
+add_test(NAME adrenalin-notifications1-client
+    COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" -- $<TARGET_FILE:adrenalin-notifications1-client-test>
+)
+set_tests_properties(adrenalin-notifications1-client PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 30
+)
+
 qt_add_executable(adrenalin-profiles1-contract-test
     profiles1_contract_test.cpp
 )
