@@ -162,12 +162,12 @@ required for Ticket 02 acceptance.
 
 **Additional audited-spec tracking (ID-105/107):**
 
-- [ ] Add the typed Hardware1 device-list/static-info/capability contract,
+- [x] Add the typed Hardware1 device-list/static-info/capability contract,
   generated bindings, test-only mock, and private-bus record round-trip before
   wiring any production hardware provider.
   - [x] The private-bus proxy/mock round-trip suite passes in the focused
     harness. Independent review and lead re-review confirm the bounded
-    wire/mock/test slice below; production integration remains open.
+    wire/mock/test slice below.
   - [x] The generated Reply signature matches the complete serialized field
     order, including typed subject identity; failed reads expose no stale payload.
     Both seven-field event declarations are checked in order by introspection.

@@ -50,13 +50,17 @@ remains the active implementation frontier.
   The test-enabled
   configure used a temporary Catch2 package shim because Catch2 v3 is not
   installed; only the DRM target was built. The full production app/sessiond
-  build with tests disabled passed. DRM device nodes are not exposed on this host,
-  so runtime hardware enumeration was not verified. The sources remain
-  unconsumed by SessionService; no production Hardware1 provider is claimed.
-- Independent review confirms Hardware1 is still not exported by the production
-  Session1 service; production event emission, ID-107's remaining operation
-  families, event gap reconciliation, and ID-185 startup recovery remain open.
-  The corrected test-only mock is not used as runtime hardware data.
+  build with tests disabled passed. DRM device nodes were not exposed during that
+  source-only check, so runtime enumeration was not verified there. Subsequent
+  work consumes the GPU, CPU-package, and display sources in the production
+  Hardware1 inventory provider; this host's current provider-backed result is
+  covered by the focused integration tests.
+- The production Session1 service now exports initial Hardware1 reads from the
+  real inventory provider; focused private-bus integration covers the generated
+  adaptor. Failed inventory leaves the service FAILED with empty typed failure
+  replies. Refresh/removal reconciliation, ID-107's remaining operation families,
+  event gap reconciliation, and full ID-185 startup recovery remain open. The
+  separate test-only snapshot injection target is not used by the production daemon.
 - The current service completes database initialization before READY, but it does
   not yet perform the full ID-185 reconciliation sequence. Hardware/display
   inventory/recovery, capability rebuild, telemetry recreation, hotkey rebind,
@@ -73,13 +77,11 @@ remains the active implementation frontier.
   registry membership/scope, and the focused contract test checks token syntax,
   a golden v1 ID-set digest, every scope mapping, and unknown/wrong-scope
   rejection. It is vocabulary only: closed provider/evidence vocabularies and
-  capability-specific unit/enum mappings are now enforced, while hardware-backed
-  source qualification, graphics/runtime capabilities, remaining display/system
-  feature mappings, and provider-backed graph construction remain open.
-  `SessionService` still
-  advances to READY after database initialization alone. Treating failed DRM
-  access as an empty inventory or publishing a partial graph would violate the
-  Hardware1 contract.
+  capability-specific unit/enum mappings are enforced, while graphics/runtime
+  capabilities, remaining display/system feature mappings, and wider provider
+  qualification remain open. The service now waits for a successful initial
+  Hardware1 inventory before READY and fails closed when discovery fails. Full
+  ID-185 recovery remains incomplete.
   An independent ID-107 frontier audit found the remaining families depend on
   shared schemas, providers, safety semantics, or prerequisite tickets, so no
   disjoint implementation was started. Ticket 03 remains open at this shared
