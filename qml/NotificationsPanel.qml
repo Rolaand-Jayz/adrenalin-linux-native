@@ -34,6 +34,20 @@ Item {
         }
     }
 
+    function operationMessage(code) {
+        switch (code) {
+        case "BACKEND_UNAVAILABLE":
+            return qsTr("The notification service is unavailable. Refresh the history before trying again.")
+        case "STALE_REVISION":
+        case "CONFLICT":
+            return qsTr("Notification history changed while updating. Review the current history and try again.")
+        case "NOT_FOUND":
+            return qsTr("This notification is no longer available. Refresh the history to see current notifications.")
+        default:
+            return qsTr("The notification could not be marked as read. Refresh the history before trying again.")
+        }
+    }
+
     function formattedTime(value) {
         const parsed = Date.parse(value)
         if (!Number.isFinite(parsed))
@@ -146,6 +160,28 @@ Item {
                 Layout.fillWidth: true
                 height: 1
                 color: "#343944"
+            }
+
+            Rectangle {
+                objectName: "notificationsOperationError"
+                visible: root.client !== null && root.client.lastOperationCode !== ""
+                Layout.fillWidth: true
+                implicitHeight: operationErrorLabel.implicitHeight + 20
+                color: "#362a1c"
+
+                Label {
+                    id: operationErrorLabel
+                    objectName: "notificationsOperationErrorMessage"
+                    anchors.fill: parent
+                    anchors.leftMargin: 18
+                    anchors.rightMargin: 18
+                    anchors.topMargin: 10
+                    anchors.bottomMargin: 10
+                    text: root.client === null ? "" : root.operationMessage(root.client.lastOperationCode)
+                    Accessible.role: Accessible.AlertMessage
+                    wrapMode: Text.WordWrap
+                    color: "#f2c27a"
+                }
             }
 
             Item {

@@ -97,7 +97,14 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   cursor, or retry flow. The UI test opens notification history and clicks the
   rendered Mark as read button. Toast preference/delivery, other
   notification producers, critical recovery notices, and bounded history policy
-  remain open. SessionService JSON logs include service UUID and generation; this
+  remain open. The follow-up error-feedback slice adds an accessible status banner
+  and a rendered failure-path check for fixed human text, no raw backend code, and
+  preserved unread state. The focused client suite passed 1/1 before a final
+  copy-only refinement; `qmllint` and `git diff --check` pass afterward. A later
+  focused CTest retry could not start its private D-Bus daemon because sandbox
+  socket binding was denied. The revised copy avoids promising retry or refresh
+  completion prematurely. This does not close Ticket 03 or Ticket 08.
+  SessionService JSON logs include service UUID and generation; this
   satisfies the logging sub-scope, while READY remains gated on complete ID-185
   recovery. These are local results, not hosted CI. MarkRead reports persisted
   revision-counter exhaustion as an internal failure; the strict-warning rebuild and

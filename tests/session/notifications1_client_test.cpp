@@ -87,6 +87,15 @@ public:
         if (message.interface() == QLatin1String("org.adrenalinlinux.Session1.Notifications1")
             && message.member() == QLatin1String("MarkRead")) {
             const QString operationId = message.arguments().at(1).toString();
+            if (!markReadErrorCode_.isEmpty()) {
+                const QString code = std::exchange(markReadErrorCode_, QString{});
+                operationIds_.append(operationId);
+                return connection.send(message.createReply(
+                    QVariantList{code, operationId, QString{}, QString{}, false,
+                     QStringLiteral("session-notifications"), item_.notificationId,
+                     QVariant::fromValue<qulonglong>(revision_), false, instanceUuid_,
+                     QVariant::fromValue<qulonglong>(3), QVariant::fromValue(eventSequence_)}));
+            }
             operationIds_.append(operationId);
             if (operationIds_.size() == 1) {
                 return connection.send(message.createReply(
@@ -127,6 +136,7 @@ public:
     QString instanceUuid() const { return instanceUuid_; }
     const QStringList &operationIds() const { return operationIds_; }
     void holdNextList() { holdNextList_ = true; }
+    void setMarkReadError(QString code) { markReadErrorCode_ = std::move(code); }
     bool hasPendingList() const { return !pendingList_.path().isEmpty(); }
     bool releasePendingList(const QDBusConnection &connection)
     {
@@ -165,6 +175,7 @@ private:
     QDBusMessage pendingList_;
     QVariantList pendingListResponse_;
     QStringList operationIds_;
+    QString markReadErrorCode_;
 };
 
 class Notifications1ClientTest final : public QObject
@@ -172,6 +183,7 @@ class Notifications1ClientTest final : public QObject
     Q_OBJECT
 private slots:
     void listAndMarkReadUseAsyncServiceContract();
+    void markReadFailureShowsHumanReadableStatus();
     void signalDuringSnapshotDiscardsTheOlderSnapshot();
 };
 
@@ -248,6 +260,67 @@ void Notifications1ClientTest::listAndMarkReadUseAsyncServiceContract()
     QDBusConnection::disconnectFromBus(clientName);
 }
 
+
+
+void Notifications1ClientTest::markReadFailureShowsHumanReadableStatus()
+{
+    QDBusConnection serviceBus = QDBusConnection::sessionBus();
+    const QString clientName = QStringLiteral("adrenalin-notifications-error-%1")
+                                   .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    const QDBusConnection clientBus = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientName);
+    QVERIFY(serviceBus.isConnected());
+    QVERIFY(clientBus.isConnected());
+    NotificationsFixture fixture;
+    fixture.setMarkReadError(QStringLiteral("BACKEND_FAILURE"));
+    const QString path = QString::fromLatin1(adrenalin::session1::objectPath);
+    const QString name = QString::fromLatin1(adrenalin::session1::serviceName);
+    QVERIFY(serviceBus.registerVirtualObject(path, &fixture));
+    QVERIFY(serviceBus.registerService(name));
+    {
+        Notifications1Client client(clientBus);
+        QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("sessionNotificationsClient"),
+                                                 &client);
+        engine.loadFromModule(QStringLiteral("Adrenalin.NotificationsClientTests"),
+                              QStringLiteral("NotificationsPanelHarness"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        QObject *window = engine.rootObjects().constFirst();
+        QObject *notificationsButton = window->findChild<QObject *>(
+            QStringLiteral("notificationsButton"));
+        QObject *historyPopup = window->findChild<QObject *>(
+            QStringLiteral("notificationsHistoryPopup"));
+        QVERIFY(notificationsButton != nullptr);
+        QVERIFY(historyPopup != nullptr);
+        QVERIFY(QMetaObject::invokeMethod(notificationsButton, "click"));
+        QTRY_VERIFY_WITH_TIMEOUT(historyPopup->property("visible").toBool(), 1000);
+        QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+        auto *popupContent = qvariant_cast<QQuickItem *>(
+            historyPopup->property("contentItem"));
+        QVERIFY(popupContent != nullptr);
+        QQuickItem *markReadButton = findVisualItem(
+            popupContent, QStringLiteral("notificationsMarkReadButton"));
+        QVERIFY(markReadButton != nullptr);
+        QVERIFY(markReadButton->isEnabled());
+        QVERIFY(QMetaObject::invokeMethod(markReadButton, "click"));
+        QTRY_VERIFY_WITH_TIMEOUT(client.lastOperationCode() == QLatin1String("BACKEND_FAILURE"),
+                                 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(client.ready(), 3000);
+        QObject *errorMessage = window->findChild<QObject *>(
+            QStringLiteral("notificationsOperationErrorMessage"));
+        QVERIFY(errorMessage != nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(errorMessage->property("visible").toBool(), 3000);
+        const QString displayedMessage = errorMessage->property("text").toString();
+        QVERIFY(displayedMessage.contains(QStringLiteral("could not be marked as read")));
+        QVERIFY(!displayedMessage.contains(QStringLiteral("BACKEND_FAILURE")));
+        QCOMPARE(client.unreadCount(), 1);
+        QCOMPARE(fixture.operationIds().size(), 1);
+    }
+    serviceBus.unregisterService(name);
+    serviceBus.unregisterObject(path);
+    QDBusConnection::disconnectFromBus(clientName);
+}
 
 void Notifications1ClientTest::signalDuringSnapshotDiscardsTheOlderSnapshot()
 {

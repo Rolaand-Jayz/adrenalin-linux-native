@@ -273,6 +273,15 @@ independent, checksum-bound review and parity evidence.
     sub-scope only: toast preference/delivery, remaining notification
     producers, critical recovery notices, and bounded history policy remain open;
     Ticket 03 and Ticket 08 are not complete.
+  - [x] Notification action errors now have an accessible status banner with fixed
+    human-readable messages; the rendered Mark as read failure path is exercised
+    and verifies that backend error codes are not exposed and unread state is
+    preserved. The client suite passed 1/1 before a final copy-only refinement;
+    `qmllint` and `git diff --check` pass after that refinement. A subsequent
+    focused CTest retry could not start its private D-Bus daemon because the
+    sandbox denied binding its temporary socket. The displayed guidance no longer
+    promises retry or refresh outcomes before they are known. This is UI/error
+    feedback polish only and does not close Ticket 03 or Ticket 08.
   - [x] Structured session logs are compact JSON records with timestamp, level,
     event, service name, service-instance UUID, current service generation, and API
     version. `SessionService::logEvent()` emits these fields for state changes,
