@@ -52,13 +52,14 @@ remains the active implementation frontier.
   advances it before publishing readiness; PropertiesChanged still reports only
   values that actually changed. The focused session contract test covers this.
 - A bounded implementation-owned Hardware1 v1 capability-ID catalog now names
-  selected GPU metrics/controls, per-package CPU metrics, platform RAM, and
-  per-display controls. Subject assignments are documented implementation
+  GPU/CPU/platform metrics, per-display controls, and Ticket 24–26 GPU tuning
+  families. Subject assignments are documented implementation
   choices where the spec does not assign scope. Record validation enforces
   registry membership/scope, and the focused contract test checks token syntax,
   a golden v1 ID-set digest, every scope mapping, and unknown/wrong-scope
   rejection. It is vocabulary only: provider/evidence registries,
-  source-qualified units and enum domains, additional feature mappings, and
+  source-qualified units and enum domains, graphics/runtime capabilities,
+  remaining display/system feature mappings, and
   provider-backed graph construction remain open. `SessionService` still
   advances to READY after database initialization alone. Treating failed DRM
   access as an empty inventory or publishing a partial graph would violate the

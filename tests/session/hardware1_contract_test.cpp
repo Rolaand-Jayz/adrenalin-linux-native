@@ -396,7 +396,29 @@ private slots:
         std::sort(canonicalIds.begin(), canonicalIds.end());
         const QByteArray catalogBytes = canonicalIds.join(QLatin1Char('\n')).toUtf8();
         QCOMPARE(QCryptographicHash::hash(catalogBytes, QCryptographicHash::Sha256).toHex(),
-                 QByteArray("e4adc9bbcb5e20b5b92cebf759dfaa1e285d6588868ad920cd798fe377ac91e2"));
+                 QByteArray("e4bd9ddf820f84baa6529728aca61bd64c7166d38997fad05836dc98b5c6a145"));
+
+        QStringList canonicalMappings;
+        for (const auto &definition : registry) {
+            QStringList kinds = definition.subjectKinds;
+            std::sort(kinds.begin(), kinds.end());
+            canonicalMappings.push_back(definition.id + QLatin1Char(':')
+                                        + kinds.join(QLatin1Char(',')));
+            for (const QString &kind : subjectKinds) {
+                Capability record;
+                record.subjectKind = kind;
+                record.subjectId = kind == QLatin1String("PLATFORM")
+                    ? QStringLiteral("platform") : QStringLiteral("opaque-test-subject");
+                record.capabilityId = definition.id;
+                record.supportState = QStringLiteral("UNKNOWN");
+                QCOMPARE(record.isValid(), definition.subjectKinds.contains(kind));
+            }
+        }
+        std::sort(canonicalMappings.begin(), canonicalMappings.end());
+        const QByteArray mappingBytes = canonicalMappings.join(QLatin1Char('\n')).toUtf8();
+        QCOMPARE(QCryptographicHash::hash(mappingBytes, QCryptographicHash::Sha256).toHex(),
+                 QByteArray("8db9f469bbccc189ed132d8702977114fbf57b4b58dc9d5acb8a6fbe09c000b5"));
+
         QVERIFY(capabilityAppliesToV1(QStringLiteral("gpu.metric.utilization"), QStringLiteral("GPU_PCI")));
         QVERIFY(capabilityAppliesToV1(QStringLiteral("cpu.metric.temperature"), QStringLiteral("CPU_PACKAGE")));
         QVERIFY(capabilityAppliesToV1(QStringLiteral("platform.metric.system_ram"), QStringLiteral("PLATFORM")));

@@ -194,14 +194,17 @@ own acceptance criteria and dependency gates pass.
     the service is STARTING/RECOVERING. Successful database recovery advances to
     the persisted generation before READY. The session private-bus suite covers
     the startup envelope and passes.
-  - [x] Added the implementation-owned `hardware1` v1 capability ID catalog
-    for named GPU metrics/controls, per-package CPU metrics, platform RAM, and
-    per-display controls. Scope is a documented implementation decision where
-    the spec does not assign it. `Capability::isValid()` enforces registry
-    membership and subject-kind applicability; contract coverage checks token
-    syntax, the pinned v1 ID set, every catalog scope mapping, and unknown/wrong-
-    scope record rejection. This is vocabulary only: no provider, evidence,
-    unit/enum registry, or supported capability state is claimed.
+  - [x] Added the implementation-owned Hardware1 v1 capability ID catalog for
+    named GPU metrics, per-package CPU metrics, platform RAM, per-display
+    controls, and the explicitly inventoried GPU tuning families (frequency,
+    voltage, VRAM, fan, power, automatic modes/presets, VGM, SAM, and stress
+    test). Scope is a documented implementation decision where the spec does
+    not assign it. `Capability::isValid()` enforces registry membership and
+    subject-kind applicability; contract coverage pins the ID set and ID-to-scope
+    mappings, checks token syntax, and rejects unknown/wrong-scope records. This
+    is vocabulary only: provider/evidence IDs, source-qualified units and enum
+    values, additional feature mappings, or any supported hardware state remain
+    unclaimed.
   - [ ] Production snapshot integration remains open beyond the bounded ID/scope
     catalog: provider/evidence vocabularies, source-qualified units and enum
     domains, further parity-feature mappings (including game/runtime and tuning

@@ -14,7 +14,9 @@ Final Audited Engineering Spec. Some subject assignments are implementation
 choices because the spec defines subject kinds but does not map every feature to
 a subject:
 
-- GPU metrics and clock/fan/voltage controls map to `GPU_PCI`.
+- GPU metrics and clock, voltage, VRAM, fan, power, tuning-mode/preset,
+  Variable Graphics Memory, and stress-test capabilities map to `GPU_PCI`.
+- Smart Access Memory is platform-wide and maps to `PLATFORM`.
 - CPU utilization, frequency, and temperature IDs describe per-package values
   and map to `CPU_PACKAGE`; system-wide CPU measures require a `PLATFORM` ID.
 - System RAM maps to the single `PLATFORM` subject.
@@ -27,8 +29,9 @@ values; live samples and metric definitions belong to Telemetry1.
 
 IDs are lowercase stable tokens and are returned by `capabilityRegistryV1()`.
 `Capability::isValid()` checks registry membership and subject-kind applicability,
-so unknown IDs and non-listed pairs cannot pass record validation. A golden
-SHA-256 over the sorted ID set pins the v1 vocabulary in its contract test. The
+so unknown IDs and non-listed pairs cannot pass record validation. Golden
+SHA-256 digests over the sorted ID set and ID-to-scope mappings pin the v1
+vocabulary in its contract test. The
 registry does not use labels, marketing names, or array positions to infer scope.
 
 ## Deliberately not assigned here
