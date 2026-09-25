@@ -3,6 +3,7 @@
 #include "session_database.h"
 #include "interfaces/settings1_contract.h"
 #include "interfaces/notifications1_contract.h"
+#include "interfaces/display1_contract.h"
 #include "interfaces/linux_hardware1_inventory_provider.h"
 
 #include <QObject>
@@ -13,7 +14,9 @@
 
 #include <memory>
 
-class SessionService final : public QObject, public Settings1Contract, public adrenalin::contracts::notifications1::Contract
+class SessionService final : public QObject, public Settings1Contract,
+                             public adrenalin::contracts::notifications1::Contract,
+                             public adrenalin::contracts::display1::Contract
 {
     friend class SessionContractTest;
 
@@ -65,6 +68,17 @@ public:
     adrenalin::contracts::notifications1::ListReply listNotifications() const override;
     adrenalin::contracts::notifications1::MarkReadReply markRead(
         const QString &notificationId, const QString &operationId, quint64 expectedRevision) override;
+    adrenalin::contracts::display1::ListReply listDisplays() const override;
+    adrenalin::contracts::display1::StateReply getDisplayState(
+        const QString &subjectId) const override;
+    adrenalin::contracts::display1::ValidationReply validateDisplay(
+        const QString &operationId, const QString &subjectId,
+        quint64 expectedInventoryGeneration, quint64 expectedCapabilityGeneration,
+        const QList<adrenalin::contracts::display1::ControlChange> &changes) const override;
+    adrenalin::contracts::display1::ApplyReply applyDisplay(
+        const QString &operationId, const QString &subjectId,
+        quint64 expectedInventoryGeneration, quint64 expectedCapabilityGeneration,
+        const QList<adrenalin::contracts::display1::ControlChange> &changes) override;
 #ifdef ADRENALIN_SESSION_HARDWARE1_TESTING
     void setHardware1SnapshotForTesting(
         const adrenalin::hardware::Hardware1Snapshot &snapshot);
@@ -99,6 +113,10 @@ signals:
                                 qulonglong event_sequence, const QString &subject_kind,
                                 const QString &subject_id, qulonglong inventory_generation,
                                 qulonglong capability_generation);
+    void DisplayChanged(const QString &service_instance_uuid, qulonglong service_generation,
+                        qulonglong event_sequence, const QString &subject_kind,
+                        const QString &subject_id, qulonglong inventory_generation,
+                        qulonglong capability_generation);
     void NotificationsChanged(const QString &service_instance_uuid, qulonglong service_generation,
                               qulonglong event_sequence, const QString &subject_kind,
                               const QString &subject_id, qulonglong revision);

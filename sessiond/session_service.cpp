@@ -299,6 +299,11 @@ bool SessionService::publishHardwareInitialization(
         emit InventoryChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
                               subject.first, subject.second, snapshot.inventoryGeneration,
                               snapshot.capabilityGeneration);
+        if (subject.first == QLatin1String("DISPLAY")) {
+            emit DisplayChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                subject.first, subject.second, snapshot.inventoryGeneration,
+                                snapshot.capabilityGeneration);
+        }
         emit eventPublished();
     }
     for (const auto &subject : capabilitySubjects) {
@@ -309,6 +314,11 @@ bool SessionService::publishHardwareInitialization(
         emit CapabilityGraphChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
                                     subject.first, subject.second, snapshot.inventoryGeneration,
                                     snapshot.capabilityGeneration);
+        if (subject.first == QLatin1String("DISPLAY")) {
+            emit DisplayChanged(serviceInstanceUuid(), serviceGeneration(), eventSequence_,
+                                subject.first, subject.second, snapshot.inventoryGeneration,
+                                snapshot.capabilityGeneration);
+        }
         emit eventPublished();
     }
     logEvent(QStringLiteral("service_ready"), QStringLiteral("info"));
@@ -581,6 +591,146 @@ adrenalin::contracts::hardware1::Reply SessionService::getHardwareCapabilityGrap
         }
     }
     return reply;
+}
+
+adrenalin::contracts::display1::ListReply SessionService::listDisplays() const
+{
+    using namespace adrenalin::contracts;
+    using namespace adrenalin::contracts::display1;
+    QList<hardware1::Device> devices;
+    ListReply result;
+    result.snapshot = listHardwareDevices(&devices);
+    if (result.snapshot.code == QLatin1String("OK")) {
+        for (const auto &device : devices) {
+            if (device.subjectKind == QLatin1String("DISPLAY")) {
+                result.displays.append(device);
+            }
+        }
+    }
+    return result;
+}
+
+adrenalin::contracts::display1::StateReply SessionService::getDisplayState(
+    const QString &subjectId) const
+{
+    using namespace adrenalin::contracts;
+    using namespace adrenalin::contracts::display1;
+    StateReply result;
+    hardware1::DeviceInfo info;
+    result.snapshot = getHardwareDeviceInfo(QStringLiteral("DISPLAY"), subjectId, &info);
+    if (result.snapshot.code != QLatin1String("OK")) {
+        return result;
+    }
+    result.display.subjectKind = info.subjectKind;
+    result.display.subjectId = info.subjectId;
+    result.display.identityEvidence = info.identityEvidence;
+    result.display.displayName = info.displayName;
+    result.snapshot = getHardwareCapabilityGraph(QStringLiteral("DISPLAY"), subjectId,
+                                                  &result.capabilities);
+    if (result.snapshot.code != QLatin1String("OK")) {
+        result.display = {};
+        result.capabilities.clear();
+        return result;
+    }
+    result.snapshot = hardwareReply(this, hardware1Snapshot_, QStringLiteral("DISPLAY"), subjectId);
+    return result;
+}
+
+adrenalin::contracts::display1::ValidationReply SessionService::validateDisplay(
+    const QString &operationId, const QString &subjectId,
+    quint64 expectedInventoryGeneration, quint64 expectedCapabilityGeneration,
+    const QList<adrenalin::contracts::display1::ControlChange> &changes) const
+{
+    using namespace adrenalin::contracts;
+    using namespace adrenalin::contracts::display1;
+    const auto snapshot = hardware1Snapshot_;
+    Reply envelope = hardwareReply(this, snapshot, QStringLiteral("DISPLAY"), subjectId);
+    ValidationReply result;
+    result.operationId = operationId;
+    result.subjectId = subjectId;
+    result.serviceInstanceUuid = envelope.serviceInstanceUuid;
+    result.serviceGeneration = envelope.serviceGeneration;
+    result.snapshotValid = envelope.snapshotValid;
+    result.inventoryGeneration = envelope.inventoryGeneration;
+    result.capabilityGeneration = envelope.capabilityGeneration;
+    result.provider = QStringLiteral("linux-drm-display-identity");
+    result.safetyClass = QStringLiteral("UNKNOWN");
+    result.code = envelope.code;
+    result.humanMessageKey = envelope.humanMessageKey;
+    result.diagnosticMessage = envelope.diagnosticMessage;
+    result.retryable = envelope.retryable;
+    auto reject = [&](const QString &code, const QString &key, const QString &message) {
+        result.code = code;
+        result.humanMessageKey = key;
+        result.diagnosticMessage = message;
+        result.retryable = code == QLatin1String("BUSY");
+    };
+    if (QUuid(operationId).isNull() || QUuid(operationId).toString(QUuid::WithoutBraces)
+            .compare(operationId, Qt::CaseInsensitive) != 0
+        || subjectId.isEmpty() || changes.isEmpty()) {
+        result.operationId.clear();
+        reject(QStringLiteral("INVALID_ARGUMENT"), QStringLiteral("operation.invalidArgument"),
+               QStringLiteral("Display operation identity or changes are invalid"));
+        return result;
+    }
+    QSet<QString> changedIds;
+    for (const auto &change : changes) {
+        if (!change.isValid() || changedIds.contains(change.capabilityId)) {
+            reject(QStringLiteral("INVALID_ARGUMENT"), QStringLiteral("operation.invalidArgument"),
+                   QStringLiteral("Display changes must be valid and have unique capability IDs"));
+            return result;
+        }
+        changedIds.insert(change.capabilityId);
+    }
+    if (!result.snapshotValid) {
+        return result;
+    }
+    const auto state = getDisplayState(subjectId);
+    if (state.snapshot.code != QLatin1String("OK")) {
+        reject(state.snapshot.code, state.snapshot.humanMessageKey,
+               state.snapshot.diagnosticMessage);
+        return result;
+    }
+    if (expectedInventoryGeneration != state.snapshot.inventoryGeneration) {
+        reject(QStringLiteral("CONFLICT"), QStringLiteral("operation.conflict"),
+               QStringLiteral("Display inventory generation is stale"));
+        return result;
+    }
+    if (expectedCapabilityGeneration != state.snapshot.capabilityGeneration) {
+        reject(QStringLiteral("STALE_CAPABILITY"), QStringLiteral("capability.stale"),
+               QStringLiteral("Display capability generation is stale"));
+        return result;
+    }
+    reject(QStringLiteral("UNSUPPORTED"), QStringLiteral("display.validation.failed"),
+           QStringLiteral("No production display control and safety provider is available"));
+    return result;
+}
+
+adrenalin::contracts::display1::ApplyReply SessionService::applyDisplay(
+    const QString &operationId, const QString &subjectId,
+    quint64 expectedInventoryGeneration, quint64 expectedCapabilityGeneration,
+    const QList<adrenalin::contracts::display1::ControlChange> &changes)
+{
+    using namespace adrenalin::contracts::display1;
+    const ValidationReply validation = validateDisplay(operationId, subjectId,
+        expectedInventoryGeneration, expectedCapabilityGeneration, changes);
+    ApplyReply result;
+    result.code = validation.code;
+    result.operationId = validation.operationId;
+    result.humanMessageKey = validation.humanMessageKey;
+    result.diagnosticMessage = validation.diagnosticMessage;
+    result.retryable = validation.retryable;
+    result.provider = validation.provider;
+    result.subjectId = validation.subjectId;
+    result.serviceInstanceUuid = validation.serviceInstanceUuid;
+    result.serviceGeneration = validation.serviceGeneration;
+    result.snapshotValid = validation.snapshotValid;
+    result.inventoryGeneration = validation.inventoryGeneration;
+    result.capabilityGeneration = validation.capabilityGeneration;
+    result.eventSequence = eventSequence_;
+    result.safetyRouteIntent = QStringLiteral("NONE");
+    result.effectiveStateVerified = false;
+    return result;
 }
 
 bool SessionService::getProductTelemetryConsent(bool *enabled, quint64 *revision,

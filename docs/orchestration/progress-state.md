@@ -169,6 +169,18 @@ and ID-185 recovery sequence tracked against their owning production contracts.
   broader available suite passed 17/17. The safety route field is synthetic intent
   metadata only; there is no production guard/provider integration, event-gap or
   reconnect reconciliation, or completed ID-185 recovery. Ticket 03 remains open.
+- Display1 production identity/read and safe-refusal sub-scope (2026-09-25): the
+  daemon exports display list/state from the Hardware1 snapshot and returns typed
+  UNKNOWN capabilities without inventing state. Validate/apply return UNSUPPORTED
+  for valid changes until real control and safety providers exist; stale inputs are
+  rejected and apply has no route, verification, revision, mutation, or event.
+  Display1 relays display inventory/capability events using the corresponding
+  Hardware1 event cursor. Strict-warning daemon and session-test builds succeeded;
+  focused contract/session CTest passed 2/2. Startup tests verify BUSY with a valid
+  operation UUID and INVALID_ARGUMENT for malformed input without a snapshot. The
+  service-level assertions are not a Display1 private-D-Bus test. Modes,
+  active display state, successful control, production client reconciliation,
+  ID-185 display recovery, Ticket 19 and full ID-093 acceptance remain open.
 - Successful startup now completes database recovery and initial Hardware1 inventory
   composition before READY. This still does not perform the full ID-185 sequence:
   display recovery, capability rebuild after runtime changes, telemetry recreation,

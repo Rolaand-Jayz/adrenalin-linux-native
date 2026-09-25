@@ -56,7 +56,8 @@ bool validEnvelope(const QString &serviceInstanceUuid, quint64 serviceGeneration
         return true;
     }
     const bool allowedCode = code == QLatin1String("BUSY")
-        || code == QLatin1String("BACKEND_UNAVAILABLE");
+        || code == QLatin1String("BACKEND_UNAVAILABLE")
+        || code == QLatin1String("INVALID_ARGUMENT");
     if (!allowedCode || retryable != (code == QLatin1String("BUSY"))
         || inventoryGeneration != 0 || capabilityGeneration != 0) {
         return fail(error, QStringLiteral("invalid display snapshot has inconsistent readiness fields"));

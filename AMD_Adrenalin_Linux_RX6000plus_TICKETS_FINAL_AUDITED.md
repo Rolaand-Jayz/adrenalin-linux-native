@@ -247,6 +247,20 @@ identities or derived install locations.
     does not implement Display1 production events or complete the remaining ID-093
     families, Hardware1 operation families, or ID-185 recovery; Ticket 03 remains
     open.
+  - [x] Display1 production identity/read and safe-refusal sub-scope (2026-09-25):
+    the daemon now exports Display1 list/state methods from the current Hardware1
+    snapshot, filtering display subjects and retaining typed UNKNOWN capability
+    rows. Validate/apply reject malformed or stale requests and return UNSUPPORTED
+    for otherwise valid changes until production control and safety providers exist;
+    apply reports no route, verification, revision, mutation, or event. Display1
+    relays display inventory/capability events with the exact shared Hardware1 event
+    envelope and cursor. Strict-warning daemon and session-test targets build, and
+    focused contract/session CTest passes 2/2. Startup tests cover BUSY envelopes
+    with a valid operation UUID and INVALID_ARGUMENT for malformed requests even
+    when no snapshot is available. This service-level test does not yet exercise Display1
+    over private D-Bus. No modes, active display state, successful mutations,
+    production Display1 client reconciliation, ID-185 display recovery, Ticket 19,
+    or full ID-093 acceptance is claimed; Ticket 03 remains open.
   - [x] CPU_PACKAGE static-info sub-scope (2026-09-25): production Hardware1
     `GetDeviceInfo` now reports the source CPUID vendor identifier and decimal
     family/model pair from hwloc evidence. It does not expose stepping or the

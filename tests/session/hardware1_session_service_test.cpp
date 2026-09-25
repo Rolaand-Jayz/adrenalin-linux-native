@@ -1,4 +1,5 @@
 #include "interfaces/hardware1_contract_types.h"
+#include "interfaces/display1_contract_types.h"
 #include "hardware1_adaptor.h"
 #include "sessiond/session_service.h"
 #include "session_identity.h"
@@ -56,6 +57,78 @@ private slots:
         registerMetaTypes();
         bus_ = QDBusConnection::sessionBus();
         QVERIFY(bus_.isConnected());
+    }
+
+    void displayIdentityReadAndSafeMutationRefusal()
+    {
+        constexpr auto displayId = "display-integration-test";
+        QTemporaryDir dataDirectory;
+        QVERIFY(dataDirectory.isValid());
+        const QString databasePath = QDir(dataDirectory.path()).filePath(
+            QStringLiteral("display-session.sqlite3"));
+        SessionService service(databasePath);
+        adrenalin::contracts::display1::ControlChange change;
+        change.capabilityId = QStringLiteral("display.brightness");
+        change.value.kind = QStringLiteral("REAL");
+        change.value.realValue = 50.0;
+        const QString operationId = QStringLiteral("2ecf452f-5e9f-47ad-9a02-8f69b7b940c5");
+        const auto recovering = service.validateDisplay(operationId, QStringLiteral("pending"),
+                                                         0, 0, {change});
+        QVERIFY(recovering.isValid());
+        QCOMPARE(recovering.code, QStringLiteral("BUSY"));
+        const auto malformedWhileRecovering = service.validateDisplay(QStringLiteral("bad-id"),
+            QStringLiteral("pending"), 0, 0, {change});
+        QVERIFY(malformedWhileRecovering.isValid());
+        QCOMPARE(malformedWhileRecovering.code, QStringLiteral("INVALID_ARGUMENT"));
+        QVERIFY(malformedWhileRecovering.operationId.isEmpty());
+        auto snapshot = validSnapshot();
+        snapshot.devices.append({QStringLiteral("DISPLAY"), QString::fromLatin1(displayId),
+                                 QStringLiteral("integration.display.edid"),
+                                 QStringLiteral("Integration Display")});
+        DeviceInfo info;
+        info.subjectKind = QStringLiteral("DISPLAY");
+        info.subjectId = QString::fromLatin1(displayId);
+        info.identityEvidence = QStringLiteral("integration.display.edid");
+        info.displayName = QStringLiteral("Integration Display");
+        snapshot.deviceInfo.append(info);
+        Capability capability;
+        capability.subjectKind = info.subjectKind;
+        capability.subjectId = info.subjectId;
+        capability.capabilityId = QStringLiteral("display.brightness");
+        capability.supportState = QStringLiteral("UNKNOWN");
+        snapshot.capabilities.append(capability);
+        service.setHardware1SnapshotForTesting(snapshot);
+        QVERIFY(service.initialize());
+
+        const auto displays = service.listDisplays();
+        QVERIFY(displays.isValid());
+        QCOMPARE(displays.snapshot.code, QStringLiteral("OK"));
+        QCOMPARE(displays.displays.size(), 1);
+        QCOMPARE(displays.displays.constFirst().subjectId, QString::fromLatin1(displayId));
+
+        const auto state = service.getDisplayState(QString::fromLatin1(displayId));
+        QVERIFY(state.isValid());
+        QCOMPARE(state.display.displayName, QStringLiteral("Integration Display"));
+        QCOMPARE(state.capabilities.size(), 1);
+        QCOMPARE(state.capabilities.constFirst().supportState, QStringLiteral("UNKNOWN"));
+
+        const auto validation = service.validateDisplay(operationId,
+            QString::fromLatin1(displayId), state.snapshot.inventoryGeneration,
+            state.snapshot.capabilityGeneration, {change});
+        QVERIFY(validation.isValid());
+        QCOMPARE(validation.code, QStringLiteral("UNSUPPORTED"));
+        QVERIFY(!validation.valid);
+        QCOMPARE(validation.safetyClass, QStringLiteral("UNKNOWN"));
+
+        const quint64 eventSequence = service.eventSequence();
+        const auto applied = service.applyDisplay(operationId, QString::fromLatin1(displayId),
+            state.snapshot.inventoryGeneration, state.snapshot.capabilityGeneration, {change});
+        QVERIFY(applied.isValid());
+        QCOMPARE(applied.code, QStringLiteral("UNSUPPORTED"));
+        QCOMPARE(applied.safetyRouteIntent, QStringLiteral("NONE"));
+        QVERIFY(!applied.effectiveStateVerified);
+        QCOMPARE(applied.revision, quint64(0));
+        QCOMPARE(service.eventSequence(), eventSequence);
     }
 
     void exportsProviderBackedReadsAndTypedFailureEnvelopes()
@@ -132,6 +205,7 @@ private slots:
         QCOMPARE(graphReply.argumentAt<1>().size(), 1);
         QCOMPARE(graphReply.argumentAt<1>().constFirst().capabilityId,
                  QStringLiteral("cpu.metric.core_count"));
+
 
         auto platformInfoPending = proxy.GetDeviceInfo(QStringLiteral("PLATFORM"),
                                                          QStringLiteral("platform"));

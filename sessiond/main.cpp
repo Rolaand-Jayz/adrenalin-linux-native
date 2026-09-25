@@ -5,6 +5,7 @@
 #include "settings1_adaptor.h"
 #include "hardware1_adaptor.h"
 #include "notifications1_adaptor.h"
+#include "display1_adaptor.h"
 #include "service1_property_notifications.h"
 
 #include <QCoreApplication>
@@ -32,8 +33,10 @@ int main(int argc, char *argv[])
     auto *readiness = new SessionServiceRootAdaptor(&service);
     auto *hardware = new Hardware1Adaptor(&service);
     auto *notifications = new Notifications1Adaptor(&service);
+    auto *display = new Display1Adaptor(&service);
     adrenalin::contracts::hardware1::registerMetaTypes();
     adrenalin::contracts::notifications1::registerMetaTypes();
+    adrenalin::contracts::display1::registerMetaTypes();
     installService1PropertyNotifications(&service);
     QObject::connect(&service, &SessionService::eventSequenceExhausted,
                      &app, &QCoreApplication::quit);
@@ -41,6 +44,7 @@ int main(int argc, char *argv[])
     Q_UNUSED(readiness);
     Q_UNUSED(hardware);
     Q_UNUSED(notifications);
+    Q_UNUSED(display);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (!bus.isConnected()) {
