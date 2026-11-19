@@ -66,3 +66,7 @@ Kernel, Mesa, firmware, and package changes remain under distribution ownership.
 - [Reference-capture tooling](reference/README.md)
 
 A license file has not yet been added.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for project rules, safety requirements, and how to report bugs. This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).

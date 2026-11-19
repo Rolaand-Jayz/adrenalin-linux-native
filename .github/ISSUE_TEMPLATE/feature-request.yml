@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a feature or behavior change.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Scope is set by the final audited engineering spec. The behavior target is AMD Software: Adrenalin Edition 26.9.1 Optional on Radeon RX 6000 and newer GPUs.
+
+        Out of scope: FSR reverse engineering, and installing or replacing kernel, Mesa, firmware, or other distribution-owned packages.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today?
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Related Adrenalin screen or behavior
+      placeholder: e.g. Performance > Tuning, Display > Custom Resolutions
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: backend
+    attributes:
+      label: Linux backend, if known
+      description: The kernel interface, Mesa feature, portal, or library that could support this, with a source.
+  - type: dropdown
+    id: hardware_change
+    attributes:
+      label: Does this change GPU or display state?
+      description: Hardware-changing features need authorization, verified effective state, and rollback.
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

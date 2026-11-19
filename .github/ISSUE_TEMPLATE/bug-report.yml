@@ -1,0 +1,119 @@
+name: Bug report
+description: Report a reproducible problem in the shell, session service, inventory, build, or tooling.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project is in early development. It is not a GPU control utility yet, and no GPU or distribution configuration is certified. Fill in the environment completely.
+
+        Logs can contain user names and home-directory paths. Remove them before posting.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: One sentence describing the problem
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Application shell (QML UI)
+        - Session service (D-Bus)
+        - Hardware inventory
+        - Settings, profiles, or notifications
+        - Build, test, or install
+        - Reference-capture tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD` for the checkout you built.
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and version
+      placeholder: e.g. Arch Linux, Fedora 43, Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: kernel
+    attributes:
+      label: Kernel version
+      description: Output of `uname -r`.
+    validations:
+      required: true
+  - type: dropdown
+    id: session
+    attributes:
+      label: Session type
+      options:
+        - Wayland
+        - X11
+        - Offscreen / headless
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop environment or compositor
+      placeholder: e.g. KDE Plasma 6.5, GNOME 49, Sway
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU model
+      placeholder: e.g. Radeon RX 7900 GRE
+    validations:
+      required: true
+  - type: input
+    id: mesa
+    attributes:
+      label: Mesa version
+      placeholder: e.g. 25.2.4
+    validations:
+      required: true
+  - type: input
+    id: qt
+    attributes:
+      label: Qt version
+      placeholder: e.g. 6.8.3
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands, configure options, and actions.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and output
+      description: Terminal output, `ctest --output-on-failure` results, or journal lines.
+      render: text
